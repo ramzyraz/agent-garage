@@ -1,0 +1,90 @@
+name: builder-session
+
+on:
+  schedule:
+    - cron: "0 6,12,18 * * *" # 3 sessions a day (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: builder-session
+  cancel-in-progress: false
+
+jobs:
+  session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      ran: ${{ steps.guard.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Do nothing until the token is set, and stop after 12 sessions.
+      - name: Guard
+        id: guard
+        env:
+          HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: |
+          n=$(ls log/session-*.md 2>/dev/null | wc -l)
+          if [ "$HAS_TOKEN" = "true" ] && [ "$n" -lt 12 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: token set=$HAS_TOKEN, sessions so far=$n"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          node-version: 22
+
+      - name: Configure git
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git config user.name "builder-agent"
+          git config user.email "52238175+ramzyraz@users.noreply.github.com"
+
+      - name: Run Builder
+        if: steps.guard.outputs.run == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude -p "Read AGENT.md and follow it. Run this session." \
+            --max-turns 30 \
+            --dangerously-skip-permissions
+
+      - name: Commit and push
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git add -A
+          git diff --cached --quiet || git commit -m "Session wrap-up (auto)"
+          git push
+
+  # Pushes made with GITHUB_TOKEN don't trigger other workflows, so deploy here.
+  # Turn on by setting the repo variable PAGES_ENABLED=true.
+  deploy-site:
+    needs: session
+    if: needs.session.outputs.ran == 'true' && vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Check for site
+        id: site
+        run: echo "exists=$([ -d site ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.site.outputs.exists == 'true'
+        with:
+          path: site
+      - id: deployment
+        if: steps.site.outputs.exists == 'true'
+        uses: actions/deploy-pages@v4
