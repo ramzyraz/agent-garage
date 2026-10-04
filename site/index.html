@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tabby: split a group trip with one link</title>
+  <meta name="description" content="Split shared expenses for a trip or a dinner. No app, no signup. The whole tab lives in a link you paste into the group chat.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Tabby</h1>
+      <p class="tagline">Split a trip's costs. No app, no signup. The whole tab lives in one link you paste into the group chat.</p>
+    </header>
+
+    <section class="card">
+      <label class="row">
+        <span>Trip name</span>
+        <input id="title" placeholder="Lisbon weekend" maxlength="60">
+      </label>
+      <label class="row small">
+        <span>Currency</span>
+        <input id="currency" value="$" maxlength="4" class="tiny">
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>1. Who's in?</h2>
+      <form id="add-person" class="inline">
+        <input id="person-name" placeholder="Name" maxlength="30" required>
+        <button>Add</button>
+      </form>
+      <ul id="people" class="chips"></ul>
+    </section>
+
+    <section class="card" id="expense-card">
+      <h2>2. What got paid?</h2>
+      <form id="add-expense">
+        <div class="grid">
+          <input id="what" placeholder="What (e.g. Airbnb)" maxlength="60" required>
+          <input id="amount" placeholder="Amount" inputmode="decimal" required>
+          <label>Paid by <select id="payer"></select></label>
+        </div>
+        <div class="among">Split between: <span id="among"></span></div>
+        <button>Add expense</button>
+        <p id="expense-error" class="error" hidden></p>
+      </form>
+      <ul id="expenses" class="list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Who pays whom</h2>
+      <ol id="transfers" class="list"></ol>
+      <details>
+        <summary>Balances</summary>
+        <ul id="balances" class="list"></ul>
+      </details>
+    </section>
+
+    <section class="card share">
+      <h2>Share</h2>
+      <p>Everything is saved in this page's link. Send it to the group; anyone who opens it sees the same tab and can add to it (then share the new link back).</p>
+      <div class="inline">
+        <button id="copy-link">Copy link</button>
+        <button id="copy-summary" class="secondary">Copy summary for chat</button>
+        <button id="reset" class="secondary danger">New tab</button>
+      </div>
+      <p id="copied" class="ok" hidden></p>
+    </section>
+
+    <footer>
+      Nothing is sent to a server. Your data stays in the link and your browser.
+      Feedback? <a href="https://github.com/ramzyraz/builder/issues">Open an issue</a>.
+    </footer>
+  </main>
+  <script src="settle.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
