@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 6,12,18 * * *" # 3 sessions a day (UTC)
   workflow_dispatch:
+    inputs:
+      agent:
+        description: "Force an agent (leave empty to alternate)"
+        type: choice
+        options: ["", claude, codex]
+        default: ""
 
 permissions:
   contents: write
@@ -23,18 +29,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Do nothing until the token is set, and stop after 12 sessions.
-      - name: Guard
+      # Odd sessions go to Claude, even ones to Codex. If the chosen agent has
+      # no credentials, the other one runs. Stop after 12 sessions.
+      - name: Pick agent
         id: guard
         env:
-          HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
+          FORCED: ${{ inputs.agent }}
         run: |
           n=$(ls log/session-*.md 2>/dev/null | wc -l)
-          if [ "$HAS_TOKEN" = "true" ] && [ "$n" -lt 12 ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
+          session=$((n + 1))
+          if [ -n "$FORCED" ]; then agent="$FORCED"
+          elif [ $((session % 2)) -eq 1 ]; then agent=claude
+          else agent=codex; fi
+          if [ "$agent" = claude ] && [ "$HAS_CLAUDE" != true ]; then agent=codex; fi
+          if [ "$agent" = codex ] && [ "$HAS_CODEX" != true ]; then agent=claude; fi
+          if [ "$agent" = claude ] && [ "$HAS_CLAUDE" != true ]; then agent=none; fi
+
+          if [ "$n" -ge 12 ] || [ "$agent" = none ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: token set=$HAS_TOKEN, sessions so far=$n"
+            echo "Skipping: sessions so far=$n, claude=$HAS_CLAUDE, codex=$HAS_CODEX"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "agent=$agent" >> "$GITHUB_OUTPUT"
+            echo "Session $session -> $agent"
           fi
 
       - uses: actions/setup-node@v4
@@ -45,22 +64,60 @@ jobs:
       - name: Configure git
         if: steps.guard.outputs.run == 'true'
         run: |
-          git config user.name "builder-agent"
+          git config user.name "builder-agent (${{ steps.guard.outputs.agent }})"
           git config user.email "52238175+ramzyraz@users.noreply.github.com"
 
-      - name: Run Builder
-        if: steps.guard.outputs.run == 'true'
+      - name: Run Claude
+        if: steps.guard.outputs.agent == 'claude'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           npm install -g @anthropic-ai/claude-code
-          claude -p "Read AGENT.md and follow it. Run this session." \
+          claude -p "You are Claude Code. Read AGENT.md and follow it. Run this session." \
             --max-turns 30 \
             --dangerously-skip-permissions
+
+      # Codex uses the ChatGPT login from auth.json. Codex may refresh the
+      # tokens during the run, so the file is saved back to the secret after.
+      - name: Restore Codex login
+        if: steps.guard.outputs.agent == 'codex'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          mkdir -p ~/.codex && chmod 700 ~/.codex
+          printf '%s' "$CODEX_AUTH_JSON" > ~/.codex/auth.json
+          chmod 600 ~/.codex/auth.json
+          sha256sum ~/.codex/auth.json | cut -d' ' -f1 > /tmp/auth.sha
+
+      - name: Run Codex
+        if: steps.guard.outputs.agent == 'codex'
+        run: |
+          npm install -g @openai/codex
+          codex exec --dangerously-bypass-approvals-and-sandbox \
+            "You are OpenAI Codex. Read AGENT.md and follow it. Run this session."
+
+      # Needs a fine-grained token (this repo only, Secrets: read/write) stored
+      # as SECRETS_PAT. Without it this is skipped and the original login is reused.
+      - name: Save refreshed Codex login
+        if: always() && steps.guard.outputs.agent == 'codex'
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_PAT }}
+        run: |
+          [ -f ~/.codex/auth.json ] || exit 0
+          if sha256sum ~/.codex/auth.json | cut -d' ' -f1 | cmp -s - /tmp/auth.sha; then
+            echo "Login unchanged."; exit 0
+          fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Codex refreshed its login but SECRETS_PAT is not set; the stored login may expire."
+            exit 0
+          fi
+          gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < ~/.codex/auth.json
+          echo "Saved refreshed login."
 
       - name: Commit and push
         if: steps.guard.outputs.run == 'true'
         run: |
+          rm -rf ~/.codex
           git add -A
           git diff --cached --quiet || git commit -m "Session wrap-up (auto)"
           git push

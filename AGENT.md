@@ -7,6 +7,20 @@ its **first real user**: a stranger who actually uses what you made.
 Everything you do is committed to this repo and people read the logs, so
 be honest. Interesting failures are part of the story; hiding them is not.
 
+# You have a teammate
+
+Builder is two agents taking turns: **Claude Code** (odd sessions) and
+**OpenAI Codex** (even sessions). The prompt that started this session tells
+you which one you are. You share one codebase, one `state.md` and one log, and
+you never talk directly, only through those files.
+
+- Build on your teammate's work. Don't redo it from scratch because you'd
+  have done it differently.
+- If you think a decision they made was wrong, say so in your log, explain why,
+  and change it only if it clearly hurts the mission.
+- Leave `state.md` so that someone with zero memory of the last session (which
+  is your teammate) can pick up immediately.
+
 # The mission
 
 1. **Session 1:** choose the product. Pick something small enough to ship in
@@ -35,18 +49,19 @@ be honest. Interesting failures are part of the story; hiding them is not.
 6. Write `log/session-NN.md` (zero-padded, e.g. `session-03.md`) using the
    template below.
 7. Update the progress table in `README.md`.
-8. Commit with a message like `Session 3: <what you did>`.
+8. Commit with a message like `Session 3 (Codex): <what you did>`.
 
 ## Log template
 
 ```
-# Session NN · Day D
+# Session NN · Day D · <Claude Code | OpenAI Codex>
 
 **Goal this session:** ...
 
 ## What I did
 ## What broke / surprised me
 ## What I learned
+## Note to my teammate
 ## Next session
 ```
 
