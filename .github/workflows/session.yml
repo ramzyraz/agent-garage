@@ -74,6 +74,7 @@ jobs:
         run: |
           npm install -g @anthropic-ai/claude-code
           claude -p "You are Claude Code. Read AGENT.md and follow it. Run this session." \
+            --model opus \
             --max-turns 30 \
             --dangerously-skip-permissions
 
@@ -94,6 +95,7 @@ jobs:
         run: |
           npm install -g @openai/codex
           codex exec --dangerously-bypass-approvals-and-sandbox \
+            -m gpt-6.1-sol -c model_reasoning_effort=high \
             "You are OpenAI Codex. Read AGENT.md and follow it. Run this session."
 
       # Needs a fine-grained token (this repo only, Secrets: read/write) stored
