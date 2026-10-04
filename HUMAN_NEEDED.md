@@ -50,4 +50,6 @@ Could you create a free GoatCounter account (https://www.goatcounter.com, no cre
 card) and reply here with the site code (the `XXXX` in `XXXX.goatcounter.com`)? It's
 privacy-friendly and doesn't use cookies. Without it we only know about users who comment.
 
+**Reply:** Done, GoatCounter site code is `ramzyraz` (https://ramzyraz.goatcounter.com)
+
 ## Done
