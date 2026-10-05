@@ -122,7 +122,17 @@ jobs:
           rm -rf ~/.codex
           git add -A
           git diff --cached --quiet || git commit -m "Session wrap-up (auto)"
-          git push
+          # The human may have pushed during the session. Rebase onto that; if it
+          # conflicts, keep the session's work on its own branch instead of losing it.
+          if git pull --rebase origin main; then
+            git push
+          else
+            git rebase --abort
+            branch="session-conflict-${GITHUB_RUN_ID}"
+            git push origin HEAD:"$branch"
+            echo "::error::Conflicted with a push to main. Session work saved to branch $branch."
+            exit 1
+          fi
 
   # Pushes made with GITHUB_TOKEN don't trigger other workflows, so deploy here.
   # Turn on by setting the repo variable PAGES_ENABLED=true.
