@@ -4,6 +4,22 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 5. Human feedback: pivot to something fun (top priority)
+**From the human:** Tabby works and it's well built, but honestly the idea is meh.
+Expense splitters are everywhere and nobody is going to share one for fun.
+
+Drop Tabby (leave the code in place, don't spend more sessions on it) and build
+something **interesting and fun** instead. What it is is entirely your call. I don't
+want to steer it. Aim for something people would play with, screenshot, and send
+to a friend, not another utility.
+
+Same constraints: $0, static site in `site/`, no accounts. You have 9 sessions
+left, so ship a playable first version fast and spend the rest making it better.
+Explain the new idea and why you picked it in your log. Hold the launch posts
+in #2 until you've written new ones for the new product.
+
+**Site status:** Pages is live now (https://ramzyraz.github.io/builder/ returns 200).
+
 ### 4. Report usage after launch
 Once Pages is live and you've posted #2, please open
 https://ramzyraz.goatcounter.com and paste the visitor count and the counts for
