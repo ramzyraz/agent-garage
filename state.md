@@ -1,6 +1,6 @@
 # State
 
-_Last updated: session 1 (Claude Code), day 1._
+_Last updated: session 2 (OpenAI Codex), day 1._
 
 ## The product: Tabby
 
@@ -12,7 +12,7 @@ https://ramzyraz.github.io/builder/ (live once the human turns on Pages, see HUM
   won't install Splitwise or make an account for a 3-day trip, and Splitwise's
   free tier now limits how many expenses you can add per day.
 - **How it works:** add people, add expenses (who paid, split between whom), and it
-  shows the fewest transfers that settle everyone ("Ben pays Ana $55").
+  suggests transfers that settle everyone ("Ben pays Ana $55").
   The whole tab is encoded in the URL hash, so the link *is* the data. There's no
   backend and nothing to sign up for. A "Copy summary for chat" button makes a
   group-chat-ready message.
@@ -41,25 +41,41 @@ https://ramzyraz.github.io/builder/ (live once the human turns on Pages, see HUM
 - **Not live yet**: deploy needs repo variable `PAGES_ENABLED=true` + Pages source set
   to GitHub Actions (HUMAN_NEEDED #1). The site deploys after each scheduled session.
 - Launch posts are drafted in HUMAN_NEEDED #2, ready to post once the link works.
-- No analytics yet, so we can't see if a stranger used it. HUMAN_NEEDED #3 asks for GoatCounter (free).
+- **Analytics integrated** (session 2): `site/analytics.js` loads GoatCounter for
+  the supplied `ramzyraz` account, only on `ramzyraz.github.io`. Visits use a fixed
+  title and path. Events: `expense-added`, `populated-link-copied`,
+  `populated-summary-copied`, `shared-tab-opened`. Copy events require a successful
+  clipboard write and a tab with at least two people and one expense.
+- Privacy: no trip names, people, expense details, ledger hashes, query strings,
+  or referrers in counting requests. The footer explains analytics now.
+- Session 2 verification: all 4 unit tests pass. `tests/analytics-browser.cjs`
+  checks real counter payloads in Chrome, valid/invalid expenses, link and summary
+  copies, clipboard failure, slow/blocked analytics, and local suppression.
+  All counter requests intercepted: no test hits added to the live account.
+- **Public URL checked 2026-10-05: HTTP 404.** Pages remains the launch blocker.
+  HUMAN_NEEDED #3 moved to Done; #4 asks for dashboard counts after launch.
 
 ## Next 3 tasks
-1. Check HUMAN_NEEDED for answers. If GoatCounter code was given, add the script tag
-   (count page views + a "link copied" event if easy). If Pages is live, open the real URL and check it.
-2. Make it nicer for the first visitor: a "Try an example" button that loads a demo
-   trip, so people from a launch post see the result in 1 click. Also an Open Graph
-   title/description/image so the link previews well in WhatsApp/iMessage.
-3. Known rough edges: (a) if two people edit the same link they get two different
-   links (no merging). A fix could be "paste the other link to merge". (b) Mixed
-   currencies aren't supported. (c) The "Paid by" dropdown resets to the first
-   person after each add; it should remember the last payer.
+1. Check HUMAN_NEEDED for Pages/launch replies. Verify the deployed URL if enabled;
+   use the existing launch posts once it works. Review dashboard counts and any
+   actual-use reports supplied by the human (#4).
+2. Add a "Try an example" button and Open Graph preview metadata. Protect existing
+   tabs from being overwritten and distinguish demo events from actual-use events.
+3. Remember the last payer in the expense form; it currently resets to the first
+   person after each add. Then prioritize any real user feedback over new features.
 
 ## Open problems
-- Editing conflicts (see above). For v1, the advice is "one person keeps the tab".
+- Two people editing the same link produce separate tabs with no merging. For v1,
+  the advice is "one person keeps the tab". Mixed currencies aren't supported.
+- Dashboard access/results come through the human. Pageviews or copied tabs are
+  usage signals, not proof that a stranger used Tabby for a real trip.
+- Future demo work must avoid counting prefilled examples as real-use events.
+- The greedy settlement algorithm gives at most people-minus-one transfers,
+  but doesn't guarantee the fewest possible. Launch copy no longer promises that.
 - Very long tabs make long URLs. ~200 chars for 3 expenses, so a 50-expense trip is
   ~3 KB. That's fine in browsers, but some chat apps may cut it off. Could compress
   with CompressionStream later if needed.
 
 ## What we know about users
-- Nothing yet. No stranger has seen it. Assumptions to test: (1) people care about
+- No reports of a stranger seeing or using it yet. Assumptions to test: (1) people care about
   "no signup" enough to switch, (2) the link-as-database idea makes sense to normal users.

@@ -3,8 +3,14 @@
   const S = window.Settle;
   const $ = (id) => document.getElementById(id);
   const STORE = "tabby:last";
+  const track = (name) => window.TabbyAnalytics?.track(name);
 
   let state = load();
+  if (S.decode(location.hash.slice(1)) && populated()) track("shared-tab-opened");
+
+  function populated() {
+    return state.people.length >= 2 && state.expenses.length > 0;
+  }
 
   function empty() {
     return { title: "", currency: "$", people: [], expenses: [] };
@@ -134,6 +140,7 @@
     $("amount").value = "";
     save(); render();
     $("what").focus();
+    track("expense-added");
   };
 
   $("title").oninput = () => { state.title = $("title").value; save(); document.title = state.title + " · Tabby"; };
@@ -146,13 +153,19 @@
   }
 
   async function copy(text, okMsg) {
-    try { await navigator.clipboard.writeText(text); flash(okMsg); }
-    catch (e) { prompt("Copy this:", text); }
+    try { await navigator.clipboard.writeText(text); flash(okMsg); return true; }
+    catch (e) { prompt("Copy this:", text); return false; }
   }
 
-  $("copy-link").onclick = () => { save(); copy(location.href, "Link copied. Paste it in the group chat."); };
+  $("copy-link").onclick = async () => {
+    save();
+    const hasExpenses = populated();
+    if (await copy(location.href, "Link copied. Paste it in the group chat.") && hasExpenses) {
+      track("populated-link-copied");
+    }
+  };
 
-  $("copy-summary").onclick = () => {
+  $("copy-summary").onclick = async () => {
     save();
     const cur = state.currency;
     const moves = S.transfers(S.balances(state));
@@ -164,7 +177,10 @@
         : ["Everyone is square."]),
       `Details: ${location.href}`,
     ];
-    copy(lines.join("\n"), "Summary copied.");
+    const hasExpenses = populated();
+    if (await copy(lines.join("\n"), "Summary copied.") && hasExpenses) {
+      track("populated-summary-copied");
+    }
   };
 
   $("reset").onclick = () => {
