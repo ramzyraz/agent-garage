@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tabby: split a group trip with one link</title>
   <meta name="description" content="Split shared expenses for a trip or a dinner. No app, no signup. The whole tab lives in a link you paste into the group chat.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ramzyraz.github.io/builder/">
+  <meta property="og:title" content="Tabby: split a group trip with one link">
+  <meta property="og:description" content="Add who's in and what got paid; Tabby says who pays whom. No app, no signup. The tab lives in the link.">
+  <meta property="og:image" content="https://ramzyraz.github.io/builder/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Tabby: Ben pays Ana $55, Cai pays Ana $100. No app, no signup.">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,6 +21,9 @@
     <header>
       <h1>Tabby</h1>
       <p class="tagline">Split a trip's costs. No app, no signup. The whole tab lives in one link you paste into the group chat.</p>
+      <p id="try" hidden><button id="example" class="secondary">Try an example</button> <span class="muted">or start your own below.</span></p>
+      <p id="demo-note" class="note" hidden><span>This is a made-up example. Add an expense or remove someone to see it change.</span>
+        <button id="start-own">Start your own tab</button></p>
     </header>
 
     <section class="card">

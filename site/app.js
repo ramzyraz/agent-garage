@@ -3,13 +3,30 @@
   const S = window.Settle;
   const $ = (id) => document.getElementById(id);
   const STORE = "tabby:last";
-  const track = (name) => window.TabbyAnalytics?.track(name);
+  // The built-in example doesn't count as real use, even after edits or sharing.
+  const track = (name) => { if (!state.demo) window.TabbyAnalytics?.track(name); };
 
   let state = load();
+  let lastPayer = 0;
   if (S.decode(location.hash.slice(1)) && populated()) track("shared-tab-opened");
 
   function populated() {
     return state.people.length >= 2 && state.expenses.length > 0;
+  }
+
+  function example() {
+    return {
+      title: "Lisbon weekend (example)",
+      currency: "€",
+      people: ["Ana", "Ben", "Cai", "Dee"],
+      expenses: [
+        { what: "Airbnb, 2 nights", amount: 36000, payer: 0, among: [0, 1, 2, 3] },
+        { what: "Dinner in Alfama", amount: 9600, payer: 1, among: [0, 1, 2, 3] },
+        { what: "Train to Sintra", amount: 2400, payer: 2, among: [1, 2, 3] },
+        { what: "Pastéis de nata", amount: 1200, payer: 3, among: [0, 3] },
+      ],
+      demo: true,
+    };
   }
 
   function empty() {
@@ -40,6 +57,8 @@
     $("title").value = state.title;
     $("currency").value = cur;
     document.title = (state.title ? state.title + " · " : "") + "Tabby";
+    $("try").hidden = !!(state.demo || state.people.length || state.expenses.length || state.title);
+    $("demo-note").hidden = !state.demo;
 
     // People
     const people = $("people");
@@ -53,6 +72,7 @@
     const enough = state.people.length >= 2;
     $("expense-card").classList.toggle("disabled", !enough);
     $("payer").replaceChildren(...state.people.map((name, i) => el("option", { value: i, textContent: name })));
+    if (lastPayer < state.people.length) $("payer").value = lastPayer;
     $("among").replaceChildren(...state.people.map((name, i) => {
       const box = el("input", { type: "checkbox", checked: true, value: i });
       return el("label", { className: "check" }, box, " " + name);
@@ -109,6 +129,8 @@
         among: e.among.map((k) => (k > i ? k - 1 : k)),
       }));
     state.people.splice(i, 1);
+    if (lastPayer === i) lastPayer = 0;
+    else if (lastPayer > i) lastPayer--;
     save(); render();
   }
 
@@ -135,7 +157,8 @@
     err.hidden = !msg;
     err.textContent = msg;
     if (msg) return;
-    state.expenses.push({ what: $("what").value.trim(), amount, payer: Number($("payer").value), among });
+    lastPayer = Number($("payer").value);
+    state.expenses.push({ what: $("what").value.trim(), amount, payer: lastPayer, among });
     $("what").value = "";
     $("amount").value = "";
     save(); render();
@@ -183,13 +206,29 @@
     }
   };
 
-  $("reset").onclick = () => {
-    if (!confirm("Start a new, empty tab? (Keep the current link if you want to come back to this one.)")) return;
+  function startFresh() {
     state = empty();
+    lastPayer = 0;
     save(); render();
+  }
+
+  $("reset").onclick = () => {
+    if (!state.demo && !confirm("Start a new, empty tab? (Keep the current link if you want to come back to this one.)")) return;
+    startFresh();
   };
 
-  window.addEventListener("hashchange", () => { state = load(); render(); });
+  $("start-own").onclick = () => { startFresh(); $("title").focus(); };
+
+  // Only offered on an empty tab, so it can never overwrite someone's trip.
+  $("example").onclick = () => {
+    if (state.people.length || state.expenses.length) return;
+    state = example();
+    lastPayer = 0;
+    save(); render();
+    window.TabbyAnalytics?.track("example-opened");
+  };
+
+  window.addEventListener("hashchange", () => { state = load(); lastPayer = 0; render(); });
 
   render();
 })();

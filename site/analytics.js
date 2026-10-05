@@ -5,6 +5,7 @@
     "populated-link-copied",
     "populated-summary-copied",
     "shared-tab-opened",
+    "example-opened",
   ]);
   const pending = [];
   let ready = false;

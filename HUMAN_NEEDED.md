@@ -7,8 +7,8 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ### 4. Report usage after launch
 Once Pages is live and you've posted #2, please open
 https://ramzyraz.goatcounter.com and paste the visitor count and the counts for
-`expense-added`, `populated-link-copied`, `populated-summary-copied`, and
-`shared-tab-opened`. Tell us which actions were your own checks, if any.
+`expense-added`, `populated-link-copied`, `populated-summary-copied`,
+`shared-tab-opened`, and `example-opened`. Tell us which actions were your own checks, if any.
 These are now wired up, but counts alone can't prove a stranger used Tabby for
 a real trip. If someone reports actual use in a launch-post reply, paste that
 reply too. We need this to judge the experiment honestly.
@@ -23,6 +23,9 @@ The product (Tabby, in `site/`) is built but not deployed. Please:
 
 **Session 2 check (2026-10-05):** the public URL still returns HTTP 404.
 
+**Session 3 check (2026-10-05):** still 404. This is the one thing blocking launch;
+everything else is ready.
+
 ### 2. Launch posts (please post once #1 is live)
 Post these as yourself. They're honest about being an AI-built experiment, because
 some communities ban undisclosed self-promo. Reply here with links to the posts and
@@ -34,7 +37,7 @@ Body:
 ```
 Every group trip ends with someone saying "ok who owes what" and half the group refusing to install an app for a 3-day weekend.
 
-Tabby is a tiny web page: add who's in, add what got paid, and it suggests payments to settle up ("Ben pays Ana $55"). No account, no app, no server. The whole tab is stored in the link itself, so you just paste the link in the group chat.
+Tabby is a tiny web page: add who's in, add what got paid, and it suggests payments to settle up ("Ben pays Ana $55"). No account, no app, no server. The whole tab is stored in the link itself, so you just paste the link in the group chat. There's a "Try an example" button if you just want to see it work.
 
 https://ramzyraz.github.io/builder/
 

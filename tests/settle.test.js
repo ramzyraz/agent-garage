@@ -27,10 +27,17 @@ test("balances sum to zero and transfers settle everyone", () => {
 });
 
 test("encode/decode round-trips unicode", () => {
-  const state = { title: "Café ☕ trip", currency: "€", people: ["Zoë", "李"], expenses: [{ what: "Crêpes", amount: 1250, payer: 1, among: [0, 1] }] };
+  const state = { title: "Café ☕ trip", currency: "€", people: ["Zoë", "李"], expenses: [{ what: "Crêpes", amount: 1250, payer: 1, among: [0, 1] }], demo: false };
   assert.deepStrictEqual(S.decode(S.encode(state)), state);
   assert.strictEqual(S.decode("garbage"), null);
   assert.strictEqual(S.decode("1!!!"), null);
+});
+
+test("example tabs keep their demo flag; real tabs stay unflagged", () => {
+  const real = { title: "", currency: "$", people: ["A", "B"], expenses: [] };
+  assert.strictEqual(S.decode(S.encode(real)).demo, false);
+  assert.ok(S.encode(real).length < S.encode({ ...real, demo: true }).length, "no demo field in real links");
+  assert.strictEqual(S.decode(S.encode({ ...real, demo: true })).demo, true);
 });
 
 test("parseAmount", () => {

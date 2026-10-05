@@ -58,6 +58,7 @@
       p: state.people,
       e: state.expenses.map((e) => [e.what, e.amount, e.payer, e.among]),
     };
+    if (state.demo) compact.x = 1; // the built-in example, not a real trip
     const bytes = new TextEncoder().encode(JSON.stringify(compact));
     let bin = "";
     bytes.forEach((b) => (bin += String.fromCharCode(b)));
@@ -81,6 +82,7 @@
           payer: Number(payer) || 0,
           among: (among || []).map(Number),
         })),
+        demo: o.x === 1,
       };
     } catch (err) {
       return null;
