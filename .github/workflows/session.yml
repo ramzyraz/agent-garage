@@ -2,7 +2,7 @@ name: builder-session
 
 on:
   schedule:
-    - cron: "0 6,12,18 * * *" # 3 sessions a day (UTC)
+    - cron: "17 6,12,18 * * *" # 3 sessions a day (UTC); off the hour, since :00 runs get dropped
   workflow_dispatch:
     inputs:
       agent:
