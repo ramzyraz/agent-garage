@@ -2,94 +2,75 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tabby: split a group trip with one link</title>
-  <meta name="description" content="Split shared expenses for a trip or a dinner. No app, no signup. The whole tab lives in a link you paste into the group chat.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Second Sense: how good is your inner clock?</title>
+  <meta name="description" content="A 30-second daily game. Stop the clock at exactly 4.37 seconds, after it disappears. Five rounds, same for everyone today. Then dare a friend.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ramzyraz.github.io/builder/">
-  <meta property="og:title" content="Tabby: split a group trip with one link">
-  <meta property="og:description" content="Add who's in and what got paid; Tabby says who pays whom. No app, no signup. The tab lives in the link.">
+  <meta property="og:title" content="Second Sense: how good is your inner clock?">
+  <meta property="og:description" content="Stop the clock at exactly the target time, after it vanishes. 5 rounds a day, 30 seconds. Then dare a friend to beat you.">
   <meta property="og:image" content="https://ramzyraz.github.io/builder/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Tabby: Ben pays Ana $55, Cai pays Ana $100. No app, no signup.">
+  <meta property="og:image:alt" content="Second Sense: target 4.37s, the clock fades to ?.??">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main>
     <header>
-      <h1>Tabby</h1>
-      <p class="tagline">Split a trip's costs. No app, no signup. The whole tab lives in one link you paste into the group chat.</p>
-      <p id="try" hidden><button id="example" class="secondary">Try an example</button> <span class="muted">or start your own below.</span></p>
-      <p id="demo-note" class="note" hidden><span>This is a made-up example. Add an expense or remove someone to see it change.</span>
-        <button id="start-own">Start your own tab</button></p>
+      <h1>Second Sense</h1>
+      <p class="sub">How good is your inner clock? <span id="daylabel"></span></p>
     </header>
 
-    <section class="card">
-      <label class="row">
-        <span>Trip name</span>
-        <input id="title" placeholder="Lisbon weekend" maxlength="60">
-      </label>
-      <label class="row small">
-        <span>Currency</span>
-        <input id="currency" value="$" maxlength="4" class="tiny">
-      </label>
+    <section id="intro">
+      <div id="challenge" class="banner" hidden></div>
+      <ol class="how">
+        <li>You get a target, like <b>4.37s</b>.</li>
+        <li>Tap to start. The clock shows for <b>1 second</b>, then vanishes.</li>
+        <li>Tap to stop when you <i>feel</i> you've hit the target.</li>
+      </ol>
+      <p class="muted">5 rounds, about 30 seconds. Everyone gets the same targets today.</p>
+      <button id="play" class="primary big">Play today's 5</button>
+      <button id="practice" class="ghost">Practice (random targets)</button>
     </section>
 
-    <section class="card">
-      <h2>1. Who's in?</h2>
-      <form id="add-person" class="inline">
-        <input id="person-name" placeholder="Name" maxlength="30" required>
-        <button>Add</button>
-      </form>
-      <ul id="people" class="chips"></ul>
+    <section id="round" hidden>
+      <p class="roundlabel"><span id="roundno"></span> · Target <b id="target"></b></p>
+      <button id="pad" class="pad" aria-live="polite">
+        <span id="clock" class="clock">0.00</span>
+        <span id="hint" class="hint">Tap to start</span>
+      </button>
+      <p id="verdict" class="verdict" aria-live="polite"></p>
+      <button id="next" class="primary" hidden>Next round</button>
     </section>
 
-    <section class="card" id="expense-card">
-      <h2>2. What got paid?</h2>
-      <form id="add-expense">
-        <div class="grid">
-          <input id="what" placeholder="What (e.g. Airbnb)" maxlength="60" required>
-          <input id="amount" placeholder="Amount" inputmode="decimal" required>
-          <label>Paid by <select id="payer"></select></label>
-        </div>
-        <div class="among">Split between: <span id="among"></span></div>
-        <button>Add expense</button>
-        <p id="expense-error" class="error" hidden></p>
-      </form>
-      <ul id="expenses" class="list"></ul>
-    </section>
-
-    <section class="card">
-      <h2>3. Who pays whom</h2>
-      <ol id="transfers" class="list"></ol>
-      <details>
-        <summary>Balances</summary>
-        <ul id="balances" class="list"></ul>
-      </details>
-    </section>
-
-    <section class="card share">
-      <h2>Share</h2>
-      <p>Everything is saved in this page's link. Send it to the group; anyone who opens it sees the same tab and can add to it (then share the new link back).</p>
-      <div class="inline">
-        <button id="copy-link">Copy link</button>
-        <button id="copy-summary" class="secondary">Copy summary for chat</button>
-        <button id="reset" class="secondary danger">New tab</button>
+    <section id="result" hidden>
+      <p class="muted" id="resultlabel"></p>
+      <p class="rank" id="rank"></p>
+      <p class="emojis" id="emojis"></p>
+      <p class="totalline">Off by <b id="total"></b> in total</p>
+      <div id="versus" class="banner" hidden></div>
+      <table id="rounds"></table>
+      <div class="actions" id="shareactions">
+        <button id="share" class="primary">Share result</button>
+        <button id="dare" class="primary alt">Dare a friend (link)</button>
       </div>
-      <p id="copied" class="ok" hidden></p>
+      <p id="copied" class="muted" aria-live="polite"></p>
+      <button id="again" class="ghost">Practice more</button>
+      <p class="muted" id="comeback"></p>
     </section>
 
     <footer>
-      Your trip data stays in the link and your browser. We count visits and usage
-      actions with <a href="https://www.goatcounter.com/privacy">GoatCounter</a>,
-      without sending names, expenses, or tab links.
+      A public experiment: two AI agents building a product in 4 days with $0.
+      <a href="https://github.com/ramzyraz/builder">Code and logs</a>.
+      We count visits and button presses with <a href="https://www.goatcounter.com/privacy">GoatCounter</a>
+      (no cookies, no scores, no links).
       Feedback? <a href="https://github.com/ramzyraz/builder/issues">Open an issue</a>.
     </footer>
   </main>
-  <script src="settle.js"></script>
+  <script src="game.js"></script>
   <script src="analytics.js"></script>
-  <script src="app.js"></script>
+  <script src="play.js"></script>
 </body>
 </html>

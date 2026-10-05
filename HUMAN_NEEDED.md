@@ -4,78 +4,64 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
-### 5. Human feedback: pivot to something fun (top priority)
-**From the human:** Tabby works and it's well built, but honestly the idea is meh.
-Expense splitters are everywhere and nobody is going to share one for fun.
+### 7. Please try it on your phone (2 minutes)
+Open https://ramzyraz.github.io/builder/ on your phone, play today's 5, and tell us:
+did the taps feel instant? Was it fun or just frustrating? What rank did you get?
+Then tap "Dare a friend" and check the link opens properly when you paste it into a chat.
 
-Drop Tabby (leave the code in place, don't spend more sessions on it) and build
-something **interesting and fun** instead. What it is is entirely your call. I don't
-want to steer it. Aim for something people would play with, screenshot, and send
-to a friend, not another utility.
+### 6. Launch posts for Second Sense (please post these; the old Tabby posts are retired)
+Reply here with links to the posts and any comments (copy-paste is perfect).
 
-Same constraints: $0, static site in `site/`, no accounts. You have 9 sessions
-left, so ship a playable first version fast and spend the rest making it better.
-Explain the new idea and why you picked it in your log. Hold the launch posts
-in #2 until you've written new ones for the new product.
+**a) Send a dare to 2–3 friends or a group chat** (this matters most: it's the loop the game is built for).
+Play today's puzzle, tap **"Dare a friend"**, paste it. Tell us whether anyone played back.
 
-**Site status:** Pages is live now (https://ramzyraz.github.io/builder/ returns 200).
-
-### 4. Report usage after launch
-Once Pages is live and you've posted #2, please open
-https://ramzyraz.goatcounter.com and paste the visitor count and the counts for
-`expense-added`, `populated-link-copied`, `populated-summary-copied`,
-`shared-tab-opened`, and `example-opened`. Tell us which actions were your own checks, if any.
-These are now wired up, but counts alone can't prove a stranger used Tabby for
-a real trip. If someone reports actual use in a launch-post reply, paste that
-reply too. We need this to judge the experiment honestly.
-
-### 1. Turn on GitHub Pages (blocking launch)
-The product (Tabby, in `site/`) is built but not deployed. Please:
-- Repo **Settings → Pages → Build and deployment → Source: "GitHub Actions"**.
-- Repo **Settings → Secrets and variables → Actions → Variables → New variable**:
-  `PAGES_ENABLED` = `true`.
-- Then run the `builder-session` workflow once (or wait for the next scheduled one) and
-  check that https://ramzyraz.github.io/builder/ loads. Reply here with "live" or what went wrong.
-
-**Session 2 check (2026-10-05):** the public URL still returns HTTP 404.
-
-**Session 3 check (2026-10-05):** still 404. This is the one thing blocking launch;
-everything else is ready.
-
-### 2. Launch posts (please post once #1 is live)
-Post these as yourself. They're honest about being an AI-built experiment, because
-some communities ban undisclosed self-promo. Reply here with links to the posts and
-any comments people leave (copy-paste is perfect).
-
-**a) Reddit r/SideProject** (allows self-promo)
-Title: `I wanted to split trip costs without making my friends sign up for anything, so (an AI) built a one-link splitter`
+**b) Reddit r/WebGames** (a sub for browser games; check the sidebar rules first)
+Title: `Second Sense: stop the clock at exactly 4.37s, after it disappears (daily, 30 seconds)`
 Body:
 ```
-Every group trip ends with someone saying "ok who owes what" and half the group refusing to install an app for a 3-day weekend.
-
-Tabby is a tiny web page: add who's in, add what got paid, and it suggests payments to settle up ("Ben pays Ana $55"). No account, no app, no server. The whole tab is stored in the link itself, so you just paste the link in the group chat. There's a "Try an example" button if you just want to see it work.
+You get a target time. Tap to start; the clock is visible for one second, then it vanishes. Tap to stop when you think you've hit the target. Five rounds, same targets for everyone each day, and you get a Wordle-style result like 🎯🟩🟨🟩🟥.
 
 https://ramzyraz.github.io/builder/
 
-Full disclosure: this is part of an experiment where two AI agents (Claude Code and Codex) try to build a product and get a first real user in 4 days with $0. The code and their logs are public: https://github.com/ramzyraz/builder
+Then there's a "dare a friend" link: they see your score and get the same targets.
 
-Would love blunt feedback: would you actually use this on your next trip? What's missing?
+Disclosure: this was built by two AI agents (Claude Code and Codex) as a public experiment: 4 days, $0, goal is one real user. Code and logs: https://github.com/ramzyraz/builder
+
+What rank did you get? I'm curious whether the 1-second visible window is too easy or too hard.
 ```
 
-**b) Hacker News, "Show HN"**
-Title: `Show HN: Split group trip expenses with one link – no signup, data lives in the URL`
+**c) Hacker News, "Show HN"**
+Title: `Show HN: Second Sense – a daily game testing how well you can feel time passing`
 URL: `https://ramzyraz.github.io/builder/`
 First comment:
 ```
-This was built by AI agents as a public experiment (4 days, $0, goal: one real user). Repo and session logs: https://github.com/ramzyraz/builder
+Built by AI agents as a public experiment (4 days, $0, goal: one real user). Repo and session logs: https://github.com/ramzyraz/builder
 
-The whole ledger is base64 JSON in the URL hash, so there's no backend. The obvious tradeoff is that two people editing produce two different links; for now the advice is "one person keeps the tab". Curious if people would use it anyway, or what would make them.
+Five targets per day (seeded from the date, same for everyone), the clock hides after 1s, scored by total error. No backend: a "dare" link just carries your five errors in the URL hash. Timing uses pointerdown + performance.now(). I'd love to know if people's internal clocks drift early or late on the longer targets.
 ```
 
-**c) Optional: send it to one real group** you're in that has a trip or a shared dinner coming
-up. Even one friend-of-a-friend using it for real would teach us more than upvotes.
+### 4. Report usage after launch
+After the posts go out, please open https://ramzyraz.goatcounter.com and paste the visit count
+for `/builder/` and the counts for `daily-started`, `daily-finished`, `result-shared`,
+`challenge-copied`, `challenge-opened`, `practice-started`. Say which were your own plays.
+(Old Tabby events, if any, are under `/builder/tabby/` now.) If a stranger replies that they
+played or dared someone, paste that too. That's our "first real user" evidence.
 
 ## Done
+
+### 5. Human feedback: pivot to something fun
+**From the human:** Tabby works but the idea is meh; build something interesting and fun
+that people would play, screenshot and send to a friend. Hold the Tabby launch posts.
+
+**Session 4 (Claude Code):** pivoted to **Second Sense**, a daily "stop the clock blind" game
+with emoji results and dare-a-friend links. It's live at https://ramzyraz.github.io/builder/.
+Tabby moved to `/builder/tabby/`. New posts are in #6. Reasoning is in `log/session-04.md`.
+
+### 2. Tabby launch posts: retired (product pivoted, see #5). Not posted.
+
+### 1. Turn on GitHub Pages
+Done: the human confirmed it's live (session 4 checked: HTTP 200).
+
 
 ### 3. Free analytics so we know if anyone uses it (nice to have)
 Could you create a free GoatCounter account (https://www.goatcounter.com, no credit

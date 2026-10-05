@@ -7,9 +7,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const puppeteer = require(process.env.TABBY_PUPPETEER || "puppeteer-core");
-const S = require("../site/settle.js");
+const S = require("../site/tabby/settle.js");
 
-const SITE = "https://ramzyraz.github.io/builder/";
+const SITE = "https://ramzyraz.github.io/builder/tabby/";
 const FILES = ["index.html", "style.css", "settle.js", "analytics.js", "app.js"];
 
 (async () => {
@@ -34,7 +34,7 @@ const FILES = ["index.html", "style.css", "settle.js", "analytics.js", "app.js"]
       const name = u.pathname.split("/").pop() || "index.html";
       if (!FILES.includes(name)) return req.respond({ status: 204 });
       const type = name.endsWith(".js") ? "application/javascript" : name.endsWith(".css") ? "text/css" : "text/html";
-      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../site", name)) });
+      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../site/tabby", name)) });
     });
     await page.evaluateOnNewDocument(() => {
       window.copiedTexts = [];
@@ -73,13 +73,13 @@ const FILES = ["index.html", "style.css", "settle.js", "analytics.js", "app.js"]
     await page.click("#copy-summary");
     await page.waitForFunction(() => window.copiedTexts.length === 2);
     await page.waitForNetworkIdle({ idleTime: 100 });
-    assert.deepEqual(fresh.hits, ["/builder/", "example-opened"]);
+    assert.deepEqual(fresh.hits, ["/builder/tabby/", "example-opened"]);
     const demoLink = (await page.evaluate(() => window.copiedTexts))[0];
 
     // 3. A shared demo link stays a demo, and opening it isn't a real shared tab.
     const reopened = await open(demoLink);
     assert.equal(await visible(reopened.page, "#demo-note"), true);
-    assert.deepEqual(reopened.hits, ["/builder/"]);
+    assert.deepEqual(reopened.hits, ["/builder/tabby/"]);
 
     // 4. "Start your own tab" leaves the demo for a clean, real tab.
     await page.click("#start-own");
@@ -103,7 +103,7 @@ const FILES = ["index.html", "style.css", "settle.js", "analytics.js", "app.js"]
     await page.click("#people li:first-child .x");
     assert.equal(await page.$eval("#payer", (el) => el.selectedOptions[0].textContent), "Ben");
     await page.waitForNetworkIdle({ idleTime: 100 });
-    assert.deepEqual(fresh.hits, ["/builder/", "example-opened", "expense-added"], "real tab counts again");
+    assert.deepEqual(fresh.hits, ["/builder/tabby/", "example-opened", "expense-added"], "real tab counts again");
 
     // 6. "New tab" on a demo needs no confirmation; real tabs still ask.
     let asked = 0;
