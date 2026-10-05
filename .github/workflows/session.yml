@@ -1,8 +1,8 @@
 name: builder-session
 
+# Triggered by a scheduler on the owner's Mac (launchd) or by hand.
+# GitHub's own cron never fired for this repo, so it isn't used.
 on:
-  schedule:
-    - cron: "17 6,12,18 * * *" # 3 sessions a day (UTC); off the hour, since :00 runs get dropped
   workflow_dispatch:
     inputs:
       agent:
@@ -15,7 +15,6 @@ permissions:
   contents: write
   pages: write
   id-token: write
-  actions: write
 
 jobs:
   session:
@@ -159,30 +158,3 @@ jobs:
         if: steps.site.outputs.exists == 'true'
         uses: actions/deploy-pages@v4
 
-  # GitHub's cron trigger has proven unreliable here, so each session starts the
-  # next one itself after a ~6h wait. If another session runs in the meantime
-  # (manual run, or cron finally firing), this timer stands down, so there is
-  # only ever one chain. The 12-session cap in the guard above still applies.
-  next-session:
-    needs: session
-    if: needs.session.outputs.ran == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - name: Wait, then start the next session
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          before=$(ls log/session-*.md 2>/dev/null | wc -l)
-          if [ "$before" -ge 12 ]; then echo "All 12 sessions done."; exit 0; fi
-          sleep 21000   # ~5h50m; with the session itself that's ~6h between sessions
-          git fetch -q origin main
-          after=$(git ls-tree --name-only origin/main log/ | grep -c 'log/session-.*\.md$' || true)
-          if [ "$after" -ne "$before" ]; then
-            echo "Another session ran in the meantime; standing down."
-            exit 0
-          fi
-          gh workflow run session.yml --repo "$GITHUB_REPOSITORY" --ref main
