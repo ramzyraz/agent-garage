@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The Story</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f0f10; --fg: #e8e4dc; --muted: #8d877c; --line: #2a2826; --accent: #c9a96e;
+      --card: #171615;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f7f3ec; --fg: #1d1b18; --muted: #6f6a61; --line: #ddd5c7; --accent: #8a6a2f; --card: #efe9df; }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, sans-serif; }
+    main { max-width: 38rem; margin: 0 auto; padding: 28px 18px 80px; }
+    a { color: inherit; }
+    header .series { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    header h1 { font-family: Literata, Georgia, serif; font-weight: 600; font-size: 30px; margin: 6px 0 22px; }
+    .continue { display: block; padding: 16px 18px; border: 1px solid var(--accent); border-radius: 12px;
+      text-decoration: none; margin-bottom: 26px; }
+    .continue small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .book { font-family: Literata, Georgia, serif; font-size: 19px; margin: 26px 0 8px; }
+    ol.toc { list-style: none; padding: 0; margin: 0; }
+    ol.toc a { display: flex; gap: 12px; padding: 13px 4px; border-bottom: 1px solid var(--line); text-decoration: none; }
+    ol.toc .n { color: var(--muted); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+    ol.toc .read { color: var(--muted); }
+    .empty { color: var(--muted); font-style: italic; font-family: Literata, Georgia, serif; }
+    article { font-family: Literata, Georgia, serif; font-size: 19px; line-height: 1.7; }
+    article h1 { font-size: 26px; line-height: 1.25; margin: 8px 0 28px; }
+    article p { margin: 0 0 1.1em; }
+    article hr { border: 0; text-align: center; margin: 2em 0; }
+    article hr::after { content: "⁂"; color: var(--muted); }
+    .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      font-size: 14px; color: var(--muted); }
+    .bar a { text-decoration: none; padding: 10px 0; }
+    nav.pager { display: flex; gap: 12px; margin-top: 40px; }
+    nav.pager a { flex: 1; text-align: center; padding: 16px; border-radius: 12px; background: var(--card);
+      text-decoration: none; font-weight: 600; }
+    nav.pager a.next { background: var(--accent); color: var(--bg); }
+    .waiting { text-align: center; color: var(--muted); margin-top: 40px; font-style: italic;
+      font-family: Literata, Georgia, serif; }
+  </style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const app = document.getElementById("app");
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const id = (c) => c.file.replace(/\.md$/, "");
+
+let chapters = [], meta = { series: "", books: [] };
+
+async function load() {
+  const bust = "?v=" + Date.now();
+  try { chapters = await (await fetch("chapters.json" + bust)).json(); } catch { chapters = []; }
+  try { meta = await (await fetch("book.json" + bust)).json(); } catch {}
+  route();
+}
+
+function bookTitle(n) {
+  const b = (meta.books || []).find((b) => b.n === n);
+  return b ? `Book ${n}: ${b.title}` : `Book ${n}`;
+}
+
+function renderToc() {
+  document.title = meta.series || "The Story";
+  const readSet = new Set(JSON.parse(store.get("story-read") || "[]"));
+  const last = store.get("story-last");
+  const lastIdx = chapters.findIndex((c) => id(c) === last);
+  const next = lastIdx >= 0 ? chapters[lastIdx + 1] || chapters[lastIdx] : chapters[0];
+
+  let html = `<header><div class="series">${esc(meta.series || "A serial thriller")}</div>
+    <h1>${esc(meta.series ? "Chapters" : "The Story")}</h1></header>`;
+  if (!chapters.length) {
+    app.innerHTML = html + `<p class="empty">The first chapter is being written.</p>`;
+    return;
+  }
+  if (next) {
+    html += `<a class="continue" href="#${id(next)}"><small>${lastIdx >= 0 ? "Continue reading" : "Start reading"}</small>
+      ${esc(next.title)}</a>`;
+  }
+  let book = null;
+  for (const c of chapters) {
+    if (c.book !== book) {
+      if (book !== null) html += `</ol>`;
+      book = c.book;
+      html += `<div class="book">${esc(bookTitle(book))}</div><ol class="toc">`;
+    }
+    html += `<li><a href="#${id(c)}"><span class="n">${c.chapter}</span>
+      <span class="${readSet.has(id(c)) ? "read" : ""}">${esc(c.title.replace(/^Chapter \d+:\s*/, ""))}</span></a></li>`;
+  }
+  app.innerHTML = html + `</ol>`;
+}
+
+async function renderChapter(cid) {
+  const i = chapters.findIndex((c) => id(c) === cid);
+  if (i < 0) { location.hash = ""; return; }
+  const c = chapters[i];
+  const md = await (await fetch(`chapters/${c.file}?v=${Date.now()}`)).text();
+  const prev = chapters[i - 1], next = chapters[i + 1];
+  app.innerHTML = `
+    <div class="bar"><a href="#">← Chapters</a><span>${esc(bookTitle(c.book))}</span></div>
+    <article>${marked.parse(md)}</article>
+    <nav class="pager">
+      ${prev ? `<a href="#${id(prev)}">← Previous</a>` : ""}
+      ${next ? `<a class="next" href="#${id(next)}">Next chapter →</a>` : ""}
+    </nav>
+    ${next ? "" : `<p class="waiting">The next chapter is being written…</p>`}`;
+  document.title = c.title;
+  window.scrollTo(0, 0);
+  store.set("story-last", cid);
+  const readSet = new Set(JSON.parse(store.get("story-read") || "[]"));
+  readSet.add(cid);
+  store.set("story-read", JSON.stringify([...readSet]));
+}
+
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h) renderChapter(h); else { renderToc(); window.scrollTo(0, 0); }
+}
+addEventListener("hashchange", route);
+load();
+</script>
+</body>
+</html>

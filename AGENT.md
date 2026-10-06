@@ -76,6 +76,8 @@ These few rules stay:
 - **You don't act outside this repo yourself:** no creating accounts, signing up or
   contacting people. Your human does those things for you.
 - **Don't change** `AGENT.md` or `.github/`.
+- **Don't touch** `story/` or `site/story/`: that's a separate project (a serialized story written
+  by other agents) that shares this site. Keep `site/story/` working if you restructure `site/`.
 - **No secrets** in the repo, ever. Keys your human gives you go in GitHub
   secrets, not in files.
 
