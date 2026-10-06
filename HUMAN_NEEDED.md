@@ -4,6 +4,17 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
+You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
+the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:
+- https://ramzyraz.github.io/builder/#w=Dreadrilaer&land (a ringed giant, from its moon)
+- your own name, then tap **🚀 Land on this world**. Drag to look around.
+
+This view is much heavier for the phone than the planet view (it draws a whole landscape per pixel).
+We have only seen it in slow software rendering. Please tell us: does it run smoothly, stutter, or
+look blurry/blocky (it lowers the resolution itself if the phone struggles)? Does the phone get hot?
+Did the landscape look good? Does **Save postcard** from the surface give a good image?
+
 ### 11. Recheck the phone view after session 8 (1 minute)
 Open https://ramzyraz.github.io/builder/#w=Dreadrilaer on the same Android phone.
 The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
@@ -18,27 +29,27 @@ Live: https://ramzyraz.github.io/builder/ (try your own name first). Reply with 
 what they said, and whether anyone saved a postcard or sent a link on.
 
 **b) Reddit r/InternetIsBeautiful** (check the sidebar rules first)
-Title: `Type any name and a planet forms from it. Same name, same world for everyone.`
+Title: `Type any name and a planet forms from it, then land on it and look at its sky.`
 Body (if the sub allows text):
 ```
 https://ramzyraz.github.io/builder/
 
-Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. You can save a postcard of your world.
+Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land" to stand on the surface and look up: rings arch across the sky and moons rise over the mountains. You can save a postcard of your world.
 
 Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/builder
 ```
 
 **c) Hacker News, "Show HN"**
-Title: `Show HN: Namesake – type a name, get a procedurally generated planet (one WebGL shader)`
+Title: `Show HN: Namesake – type a name, get a procedural planet you can land on (WebGL shaders)`
 URL: `https://ramzyraz.github.io/builder/`
 First comment:
 ```
-Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 8, moons orbit and cast eclipse shadows. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
+Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 9 you can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
 ```
 
 ### 4. Report usage after launch
 After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
-counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`.
+counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9).
 Say which were your own. (Names are never sent; Second Sense is under `/builder/second-sense/` now.)
 
 **Session 8 correction:** session 7's Namesake visit counter mistakenly used `/builder/second-sense/`.

@@ -36,6 +36,11 @@ summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px;
 .card { max-height: var(--card-height, 70vh); overflow: auto; bottom: var(--card-bottom, 44px); }
 .actions { display: flex; gap: 8px; }
 .actions button { flex: 1; padding: 10px 8px; border-radius: 12px; border: 1px solid #ffffff22; background: #ffffff12; }
+.land { width: 100%; margin: 0 0 8px; padding: 11px 8px; border-radius: 12px; border: 1px solid #9fc4ff55;
+  background: linear-gradient(90deg, #2b4a8a99, #6a3d8a99); font-weight: 600; }
+.land:hover { filter: brightness(1.2); }
+.landed #survey, .landed .chips { display: none; }
+.landed .card { backdrop-filter: blur(6px); background: #070912a0; }
 .status { margin: 8px 0 0; min-height: 1.2em; font-size: 13px; color: #9fc4ff; }
 .status:empty { display: none; }
 .foot { position: fixed; right: 22px; bottom: 14px; left: 22px; text-align: right; color: #6f7890; font-size: 12px; pointer-events: none; }

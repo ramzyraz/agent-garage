@@ -14,9 +14,19 @@
   let renderer = null;
   try { renderer = window.Planet.createRenderer(canvas); } catch (e) { console.error(e); }
   if (!renderer) { $("nogl").hidden = false; canvas.hidden = true; }
+  // The surface shader compiles on the first landing, so the orbit view starts as fast as before.
+  let surface = null;
+  const getSurface = () => {
+    if (!surface && renderer) { try { surface = window.Surface.createSurface(renderer.gl); } catch (e) { console.error(e); $("land").hidden = true; } }
+    return surface;
+  };
+  if (renderer && window.Surface) $("land").hidden = false;
 
-  const state = { world: null, time: 0, yaw: 0, userYaw: 0, pitch: 0.28, dist: 6, targetDist: 6, shift: 0, form: 0, formFrom: 0, formT: 1 };
-  let scale = Math.min(window.devicePixelRatio || 1, 1.5);
+  const state = { world: null, time: 0, yaw: 0, userYaw: 0, pitch: 0.28, dist: 6, targetDist: 6, shift: 0, form: 0, formFrom: 0, formT: 1,
+    mode: "orbit", fade: 1, lookYaw: 0, lookPitch: 0, focal: 1, landTime: 0 };
+  // Separate resolutions: the surface raymarcher is much heavier than the orbit view.
+  const scales = { orbit: Math.min(window.devicePixelRatio || 1, 1.5), land: Math.min(window.devicePixelRatio || 1, 1) };
+  let scale = scales.orbit;
   const HQ = /[?&]hq\b/.test(location.search); // screenshots: never lower the resolution
 
   let zoom = 1;
@@ -85,11 +95,47 @@
       return d;
     }));
     document.title = `${world.name} · Namesake`;
-    if (push) history.replaceState(null, "", "#w=" + encodeURIComponent(world.name));
+    if (push) setHash();
     $("status").textContent = "";
+    if (state.mode === "land") { state.landTime = state.time; state.fade = Math.min(state.fade, 0.5); state.lookYaw = state.lookPitch = 0; }
+    showMode();
     layout();
     if (!same && !live) state.dist = state.targetDist * 1.25;
   }
+
+  function setHash() {
+    history.replaceState(null, "", "#w=" + encodeURIComponent(state.world.name) + (state.mode === "land" ? "&land" : ""));
+  }
+  // Land: dive toward the planet, then fade up on its surface. Gas giants have no ground,
+  // so you stand on their first moon instead.
+  function moonName(world) { return world.name + " I"; }
+  function showMode() {
+    const landed = state.mode === "land", w = state.world;
+    document.body.classList.toggle("landed", landed);
+    $("land").textContent = landed ? "🛰️ Back to orbit" : w.kind === "gas" ? "🚀 Land on a moon" : "🚀 Land on this world";
+    $("note").textContent = !landed ? w.note : w.kind === "gas"
+      ? `A gas giant has no ground, so you're standing on its moon ${moonName(w)}.`
+      : `You're standing on ${w.name}. Every world has its own sky.`;
+    $("hint").textContent = landed ? "Drag to look around · scroll to zoom" : "Drag to spin · scroll to zoom";
+  }
+  function setMode(mode) {
+    state.mode = mode;
+    if (mode === "land") { state.fade = 0; state.landTime = state.time; state.lookYaw = state.lookPitch = 0; state.focal = 1; }
+    if (mode === "orbit") { state.dist = 1.7; zoom = 1; layout(); }
+    const next = mode === "land" ? scales.land : scales.orbit;
+    if (next !== scale) { scale = next; resize(); }
+    frames = slow = 0;
+    setHash();
+    showMode();
+  }
+  let diveT = 0;
+  $("land").addEventListener("click", () => {
+    if (state.mode === "orbit") {
+      if (!getSurface()) return;
+      state.mode = "diving"; diveT = 0; state.targetDist = 1.25;
+      A.track("landed");
+    } else if (state.mode === "land") setMode("orbit");
+  });
 
   function nameFromHash() {
     const m = /[#&]w=([^&]*)/.exec(location.hash);
@@ -122,11 +168,15 @@
   addEventListener("hashchange", () => {
     const n = nameFromHash();
     if (n && (!state.world || n !== state.world.name)) { input.value = n; setWorld(n, { push: false }); }
+    const land = /[#&]land\b/.test(location.hash);
+    if (land && state.mode === "orbit" && getSurface()) setMode("land");
+    else if (!land && state.mode === "land") setMode("orbit");
   });
 
   // Drag to spin, wheel or pinch to zoom.
   const pointers = new Map();
   let vel = 0, pinch = 0;
+  let frames = 0, slow = 0;
   canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); vel = 0; });
   canvas.addEventListener("pointermove", (e) => {
     const p = pointers.get(e.pointerId);
@@ -143,6 +193,12 @@
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
     const k = 3.2 / Math.min(innerWidth, innerHeight);
+    if (state.mode === "land") {
+      const kl = k * 0.45 / state.focal;
+      state.lookYaw -= dx * kl; vel = -dx * kl;
+      state.lookPitch = Math.max(-0.8, Math.min(1.1, state.lookPitch + dy * kl));
+      return;
+    }
     state.userYaw -= dx * k; vel = -dx * k;
     state.pitch = Math.max(-1.3, Math.min(1.3, state.pitch + dy * k));
   });
@@ -150,28 +206,32 @@
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
   function setZoom(value) {
+    if (state.mode === "land") { state.focal = Math.max(0.7, Math.min(2.6, state.focal / value * zoom)); return; }
     zoom = Math.max(0.6, Math.min(2.5, value));
     layout();
   }
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
 
   // Share link.
-  function link() { return location.origin + location.pathname + "#w=" + encodeURIComponent(state.world.name); }
+  function link() { return location.origin + location.pathname + "#w=" + encodeURIComponent(state.world.name) + (state.mode === "land" ? "&land" : ""); }
   $("copy").addEventListener("click", async () => {
-    const text = `I found a planet called ${state.world.name}. ${state.world.label}, ${state.world.note} ${link()}`;
+    const w = state.world;
+    const text = state.mode === "land"
+      ? `I'm standing on ${w.kind === "gas" ? "a moon of " : ""}a planet called ${w.name}. Look at this sky: ${link()}`
+      : `I found a planet called ${w.name}. ${w.label}, ${w.note} ${link()}`;
     try { await navigator.clipboard.writeText(text); $("status").textContent = "Link copied. Paste it anywhere."; }
     catch (e) { window.prompt("Copy this link:", link()); }
     A.track("link-copied");
   });
 
   // Postcard: re-render at a fixed size, then draw the survey on top.
-  function wrap(g, text, x, y, maxW, lh) {
+  function wrap(g, text, x, y, maxW, lh, draw = true) {
     let line = "";
     for (const word of text.split(" ")) {
       const t = line ? line + " " + word : word;
-      if (g.measureText(t).width > maxW && line) { g.fillText(line, x, y); y += lh; line = word; } else line = t;
+      if (g.measureText(t).width > maxW && line) { if (draw) g.fillText(line, x, y); y += lh; line = word; } else line = t;
     }
-    if (line) g.fillText(line, x, y);
+    if (line && draw) g.fillText(line, x, y);
     return y + lh;
   }
   function makePostcard() {
@@ -182,25 +242,37 @@
     if (renderer) {
       const [cw, ch] = [canvas.width, canvas.height];
       canvas.width = w; canvas.height = h;
-      renderer.draw({ ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) });
+      const landed = state.mode === "land" && getSurface();
+      if (landed) surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12 });
+      else renderer.draw({ ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) });
       g.drawImage(canvas, 0, 0);
       canvas.width = cw; canvas.height = ch;
-      renderer.draw(state);
+      if (landed) surface.draw(state); else renderer.draw(state);
     } else { g.fillStyle = "#03040a"; g.fillRect(0, 0, w, h); }
-    const grad = g.createLinearGradient(0, h - 520, 0, h);
+    const grad = g.createLinearGradient(0, h - 620, 0, h);
     grad.addColorStop(0, "rgba(3,4,10,0)"); grad.addColorStop(0.35, "rgba(3,4,10,0.85)"); grad.addColorStop(1, "rgba(3,4,10,1)");
-    g.fillStyle = grad; g.fillRect(0, h - 520, w, 520);
+    g.fillStyle = grad; g.fillRect(0, h - 620, w, 620);
     const font = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
     const wd = state.world;
+    // Measure the note and facts first so long ones push the text block up, never into the footer.
+    const note = $("note").textContent || wd.note;
+    const facts = wd.facts.map(([k, v]) => `${k} ${v}`).join("   ·   ");
+    g.font = `italic 36px ${font}`;
+    let extra = wrap(g, note, 0, 0, w - 140, 46, false) - 46;
+    g.font = `400 28px ${font}`;
+    extra += wrap(g, facts, 0, 0, w - 140, 38, false) - 38;
+    const lift = Math.max(0, extra - 46);
+    g.translate(0, -lift);
     g.fillStyle = "#9aa3b8"; g.font = `500 30px ${font}`;
-    g.fillText(`${wd.label.toUpperCase()}  ·  ${wd.designation}`, 70, h - 360);
+    const where = state.mode !== "land" ? wd.designation : wd.kind === "gas" ? "VIEW FROM ITS MOON" : "VIEW FROM THE SURFACE";
+    g.fillText(`${wd.label.toUpperCase()}  ·  ${where}`, 70, h - 360);
     g.fillStyle = "#ffffff"; g.font = `700 88px ${font}`;
     g.fillText(wd.name, 70, h - 270, w - 140);
     g.fillStyle = "#cdd3e1"; g.font = `italic 36px ${font}`;
-    let y = wrap(g, wd.note, 70, h - 205, w - 140, 46);
+    let y = wrap(g, note, 70, h - 205, w - 140, 46);
     g.font = `400 28px ${font}`; g.fillStyle = "#e9ecf5";
-    const facts = wd.facts.map(([k, v]) => `${k} ${v}`).join("   ·   ");
     y = wrap(g, facts, 70, y + 10, w - 140, 38);
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#6f7890"; g.font = `400 26px ${font}`;
     g.fillText("Every name is a world  ·  ramzyraz.github.io/builder", 70, h - 50);
     return out;
@@ -223,7 +295,7 @@
   });
 
   // Animation loop with adaptive resolution for slower phones.
-  let last = performance.now(), slow = 0, frames = 0;
+  let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -232,14 +304,26 @@
       state.formT = Math.min(1, state.formT + dt / 1.6);
       const e = 1 - Math.pow(1 - state.formT, 3);
       state.form = state.formFrom + (1 - state.formFrom) * e;
+      if (state.mode === "diving") {
+        diveT += dt;
+        state.targetDist = 1.25;
+        if (diveT > 0.9) setMode("land");
+      }
       state.dist += (state.targetDist - state.dist) * Math.min(1, dt * 3);
-      if (!pointers.size) { state.userYaw += vel; vel *= 0.94; }
-      state.yaw = state.time * state.world.render.spin + state.userYaw;
-      renderer.draw(state);
+      if (state.mode === "land") {
+        state.fade = Math.min(1, state.fade + dt / 1.4);
+        if (!pointers.size) { state.lookYaw += vel; vel *= 0.92; }
+        surface.draw(state);
+      } else {
+        if (!pointers.size) { state.userYaw += vel; vel *= 0.94; }
+        state.yaw = state.time * state.world.render.spin + state.userYaw;
+        renderer.draw(state);
+      }
       frames++;
       if (dt > 0.045) slow++;
       if (frames === 40) {
-        if (!HQ && slow > 25 && scale > 0.45) { scale *= 0.75; resize(); }
+        const floor = state.mode === "land" ? 0.3 : 0.45;
+        if (!HQ && slow > 25 && scale > floor) { scale *= 0.75; scales[state.mode === "land" ? "land" : "orbit"] = scale; resize(); }
         frames = 0; slow = 0;
       }
     }
@@ -249,7 +333,8 @@
   const initial = nameFromHash();
   if (initial) { input.value = initial; A.track("link-opened"); }
   setWorld(initial || SHOWCASE[Math.floor(Math.random() * SHOWCASE.length)], { push: !!initial });
+  if (initial && /[#&]land\b/.test(location.hash) && getSurface()) setMode("land");
   requestAnimationFrame(frame);
 
-  window.__namesake = { state, setWorld, makePostcard, layout, getView: () => view, sceneRadius };
+  window.__namesake = { state, setWorld, makePostcard, layout, getView: () => view, sceneRadius, setMode };
 })();

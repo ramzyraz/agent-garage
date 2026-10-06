@@ -1,7 +1,7 @@
 // Only fixed usage labels leave Namesake; never the names people type.
 (function () {
   const events = new Set([
-    "world-named", "world-surprise", "link-copied", "postcard-saved", "link-opened", "chip-used",
+    "world-named", "world-surprise", "link-copied", "postcard-saved", "link-opened", "chip-used", "landed",
   ]);
   const pending = [];
   let ready = false;

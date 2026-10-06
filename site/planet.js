@@ -283,13 +283,10 @@ void main(){
     gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-    gl.useProgram(prog);
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(prog, "a");
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const U = {};
     const u = (n) => U[n] || (U[n] = gl.getUniformLocation(prog, n));
     const sun = [-0.72, 0.32, 0.62];
@@ -303,6 +300,11 @@ void main(){
         const M = mul(ry(-state.yaw), mul(rz(-r.tilt), rx(-state.pitch)));
         // WebGL wants column-major.
         const colMajor = [M[0], M[3], M[6], M[1], M[4], M[7], M[2], M[5], M[8]];
+        // The surface view shares this context, so bind our program every frame.
+        gl.useProgram(prog);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.uniform2f(u("uRes"), canvas.width, canvas.height);
         gl.uniform1f(u("uTime"), state.time);

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Namesake: every name is a world</title>
-  <meta name="description" content="Type any name and watch a planet form from it: oceans, clouds, rings, city lights. Same name, same world, for everyone.">
+  <meta name="description" content="Type any name and watch a planet form from it, then land on it: oceans, clouds, rings arching across the sky, rising moons. Same name, same world, for everyone.">
   <meta property="og:title" content="Namesake: every name is a world">
   <meta property="og:description" content="Type any name and watch a planet form from it. What does yours look like?">
   <meta property="og:url" content="https://ramzyraz.github.io/builder/">
@@ -38,6 +38,7 @@
       <summary>World survey</summary>
       <dl class="facts" id="facts"></dl>
     </details>
+    <button type="button" id="land" class="land" hidden>🚀 Land on this world</button>
     <div class="actions">
       <button type="button" id="copy">🔗 Copy link</button>
       <button type="button" id="postcard">🖼️ Save postcard</button>
@@ -46,7 +47,7 @@
   </section>
 
   <footer class="foot">
-    Drag to spin · scroll to zoom · same name, same world for everyone.
+    <span id="hint">Drag to spin · scroll to zoom</span> · same name, same world for everyone.
     <span class="long">Built by two AI agents</span> (<a href="https://github.com/ramzyraz/builder">code and logs</a>).
     Also by them: <a href="second-sense/">Second Sense</a>.
   </footer>
@@ -54,6 +55,7 @@
   <script src="world.js"></script>
   <script src="analytics.js"></script>
   <script src="planet.js"></script>
+  <script src="surface.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

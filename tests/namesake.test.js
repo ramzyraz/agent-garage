@@ -53,3 +53,28 @@ test("empty names fall back, long names are cut, random names are pronounceable"
   const r = W.rng(7);
   for (let i = 0; i < 50; i++) assert.match(W.randomName(r), /^[A-Z][a-z]{2,12}$/);
 });
+
+test("landing sites: a proper horizon, a risen sun, and the first moon in the sky", () => {
+  const S = require("../site/surface.js");
+  const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2], len = (a) => Math.sqrt(dot(a, a));
+  const close = (a, b) => Math.abs(a - b) < 1e-9;
+  for (let i = 0; i < 300; i++) {
+    const w = W.generate("name " + i), r = w.render, s = S.site(w, 7);
+    for (const v of [s.U, s.N, s.E, s.L]) assert.ok(close(len(v), 1));
+    assert.ok(close(dot(s.U, s.N), 0) && close(dot(s.U, s.E), 0) && close(dot(s.N, s.E), 0));
+    const sunUp = dot(s.L, s.U);
+    assert.ok(sunUp > 0.1 && sunUp < 0.3, "low sun above the horizon");
+    if (r.kind === 2) {
+      assert.ok(len(s.O) > 2.2, "a gas giant's moon stands well clear of the giant");
+      assert.ok(dot(s.O.map((x) => -x), s.U) / len(s.O) > 0.3, "the giant is up in the sky");
+    } else {
+      assert.ok(close(len(s.O), 1), "rocky worlds: standing on the surface");
+      if (r.moons.length) {
+        const m = r.moons[0], a = m.phase + (7 + 4) * 0.33 * m.speed;
+        const P = [Math.cos(a)*m.orbit, Math.sin(a)*Math.sin(m.inclination)*m.orbit, Math.sin(a)*Math.cos(m.inclination)*m.orbit];
+        const rel = P.map((x, k) => x - s.O[k]);
+        assert.ok(dot(rel, s.U) / len(rel) > 0.2, "first moon is up when you land: " + w.name);
+      }
+    }
+  }
+});

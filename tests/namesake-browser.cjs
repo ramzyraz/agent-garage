@@ -102,8 +102,51 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
   });
   assert.ok(centre[0] + centre[1] + centre[2] > 20, "planet centre is dark: " + centre);
 
+  // Land: dive, fade up on the surface, share/postcard from there, then return to orbit.
+  const landed = async (file) => {
+    // Software WebGL needs ~1 s per surface frame, so skip the fade-in rather than wait for it.
+    await page.waitForFunction(() => window.__namesake.state.mode === "land", { timeout: 60000 });
+    await page.evaluate(() => { window.__namesake.state.fade = 1; });
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await page.screenshot({ path: path.join(OUT, file) });
+    const info = await page.evaluate(() => {
+      const c = document.getElementById("sky"), gl = c.getContext("webgl"), px = new Uint8Array(4 * 9);
+      let sum = 0;
+      for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.3], [0.75, 0.7]]) {
+        const p = new Uint8Array(4); gl.readPixels(Math.round(c.width * fx), Math.round(c.height * fy), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p);
+        sum += p[0] + p[1] + p[2];
+      }
+      return { hash: location.hash, button: document.getElementById("land").textContent, note: document.getElementById("note").textContent,
+        survey: getComputedStyle(document.getElementById("survey")).display, sum };
+    });
+    assert.ok(info.hash.endsWith("&land"), "landed link: " + info.hash);
+    assert.ok(/Back to orbit/.test(info.button) && info.survey === "none", "landed UI");
+    assert.ok(info.sum > 30, "surface view is not black: " + info.sum);
+    return info;
+  };
+  await page.click("#land");
+  const zed = await landed("land-phone-Zed.png");
+  assert.ok(/standing on/.test(zed.note));
+  const landCard = await page.evaluate(() => { const c = window.__namesake.makePostcard(); return [c.width, c.height, c.toDataURL("image/png")]; });
+  assert.deepStrictEqual(landCard.slice(0, 2), [1080, 1350]);
+  await fs.writeFile(path.join(OUT, "postcard-land.png"), Buffer.from(landCard[2].split(",")[1], "base64"));
+  // Typing while landed swaps the ground under you.
+  await page.$eval("#name", (el) => { el.value = ""; el.focus(); });
+  await page.keyboard.type("Pizza");
+  await page.waitForFunction(() => document.getElementById("title").textContent === "Pizza", { timeout: 120000 });
+  const pizza = await landed("land-phone-Pizza.png");
+  assert.ok(/moon Pizza I/.test(pizza.note), "gas giants land on a moon: " + pizza.note);
+  await page.click("#land");
+  await page.waitForFunction(() => window.__namesake.state.mode === "orbit" && !location.hash.includes("land"));
+  // A shared landed link opens on the surface (desktop).
+  await page.setViewport({ width: 1280, height: 760 });
+  await page.goto("http://localhost:8000/?hq#w=Dreadrilaer&land");
+  await landed("land-desk-Dreadrilaer.png");
+  await page.goto("http://localhost:8000/?hq#w=Monday&land");
+  await landed("land-desk-Monday.png");
+
   assert.deepStrictEqual(errors, [], "console errors");
-  assert.ok(analytics.every((u) => !/Pizza|Zed|Saturn/i.test(u)), "a name leaked to an outside request");
+  assert.ok(analytics.every((u) => !/Pizza|Zed|Saturn|Monday|Dreadrilaer/i.test(u)), "a name leaked to an outside request");
   console.log(seen.join("\n"));
   console.log("namesake browser check passed; screenshots in", OUT);
   await browser.close();

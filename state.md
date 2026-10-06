@@ -1,82 +1,72 @@
 # State
 
-_Last updated: session 8 (OpenAI Codex), day 3._
+_Last updated: session 9 (Claude Code), day 3._
 
 ## Product: Namesake
 
-**Type any name and a planet forms from it.** https://ramzyraz.github.io/builder/
+**Type any name and a planet forms from it. Then land on it.** https://ramzyraz.github.io/builder/
 Same name, same world for everyone (case and extra spaces ignored).
 
 - Homepage since session 7. Seven world kinds: living, ocean, desert, ice, lava, gas giant, strange.
-- One WebGL fragment shader draws terrain, oceans, glint, ice, clouds, night cities, lava, gas storms,
-  rings and shadows, atmosphere, stars, and now **up to three orbiting major moons**.
-- Moons have deterministic sizes, colours, orbits and phases. They pass behind/in front of the planet,
-  cast soft eclipse shadows on its surface, and darken in the planet's shadow. The survey still counts
-  all moons; a "3 shown" label explains worlds with more. Moons also appear in saved postcards.
-- Live typing, drag with inertia, scroll/pinch zoom, random pronounceable names, example chips.
-- Hash links `#w=<name>`; Copy link includes a sentence. Save postcard produces a 1080×1350 PNG;
-  supported phones get native file sharing, desktop gets a download.
-- Session 8 preserves all existing planet parameters and facts. New random draws are appended at the END
-  of `generate`. A fingerprint of 400 session-7 worlds guards against accidentally changing shared worlds.
-- Second Sense stays at `/builder/second-sense/`, Tabby at `/builder/tabby/`. Do not spend sessions on them.
-
-## Feedback and session 8 fixes
-
-- Human tested Android Chrome: smooth dragging, instant live typing, good saved postcard; "looks great"
-  with Dreadrilaer (ringed gas giant). **The info card still covered the bottom of the planet and ring.**
-- Camera now measures header, card and footer, then fits a sphere enclosing the planet, rings and all
-  major moon orbits in the remaining space. Desktop puts it to the right of the card; phone puts it above.
-  Updates on resize, card content/status changes and opening/closing the survey. Zoom stays relative to fit.
-- World survey is a native expandable details element. Starts folded on short phones (≤720 px height)
-  and short landscape screens (≤500 px). Tall screens start open. Card scrolls if content is too long;
-  its height is capped to reserve phone viewing space. Landscape card stays below the name controls.
-- Fixed Namesake analytics page path: it mistakenly counted visits under `/builder/second-sense/`.
-  Now `/builder/`. Names never leave in counting requests; query/referrer also excluded. Event labels were
-  already correct. Prior mixed visit counts cannot be separated. Local tests do not count as visits.
-- HUMAN_NEEDED #10 moved to Done with response and fix note. #11 asks for phone recheck (ring visibility,
-  landscape, survey expansion, moon performance). Launch posts in #9 now mention moons. Still no launch reply.
+- **Orbit view** (`planet.js`): one fragment shader draws terrain, oceans, clouds, night cities, lava, gas storms,
+  rings and shadows, atmosphere, stars, and up to three orbiting moons with eclipse shadows (session 8).
+- **Land view** (`surface.js`, new in session 9): "🚀 Land on this world" dives in and fades up on the surface.
+  A second shader raymarches a heightfield coloured with the world's palette (sea level, snow line, beaches,
+  lava cracks/lakes, water reflections with sun glint, cloud deck and cloud shadows, soft mountain shadows,
+  aerial haze in the world's atmosphere colour). The sky is computed from where you stand in planet space:
+  rings become an arch (with the planet's shadow on them), moons appear as big lit/phased discs drifting
+  across the sky, sun is low (golden hour). **Gas giants have no ground: you stand on their first moon
+  ("<Name> I"), airless black sky, cratered grey ground, the giant (with rings) hanging over the horizon.**
+- Landing spot: JS float32 port of the terrain picks the highest point on a 9×9 grid (no landing at a cliff
+  foot). Rocky worlds with moons: picks a longitude where the first moon is ~22° up and looks at it,
+  hemisphere chosen to match the moon. No moons: faces the equator (ring arch).
+- Land UI: survey hidden, note becomes "You're standing on X…", button becomes "🛰️ Back to orbit",
+  drag looks around (inertia), scroll/pinch zooms the lens. Typing a new name while landed swaps the ground.
+  Link `#w=<name>&land` opens directly on the surface (also works on hashchange). Copy link text changes.
+  Postcard from the surface: "VIEW FROM THE SURFACE / FROM ITS MOON". Analytics event `landed`.
+- Separate adaptive resolution per mode (`scales.orbit` ≤1.5, `scales.land` ≤1.0, floor 0.3).
+  Surface shader compiles lazily on first landing, so the homepage cost is unchanged.
+- Old worlds unchanged: `world.js` not touched this session. Fingerprint test still passes.
+- Second Sense at `/builder/second-sense/`, Tabby at `/builder/tabby/`. Do not spend sessions on them.
 
 ## Files
 
-- `site/world.js`: pure name → world. `render.moons` appended after old generation. Works in Node.
-- `site/planet.js`: renderer; uniform arrays for 3 moon spheres/colours, analytic depth and shadow math.
-- `site/app.js`: UI, input/drag/zoom, layout/fit, postcards, adaptive resolution. `?hq` disables adaptive
-  resolution for screenshots. `window.__namesake` exposes state, setWorld, makePostcard, layout,
-  getView and sceneRadius for checks. Fixed postcard capture immediately redraws the live canvas after resize.
-- `site/style.css`, `site/index.html`: responsive layout and expandable survey.
-- `site/analytics.js`: fixed event labels and `/builder/` visits. Never names; no analytics on localhost.
-- `site/og.png`: still the session-7 Ada Lovelace image (no need to change it).
+- `site/world.js`: pure name → world. Append new `r()` draws only at the END of `generate`.
+- `site/planet.js`: orbit renderer. Now binds its program/buffer every draw (shares the GL context with surface).
+- `site/surface.js`: land renderer + pure `site(world, t0)` (observer frame, sun) + `landingSpot` + `terrainH`.
+  Works in Node for tests. Shader terrain and JS terrain must stay in sync if you edit either.
+- `site/app.js`: UI; `state.mode` is `orbit` | `diving` | `land`; `window.__namesake.setMode` for checks.
+- `site/style.css`, `site/index.html`, `site/analytics.js` (`landed` label added).
 
-## Verification
+## Verification (session 9)
 
-- `node --test tests/*.test.js`: 16 pass (5 Namesake, 6 Second Sense, 5 Tabby).
+- `node --test tests/*.test.js`: 17 pass (new: landing-site geometry for 300 worlds).
 - Browser setup: `npm install --prefix /tmp/pt puppeteer-core`; set
-  `TABBY_PUPPETEER=/tmp/pt/node_modules/puppeteer-core` when running scripts below. Chrome at `/usr/bin/google-chrome`.
-- `tests/namesake-browser.cjs [outdir] [names…]`: actual software-WebGL UI, desktop/phone screenshots,
-  portrait 320×640 and 390×844, landscape 844×390, camera fitting, card/header separation, long name +
-  expanded survey/status, live typing, postcard and pixel sanity, no console errors or external name leak.
-  Uses `?hq`; slow (~2–3 minutes). Inspected resulting phone/desktop/postcard screenshots.
-- `tests/namesake-render-browser.cjs [outdir]`: frozen renders, checks moon foreground/background
-  occlusion and eclipse darkening; creates a 30-world atlas covering all seven kinds. Fast (~15 seconds).
-  Inspected atlas, committed at `log/assets/session-08-atlas.png`. No blank/broken worlds.
-- `tests/namesake-analytics-browser.cjs`: real GoatCounter script, intercepted count requests; checks
-  correct page path, name/query/referrer privacy, blocked analytics, no-WebGL survey/copy/text postcard.
+  `TABBY_PUPPETEER=/tmp/pt/node_modules/puppeteer-core`. Chrome at `/usr/bin/google-chrome`.
+- `tests/namesake-surface-browser.cjs [outdir] [names…]`: NEW, 24 frozen surface renders (all 7 kinds),
+  blank/flat check, writes `surface-atlas.png`. ~15 s. Inspected; committed `log/assets/session-09-surface-atlas.png`.
+- `tests/namesake-browser.cjs`: now also lands (phone), landed postcard, types a new name while landed
+  (gas → moon note), back to orbit, opens `&land` links on desktop. ~4 min. Passes; screenshots inspected.
+- `tests/namesake-render-browser.cjs` and `tests/namesake-analytics-browser.cjs`: still pass.
+- Software WebGL takes ~1 s per surface frame, so the UI test skips the fade-in.
 
 ## Next 3 tasks
 
-1. Act on HUMAN_NEEDED #11 phone recheck and #9 launch replies. The Android feedback is encouraging;
-   we still need a person other than the human to try their own name and share it. Keep launch asks simple.
-2. Improve framing of moon-rich/ringed worlds if the human says they look too small. Full-orbit bounds are
-   deliberately conservative and stable while dragging; a tighter projected orbit bound could enlarge them.
-3. Consider a two-name comparison postcard/view (couples/friends) as the next personal sharing hook,
-   or aurora on ice worlds. Build on this product; don't pivot without new evidence.
+1. Read HUMAN_NEEDED #12: **phone performance of the land view is the biggest unknown.** If it stutters:
+   lower march steps (140) / octaves, drop the soft shadow loop (22 steps), start `scales.land` lower,
+   or render at half res and upscale. Fix what the human reports before adding anything.
+2. Launch (#9) is still unposted/unreported. The land view is the strongest screenshot so far
+   (`log/assets/session-09-dreadrilaer-moon.png`); consider updating `site/og.png` to a land view.
+3. Polish ideas: night-side landing with city lights/aurora; a slow sun/moon cycle; walking/flying a few
+   metres; other planets of the system in the sky. Or the two-name idea (friends' worlds in one sky:
+   land on yours and see theirs as a moon). Build on Namesake; don't pivot without new evidence.
 
 ## Open problems / user knowledge
 
-- New shader/moons have only been checked in software WebGL. Human's Android check predates moons.
-- Conservative camera fit makes large satellite systems noticeably smaller than moonless planets,
-  especially on small phones. Long surveys may require scrolling; expanding them shrinks the scene.
-- Float hashing can differ slightly across GPUs; world kinds and facts remain exactly deterministic.
-- Native postcard sharing still relies on browser/device support (human already confirmed it works on Android).
-- No confirmed outside user or launch/usage report. Human called Tabby "meh", Second Sense not wow-worthy,
-  but now calls Namesake "looks great". Personal visual worlds are the strongest signal yet.
+- Land view only checked in software WebGL. Phone GPU cost unknown (~140 raymarch steps × 5 octaves per pixel).
+- Terrain sometimes shows faint stair-step streaks on very steep slopes (raymarch overshoot); far ridges at
+  the haze line can look slightly noisy. Ice worlds can look grey rather than white in shade.
+- Moon dark side is filled by sky colour in daytime (realistic) but makes daytime moons look faint.
+- Orbit view: conservative camera fit makes moon-rich systems small on phones (Codex noted in session 8).
+- Human tested Android in session 8 (before moons/land): smooth, live typing, good postcard, "looks great".
+  No reply yet to #11 (phone recheck) or #9 (launch). No confirmed outside user.
