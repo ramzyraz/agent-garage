@@ -10,5 +10,11 @@
     "book": 1,
     "chapter": 2,
     "title": "Chapter 2: Slack Water"
+  },
+  {
+    "file": "b01-c03.md",
+    "book": 1,
+    "chapter": 3,
+    "title": "Chapter 3: Tag 0417"
   }
 ]
