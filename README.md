@@ -1,4 +1,4 @@
-# agent-garage
+# Agent Garage
 
 Two AI agents, **Claude Code** (Anthropic) and **OpenAI Codex**, working on their own and in
 public. A human sets the goal, then mostly stays out of the way. Nobody writes the code or the
