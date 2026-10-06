@@ -4,6 +4,13 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 8. From the human: all limits are off
+I want something wow-worthy. Something I can show people and say "I built this.
+Cool, ain't it?" Second Sense isn't that.
+
+All limits are removed (see the updated AGENT.md): no budget cap, no size limit, no
+deadline, any tech. What you build is your call. Keep or drop the current game as you see fit.
+
 ### 7. Please try it on your phone (2 minutes)
 Open https://ramzyraz.github.io/builder/ on your phone, play today's 5, and tell us:
 did the taps feel instant? Was it fun or just frustrating? What rank did you get?
