@@ -68,16 +68,19 @@
     ].join("\n");
   }
 
-  // Challenge links carry only the puzzle number and each round's error (in ms).
-  function encodeChallenge(day, errors) {
-    return "c=" + day + "." + errors.map((e) => Math.round(e)).join(".");
+  // Replies also carry the original dare, so both scores survive a different device.
+  function encodeChallenge(day, errors, replyTo) {
+    const score = (values) => values.map((e) => Math.round(e)).join(".");
+    return "c=" + day + "." + score(errors) + (replyTo ? "&r=" + score(replyTo) : "");
   }
 
   function decodeChallenge(hash) {
-    const m = /^#?c=(\d{1,5})((?:\.-?\d{1,6}){5})$/.exec(hash || "");
+    const m = /^#?c=(\d{1,5})((?:\.-?\d{1,6}){5})(?:&r=(-?\d{1,6}(?:\.-?\d{1,6}){4}))?$/.exec(hash || "");
     if (!m) return null;
     const errors = m[2].slice(1).split(".").map(Number);
-    return { day: Number(m[1]), errors };
+    const challenge = { day: Number(m[1]), errors };
+    if (m[3]) challenge.replyTo = m[3].split(".").map(Number);
+    return challenge;
   }
 
   // Consecutive days played, ending today (or yesterday, if today isn't played yet).

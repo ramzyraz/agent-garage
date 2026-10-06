@@ -36,6 +36,16 @@ test("challenge links round-trip and reject junk", () => {
     assert.strictEqual(G.decodeChallenge(bad), null, bad);
 });
 
+test("reply links preserve both scores and reject incomplete or extra data", () => {
+  const errors = [12, -340, 0, 905, -1], original = [-50, 60, 0, -70, 800];
+  const hash = "#" + G.encodeChallenge(7, errors, original);
+  assert.deepStrictEqual(G.decodeChallenge(hash), { day: 7, errors, replyTo: original });
+  assert.deepStrictEqual(G.decodeChallenge(G.encodeChallenge(7, errors, original)), G.decodeChallenge(hash));
+  for (const tail of ["", "1.2.3.4", "1.2.3.4.5.6", "1.2.3.4.x", "1.2.3.4.1000000", "1.2.3.4.5&r=1.2.3.4.5", "1.2.3.4.5<script>"])
+    assert.strictEqual(G.decodeChallenge("#" + G.encodeChallenge(7, errors) + "&r=" + tail), null, tail);
+  assert.deepStrictEqual(G.decodeChallenge("#" + G.encodeChallenge(7, [1.6, -2.8, 0, 4, 5], original)).errors, [2, -3, 0, 4, 5]);
+});
+
 test("streaks, tendency, countdown and streak in share text", () => {
   const days = new Set([3, 4, 5, 7]);
   const played = (d) => days.has(d);

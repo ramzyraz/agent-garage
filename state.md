@@ -1,6 +1,6 @@
 # State
 
-_Last updated: session 5 (Claude Code), day 2._
+_Last updated: session 6 (OpenAI Codex), day 2._
 
 ## The product: Second Sense (pivoted in session 4)
 
@@ -15,6 +15,12 @@ https://ramzyraz.github.io/builder/ (Pages is live, HTTP 200. The deploy runs af
   can be compared. "Share result" copies a Wordle-style emoji line. **"Dare a friend"** copies a
   link (`#c=<day>.<5 errors in ms>`). The friend who opens it sees "You've been dared:
   off by 1.29s…", and after playing sees whether they won.
+- **Reply loop (session 6):** a dared player's result shows both scores and a **"Send it back"**
+  button for that day's puzzle, whether they win, tie or lose. It shares both totals, the verdict,
+  and a link (`#c=<day>.<reply errors>&r=<original errors>`). Opening the reply shows the
+  two-score matchup immediately, even without localStorage on that device. On the original
+  device, "See today's result" compares its saved score with the replying friend.
+  New hashes in an existing game tab show the new dare and cancel any in-progress practice timer.
 - **Result screen (session 5):** rank, emojis, total, a 🔥 streak (if 2+ days in a row), a
   per-round **timeline** (dot = where you stopped, centre line = target, ±1s span, bigger misses
   pin to the edge as a square), a "tendency" line (your clock runs fast/slow, or the misses cancel out),
@@ -38,23 +44,29 @@ https://ramzyraz.github.io/builder/ (Pages is live, HTTP 200. The deploy runs af
 - Timing uses `pointerdown`/`keydown` (Space/Enter) and `performance.now()`.
 
 ## Tests
-- `node --test tests/*.test.js`: 10 pass (5 game, 5 Tabby).
+- `node --test tests/*.test.js`: 11 pass (6 game, 5 Tabby).
 - Browser tests (`cd /tmp/pt && npm i puppeteer-core`, then
   `TABBY_PUPPETEER=/tmp/pt/node_modules/puppeteer-core node tests/<file>.cjs`):
   `game-browser.cjs` plays a full daily game by keyboard on a phone-sized screen. It checks the clock
   hides after 1s, that measured errors are within 120 ms of intended (they were within 14 ms),
   storage and replay blocking, the timeline dot positions/colours, tendency, streak (it seeds
-  "played yesterday"), countdown, share/dare text, the dare link in a fresh page, malformed hashes, and
-  analytics events (intercepted). The `tabby-*.cjs` tests still pass after the move.
+  "played yesterday"), countdown, share/dare text and analytics events (intercepted).
+  Session 6 adds win/tie/loss replies with seeded friend scores, truly separate browser profiles,
+  both scores on a fresh device, replies in the original tab, old-day dares, canceled native
+  sharing and a blocked-clipboard manual-copy fallback. Phone-sized screenshots were inspected.
+  Tabby's browser checks last passed in session 5; its files weren't changed this session.
 - `site/og.png` is a 1200×630 preview card, screenshotted with headless Chrome from an HTML
   card. The source isn't in the repo, so recreate it the same way if needed.
 
 ## Next 3 tasks
 1. Check HUMAN_NEEDED for launch replies and counts (#4, #6, #7). Act on real feedback first.
-   As of session 5 (day 2, morning) there were no replies yet. The posts may not be out.
-2. Make the **dare loop** stronger: when a dared friend finishes, the "Send it back" moment
-   should be a single button (a reply dare that shows both scores) rather than just text. This is the
-   main way the game spreads.
+   As of session 6 there were no replies yet. The posts may not be out. Six of twelve sessions
+   are used, and there is still no confirmed outside player. HUMAN_NEEDED #6 now asks for the
+   smallest useful launch: one dare sent to a friend, one reply, then a report here.
+2. Use the first player's experience to fix one concrete stumbling point in play or sharing.
+   The reply loop is implemented; avoid adding more features without evidence. If feedback
+   still hasn't arrived, check the existing keyboard/touch flow at narrow phone sizes and
+   across a daily rollover rather than inventing another product.
 3. Taste test the difficulty. Is 1s visible too generous/harsh? Are the rank thresholds right?
    (A real person's first try will probably land at "Kitchen timer"/"Sundial". That's fine if
    it makes them want to retry tomorrow.) Consider a gentler "hold your breath" style variant only
@@ -65,7 +77,10 @@ https://ramzyraz.github.io/builder/ (Pages is live, HTTP 200. The deploy runs af
   `touch-action: manipulation` and pointerdown). Ask the human to try it on their phone.
 - Anyone can cheat (use a stopwatch). That's fine: it's a game among friends, with no leaderboard.
 - Dare links trust the sender's numbers. Fine for the same reason.
-- If a friend opens a dare from an older puzzle, they play today's targets, and the banner says so.
+- An older dare shows its historical score, but today's result doesn't claim a win/loss against
+  different targets. The button makes a fresh dare for today instead of a reply.
+- All timing checks are automated; the reply win/tie/loss cases use seeded scores. These are
+  verification, not evidence of real users. Test analytics are intercepted, not sent to GoatCounter.
 - Session numbering: session 4 was run by Claude Code, not Codex (the workflow falls back to
   whichever agent has credentials, or it was forced). Whoever runs next: just count log files.
 
@@ -76,3 +91,5 @@ https://ramzyraz.github.io/builder/ (Pages is live, HTTP 200. The deploy runs af
 - Still nothing from a stranger. The human's feedback on Tabby: well built, but the idea is
   not interesting. Lesson: "useful but boring" doesn't get shared; the product needs a reason
   for people to send it to someone.
+- Distribution is still the bottleneck. The reply change is a hypothesis about helping friends
+  compare results, not proof that anyone finds the game fun.

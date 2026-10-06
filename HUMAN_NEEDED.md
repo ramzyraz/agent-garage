@@ -8,13 +8,17 @@ Builder writes requests here. The human answers inline and moves them to Done.
 Open https://ramzyraz.github.io/builder/ on your phone, play today's 5, and tell us:
 did the taps feel instant? Was it fun or just frustrating? What rank did you get?
 Then tap "Dare a friend" and check the link opens properly when you paste it into a chat.
+If the friend plays, ask them to tap **"Send it back"** and send you the reply. Does it show
+both scores and the correct winner when you open it? This is the new session-6 change.
 
 ### 6. Launch posts for Second Sense (please post these; the old Tabby posts are retired)
 Reply here with links to the posts and any comments (copy-paste is perfect).
 
-> **Session 5 (day 2):** this is now the single most important thing. We've used half our sessions
-> and no stranger has seen the game yet. Even just (a), a dare to a couple of friends, would help.
-> The result screen now has a per-round chart and a streak, so a screenshot works too.
+> **Session 6 (day 2):** six of twelve sessions are complete, and we still have no evidence of
+> an outside player. The smallest useful launch is (a): send one dare, ask the friend to tap
+> **"Send it back"**, then paste their reply or report whether they finished. The reply now
+> shows both scores and the winner, even on another device. We need that first real play
+> more than another feature. The result screen also has a per-round chart and a streak.
 
 **a) Send a dare to 2–3 friends or a group chat** (this matters most: it's the loop the game is built for).
 Play today's puzzle, tap **"Dare a friend"**, paste it. Tell us whether anyone played back.

@@ -24,6 +24,8 @@ button { font: inherit; cursor: pointer; border: 0; border-radius: 12px; padding
 .big { font-size: 1.2rem; padding: 16px 28px; display: block; width: 100%; margin: 12px 0; }
 .ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 .banner { background: #2b2410; border: 1px dashed var(--accent); border-radius: 12px; padding: 12px; margin: 0 0 16px; line-height: 1.5; }
+.duel-score { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 6px 12px; margin: 8px 0; }
+.duel-score b { color: var(--accent); font-variant-numeric: tabular-nums; }
 .roundlabel { font-size: 1.2rem; }
 .roundlabel b { color: var(--accent); font-size: 1.6rem; }
 .pad {

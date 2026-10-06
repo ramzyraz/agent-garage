@@ -8,7 +8,7 @@
   const played = (d) => { try { return !!localStorage.getItem("ss-day-" + d); } catch (e) { return false; } };
   const saved = () => { try { return JSON.parse(localStorage.getItem("ss-day-" + today)); } catch (e) { return null; } };
 
-  const challenge = G.decodeChallenge(location.hash);
+  let challenge = G.decodeChallenge(location.hash);
   let game = null; // { daily, targets, errors, round, phase, start, raf }
 
   $("daylabel").textContent = "· Puzzle #" + today;
@@ -18,16 +18,39 @@
   }
 
   // ---- Intro ----
-  if (challenge) {
+  function scoreRow(label, errors) {
+    return `<div class="duel-score"><span>${label}</span><b>${G.fmt(G.total(errors))}</b>` +
+      `<span>${errors.map(G.grade).join("")}</span></div>`;
+  }
+
+  function outcome(mine, theirs) {
+    return mine < theirs ? `You beat your friend by ${G.fmt(theirs - mine)}.`
+      : mine === theirs ? "Exact tie with your friend. Spooky."
+      : `Your friend wins by ${G.fmt(mine - theirs)}.`;
+  }
+
+  function showChallenge() {
+    $("challenge").hidden = !challenge;
+    if (!challenge) return;
     track("challenge-opened");
     const t = G.total(challenge.errors);
     const same = challenge.day === today;
     $("challenge").hidden = false;
-    $("challenge").innerHTML =
-      `<b>You've been dared.</b> A friend was off by <b>${G.fmt(t)}</b> in total ` +
-      `(${G.title(t)}) ${challenge.errors.map(G.grade).join("")} on puzzle #${challenge.day}.` +
-      (same ? " Same targets for you. Can you beat it?" : " Today's targets are different, but try to beat that score.");
+    if (challenge.replyTo) {
+      const original = G.total(challenge.replyTo);
+      const verdict = t === original ? "An exact tie. Spooky."
+        : `${t < original ? "Friend" : "Original dare"} wins by ${G.fmt(Math.abs(t - original))}.`;
+      $("challenge").innerHTML = `<b>A friend sent it back.</b> Puzzle #${challenge.day}.` +
+        scoreRow("Friend", challenge.errors) + scoreRow("Original dare", challenge.replyTo) +
+        `<b>${verdict}</b>` + (same ? "" : " These are earlier results. Today's targets are different.");
+    } else {
+      $("challenge").innerHTML =
+        `<b>You've been dared.</b> A friend was off by <b>${G.fmt(t)}</b> in total ` +
+        `(${G.title(t)}) ${challenge.errors.map(G.grade).join("")} on puzzle #${challenge.day}.` +
+        (same ? " Same targets for you. Can you beat it?" : " Today's targets are different. Start a new dare today.");
+    }
   }
+  showChallenge();
   if (saved()) {
     $("play").textContent = "See today's result";
   }
@@ -142,14 +165,15 @@
       return `<tr><td>${G.fmt(tg)}</td><td>${G.fmt(tg + e)}</td><td>${G.grade(e)} ${e < 0 ? "−" : "+"}${G.fmt(Math.abs(e))}</td></tr>`;
     }).join("");
     $("shareactions").hidden = !g.daily;
+    const canReply = challenge && challenge.day === today && g.daily;
+    $("dare").textContent = canReply ? "Send it back" : "Dare a friend (link)";
     $("copied").textContent = "";
     if (challenge && g.daily) {
       const mine = t, theirs = G.total(challenge.errors);
       $("versus").hidden = false;
-      $("versus").textContent = mine < theirs
-        ? `You beat your friend by ${G.fmt(theirs - mine)}. Send it back to them.`
-        : mine === theirs ? "Exact tie with your friend. Spooky."
-        : `Your friend wins by ${G.fmt(mine - theirs)}. Practice, then try again tomorrow.`;
+      $("versus").innerHTML = canReply
+        ? scoreRow("You", g.errors) + scoreRow("Friend", challenge.errors) + `<b>${outcome(mine, theirs)}</b>`
+        : `Your friend's ${G.fmt(theirs)} was on puzzle #${challenge.day}. Different targets today; start a new dare to compare fairly.`;
     } else $("versus").hidden = true;
     const s = g.daily ? G.streak(today, played) : 0;
     $("streak").hidden = s < 2;
@@ -159,6 +183,17 @@
     if (g.daily) { tickDown(); countdown = setInterval(tickDown, 30000); } else $("comeback").textContent = "";
   }
   let countdown = null;
+
+  // A chat may open a new dare in this same tab without reloading the page.
+  window.addEventListener("hashchange", () => {
+    cancelAnimationFrame(game?.raf);
+    clearInterval(countdown);
+    game = null;
+    challenge = G.decodeChallenge(location.hash);
+    showChallenge();
+    $("play").textContent = saved() ? "See today's result" : "Play today's 5";
+    show("intro");
+  });
 
   // One row per round: the target is the centre line, the dot is where you stopped.
   const SPAN = 1000; // ms shown either side of the target; bigger misses pin to the edge
@@ -195,8 +230,14 @@
   });
   $("dare").addEventListener("click", async () => {
     const t = G.total(current.errors);
-    const link = BASE + "#" + G.encodeChallenge(today, current.errors);
-    const text = `I was off by ${G.fmt(t)} on today's Second Sense ${current.errors.map(G.grade).join("")}. Beat that:\n${link}`;
-    if (await copy(text, "Dare copied! Send it to someone.")) track("challenge-copied");
+    const replyTo = challenge && challenge.day === today ? challenge.errors : null;
+    const link = BASE + "#" + G.encodeChallenge(today, current.errors, replyTo);
+    const theirs = replyTo ? G.total(replyTo) : 0;
+    const replyVerdict = t < theirs ? `I beat you by ${G.fmt(theirs - t)}.`
+      : t === theirs ? "An exact tie. Spooky." : `You win by ${G.fmt(t - theirs)}.`;
+    const text = replyTo
+      ? `Second Sense #${today}: I was off by ${G.fmt(t)}, you were off by ${G.fmt(theirs)}. ${replyVerdict}\n${link}`
+      : `I was off by ${G.fmt(t)} on today's Second Sense ${current.errors.map(G.grade).join("")}. Beat that:\n${link}`;
+    if (await copy(text, replyTo ? "Reply copied! Send it back to your friend." : "Dare copied! Send it to someone.")) track("challenge-copied");
   });
 })();
