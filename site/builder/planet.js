@@ -10,6 +10,8 @@ uniform vec3 uSeed; uniform float uKind, uSea, uCloud, uIce, uCity, uRough, uSca
 uniform vec3 uP0, uP1, uP2, uP3, uP4, uP5, uAtmo, uCloudCol, uRingCol;
 uniform float uRing, uRingIn, uRingOut;
 uniform vec4 uMoons[3]; uniform vec3 uMoonColors[3];
+uniform sampler2D uComp; uniform vec3 uCompAt;   // a friend's world behind this one: centre, radius (0 = none)
+uniform float uSolo;                             // 1 = draw only the planet and rings, with alpha, for a sprite
 
 float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float noise(vec3 x){
@@ -105,11 +107,22 @@ void main(){
 
   // Background: stars and a faint nebula tinted by the atmosphere.
   vec3 col = vec3(0.0);
-  vec2 g = floor(gl_FragCoord.xy/1.5);
-  float s = hash(vec3(g, 3.0));
-  col += vec3(0.8, 0.85, 1.0) * smoothstep(0.9965, 1.0, s) * (0.6 + 0.4*sin(uTime*2.0 + s*500.0));
-  float neb = fbm3(vec3(rd.xy*2.5, uSeed.x*0.1));
-  col += uAtmo * pow(neb, 3.0) * 0.12 + vec3(0.01, 0.012, 0.025);
+  float alpha = 0.0;
+  if (uSolo < 0.5){
+    vec2 g = floor(gl_FragCoord.xy/1.5);
+    float s = hash(vec3(g, 3.0));
+    col += vec3(0.8, 0.85, 1.0) * smoothstep(0.9965, 1.0, s) * (0.6 + 0.4*sin(uTime*2.0 + s*500.0));
+    float neb = fbm3(vec3(rd.xy*2.5, uSeed.x*0.1));
+    col += uAtmo * pow(neb, 3.0) * 0.12 + vec3(0.01, 0.012, 0.025);
+    // The twin world, far behind: a premultiplied sprite drawn by this same shader.
+    if (uCompAt.z > 0.0){
+      vec2 q = (uv - uCompAt.xy)/uCompAt.z;
+      if (abs(q.x) < 1.0 && abs(q.y) < 1.0){
+        vec4 c = texture2D(uComp, q*0.5 + 0.5)*smoothstep(1.0, 0.88, length(q));
+        col = col*(1.0 - c.a) + c.rgb;
+      }
+    }
+  }
 
   // Planet hit.
   float b = dot(ro, rd), c = dot(ro, ro) - 1.0, disc = b*b - c;
@@ -195,6 +208,7 @@ void main(){
     lit += uAtmo * rim * atmoLight * 0.9;
     lit = mix(lit, uAtmo*atmoLight, rim*0.25);
     col = lit;
+    alpha = 1.0;
   }
 
   // Halo around the limb.
@@ -224,6 +238,7 @@ void main(){
         float shadow = 1.0;
         if (behind > 0.0) shadow = smoothstep(0.96, 1.04, length(hit + L*behind));
         col = base*(max(dot(normal, L), 0.0)*1.15*shadow + 0.035);
+        alpha = 1.0;
         tP = t;
       }
     }
@@ -246,12 +261,16 @@ void main(){
           float tc2 = -dot(pr, L);
           float sh = (tc2 > 0.0 && length(pr + L*tc2) < 1.0) ? 0.12 : 1.0;
           vec3 rc = uRingCol * (0.25 + 0.85*sh) * (0.8 + 0.4*noise(vec3(rr*120.0, 2.0, uSeed.z)));
-          col = mix(col, rc, clamp(dens*0.9*uForm, 0.0, 1.0));
+          float k = clamp(dens*0.9*uForm, 0.0, 1.0);
+          col = mix(col, rc, k);
+          alpha = mix(alpha, 1.0, k);
         }
       }
     }
   }
 
+  // A sprite stays linear: the view it's composited into applies the tone curve once.
+  if (uSolo > 0.5){ gl_FragColor = vec4(col, alpha); return; }
   // Filmic-ish tone and vignette.
   col = col/(1.0 + col*0.35);
   col = pow(col, vec3(0.92));
@@ -291,10 +310,44 @@ void main(){
     const u = (n) => U[n] || (U[n] = gl.getUniformLocation(prog, n));
     const sun = [-0.72, 0.32, 0.62];
     const sl = Math.hypot(...sun);
+    let sprite = null;
+    const bare = new WeakMap();
 
-    return {
+    const api = {
       gl,
-      draw(state) {
+      SUN: sun.map((x) => x / sl),
+      // Draw a friend's world (planet and rings, no moons or stars) into a small transparent
+      // texture, so either view can hang it in its sky. 'sun' is the light direction in sprite
+      // space (x right, y up, z toward the viewer): it sets the lit phase.
+      sprite(world, time, sunDir, size = 384) {
+        if (!sprite) {
+          const tex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+          for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR],
+            [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+          const fb = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          sprite = { tex, fb, size };
+        }
+        if (!bare.has(world)) bare.set(world, { ...world, render: { ...world.render, moons: [] } });
+        const r = world.render;
+        const R = Math.max(1.15, r.ring ? r.ringOut : 0);
+        // Fit the whole system inside 85% of the sprite.
+        const dist = R * Math.hypot(0.425, 1.8) / 0.425;
+        gl.bindTexture(gl.TEXTURE_2D, null);   // never sample the texture being drawn into
+        api.draw({ world: bare.get(world), time, yaw: time * r.spin, pitch: 0.28, dist, shift: 0, shiftX: 0, form: 1, sun: sunDir },
+          { fb: sprite.fb, w: sprite.size, h: sprite.size });
+        return sprite.tex;
+      },
+      // opts.fb: draw into a sprite framebuffer instead of the screen. state.comp = { tex, at: [x, y, radius] }
+      // places a sprite behind the planet, in the same units as the view (planet centre is 0, 0).
+      draw(state, opts = {}) {
+        const solo = !!opts.fb;
+        const w = solo ? opts.w : canvas.width, h = solo ? opts.h : canvas.height;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, solo ? opts.fb : null);
         const r = state.world.render;
         // World -> planet-local rotation: undo the view pitch, then the axial tilt, then the spin.
         const M = mul(ry(-state.yaw), mul(rz(-r.tilt), rx(-state.pitch)));
@@ -305,8 +358,14 @@ void main(){
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.uniform2f(u("uRes"), canvas.width, canvas.height);
+        gl.viewport(0, 0, w, h);
+        gl.uniform2f(u("uRes"), w, h);
+        gl.uniform1f(u("uSolo"), solo ? 1 : 0);
+        const comp = !solo && state.comp;
+        gl.activeTexture(gl.TEXTURE0);
+        if (comp) gl.bindTexture(gl.TEXTURE_2D, comp.tex);
+        gl.uniform1i(u("uComp"), 0);
+        gl.uniform3fv(u("uCompAt"), comp ? comp.at : [0, 0, 0]);
         gl.uniform1f(u("uTime"), state.time);
         gl.uniform1f(u("uDist"), state.dist);
         gl.uniform1f(u("uShift"), state.shift);
@@ -314,7 +373,7 @@ void main(){
         gl.uniform1f(u("uForm"), state.form);
         gl.uniformMatrix3fv(u("uM"), false, colMajor);
         gl.uniform3f(u("uAxis"), M[3], M[4], M[5]);
-        gl.uniform3f(u("uSun"), sun[0] / sl, sun[1] / sl, sun[2] / sl);
+        gl.uniform3fv(u("uSun"), state.sun || api.SUN);
         gl.uniform3fv(u("uSeed"), r.seed);
         for (const [k, v] of Object.entries({ uKind: r.kind, uSea: r.sea, uCloud: r.cloud, uIce: r.ice, uCity: r.cities,
           uRough: r.rough, uScale: r.scale, uBands: r.bands, uRing: r.ring, uRingIn: r.ringIn, uRingOut: r.ringOut }))
@@ -339,8 +398,10 @@ void main(){
         gl.uniform4fv(u("uMoons[0]"), moons);
         gl.uniform3fv(u("uMoonColors[0]"), colors);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
+        if (solo) gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       },
     };
+    return api;
   }
 
   window.Planet = { createRenderer };

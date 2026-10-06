@@ -13,6 +13,7 @@ uniform vec3 uP0, uP1, uP2, uP3, uP4, uP5;   // giant palette (moon mode)
 uniform vec3 uAtmo, uCloudCol, uRingCol;
 uniform float uRing, uRingIn, uRingOut;
 uniform vec4 uMoons[3]; uniform vec3 uMoonColors[3];
+uniform sampler2D uComp; uniform vec3 uCompDir, uCompRt, uCompUp; uniform float uCompSize;  // a friend's world
 
 float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float noise(vec3 x){
@@ -128,6 +129,17 @@ vec3 sky(vec3 d){
   col += vec3(1.0, 0.92, 0.8)*smoothstep(0.99955, 0.9998, dot(d, L))*6.0;
   col += vec3(1.0, 0.85, 0.65)*pow(max(dot(d, L), 0.0), 900.0)*1.5;
 
+  // The twin world, far beyond the moons: a sprite drawn by the orbit shader with this sky's sunlight.
+  if (uCompSize > 0.0){
+    float z = dot(d, uCompDir);
+    if (z > 0.0){
+      vec2 q = vec2(dot(d, uCompRt), dot(d, uCompUp))/(z*uCompSize);
+      if (abs(q.x) < 1.0 && abs(q.y) < 1.0){
+        vec4 c = texture2D(uComp, q*0.5 + 0.5)*smoothstep(1.0, 0.88, length(q));
+        col = col*(1.0 - c.a) + c.rgb + sb*0.85*c.a;
+      }
+    }
+  }
   float tHit = 1e9;
   vec3 obj = vec3(0.0); float hasObj = 0.0;
   // The giant, seen from one of its moons.
@@ -428,6 +440,38 @@ void main(){
       pitch: Math.max(0.05, Math.min(0.4, elev - 0.2)) };
   }
 
+  // Where a friend's world hangs in this world's sky: in the first view, clear of the first moon and
+  // the giant, away from the low sun so it shows a lit face. Directions are in the shader's tangent
+  // frame (x east, y up, z north; yaw grows to the right). 'sun' is the light in the sprite's own frame.
+  // 'aspect' (width / height): on narrow phones 'look' turns the view so the twin and the moon both fit.
+  function companion(world, friend, t0 = 0, aspect = 1.7) {
+    const s = site(world, t0), r = world.render, fr = friend.render;
+    const R = Math.max(1.15, fr.ring ? fr.ringOut : 0), size = 0.14 * R / 1.15, own = Math.atan(size);
+    const focal = aspect < 1 / 1.1 ? 0.75 : 1, halfFov = Math.atan(0.5 * aspect / focal);
+    const T = (v) => [dot(v, s.E), dot(v, s.U), dot(v, s.N)];
+    let yaw, el;
+    if (r.kind === 2) {
+      // Beside the giant, on the side away from the sun (which is behind your right shoulder).
+      el = 0.45; yaw = s.yaw - (Math.asin(1 / Math.hypot(...s.O)) + own * 0.9 + 0.04) / Math.cos(el);
+    } else if (r.moons[0]) {
+      // Just right of the first moon; the low sun is far to the left.
+      const m = r.moons[0], rel = add(moonPos(m, (t0 + 4) * MOON_PACE), sc(s.O, -1)), dist = Math.hypot(...rel);
+      const d = T(sc(rel, 1 / dist)), mEl = Math.asin(d[1]), mAz = Math.atan2(d[0], d[2]);
+      el = Math.max(0.32, mEl + 0.06);
+      yaw = mAz + (Math.asin(Math.min(1, m.radius / dist)) + own * 0.85 + 0.03) / Math.cos(el);
+    } else {
+      el = Math.max(0.32, s.pitch + 0.2); yaw = s.yaw + Math.min(0.5, halfFov * 0.6);
+    }
+    el = Math.max(0.28, Math.min(el, s.pitch + Math.atan(0.5 / focal) - own * 0.85));   // inside the first view
+    const dir = [Math.sin(yaw) * Math.cos(el), Math.sin(el), Math.cos(yaw) * Math.cos(el)];
+    const rt = norm([Math.cos(yaw), 0, -Math.sin(yaw)]);
+    const up = cross(dir, rt);
+    const L = T(s.L);
+    const right = yaw + own * 0.7 - (s.yaw + halfFov * 0.92), left = yaw - own * 0.7 - (s.yaw - halfFov * 0.92);
+    const look = right > 0 ? right : Math.min(0, left);
+    return { dir, rt, up, size, look, sun: norm([dot(L, rt), dot(L, up), -dot(L, dir)]) };
+  }
+
   function createSurface(gl) {
     const sh = (type, src) => {
       const s = gl.createShader(type);
@@ -463,7 +507,7 @@ void main(){
         // Portrait screens are narrow: widen the lens so the sky still fits side to side.
         gl.uniform1f(u("uFocal"), (state.focal || 1) * (canvas.height > canvas.width * 1.1 ? 0.75 : 1));
         gl.uniform1f(u("uFade"), state.fade == null ? 1 : state.fade);
-        gl.uniform1f(u("uYaw"), s.yaw + (state.lookYaw || 0));
+        gl.uniform1f(u("uYaw"), s.yaw + (state.lookYaw || 0) + (state.comp ? state.comp.look : 0));
         gl.uniform1f(u("uPitch"), Math.max(-0.6, Math.min(1.35, s.pitch + (state.lookPitch || 0))));
         for (const k of ["O", "E", "U", "N", "L"]) gl.uniform3fv(u("u" + k), s[k]);
         gl.uniform3fv(u("uSeed"), r.seed);
@@ -499,12 +543,18 @@ void main(){
         }
         gl.uniform4fv(u("uMoons[0]"), moons);
         gl.uniform3fv(u("uMoonColors[0]"), colors);
+        const comp = state.comp;
+        gl.activeTexture(gl.TEXTURE0);
+        if (comp) gl.bindTexture(gl.TEXTURE_2D, comp.tex);
+        gl.uniform1i(u("uComp"), 0);
+        gl.uniform1f(u("uCompSize"), comp ? comp.size : 0);
+        if (comp) for (const k of ["Dir", "Rt", "Up"]) gl.uniform3fv(u("uComp" + k), comp[k.toLowerCase()]);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
       },
     };
   }
 
-  const api = { createSurface, site, terrainH, landingSpot };
+  const api = { createSurface, site, terrainH, landingSpot, companion };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else window.Surface = api;
 })();

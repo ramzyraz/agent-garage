@@ -78,3 +78,34 @@ test("landing sites: a proper horizon, a risen sun, and the first moon in the sk
     }
   }
 });
+
+test("twin worlds hang clear of the first moon and the giant, lit by the same sun", () => {
+  const S = require("../../../site/builder/surface.js");
+  const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2], len = (a) => Math.sqrt(dot(a, a));
+  const norm = (a) => a.map((x) => x / len(a));
+  const T = (s, v) => [dot(v, s.E), dot(v, s.U), dot(v, s.N)];   // planet space -> the shader's tangent frame
+  const kinds = new Set();
+  for (let i = 0; i < 300; i++) {
+    const w = W.generate("name " + i), f = W.generate("friend " + i), t0 = 7;
+    const c = S.companion(w, f, t0), s = S.site(w, t0);
+    for (const v of [c.dir, c.rt, c.up, c.sun]) assert.ok(Math.abs(len(v) - 1) < 1e-9);
+    assert.ok(Math.abs(dot(c.dir, c.rt)) < 1e-9 && Math.abs(dot(c.dir, c.up)) < 1e-9);
+    assert.ok(c.dir[1] > 0.27, "well above the horizon");
+    assert.ok(c.sun[2] > -0.75, "not a black disc: the sun is not straight behind it");
+    const own = Math.atan(c.size);   // the whole sprite, rings included
+    let other = null;
+    if (w.render.kind === 2) other = { dir: T(s, norm(s.O.map((x) => -x))), radius: Math.asin(1 / len(s.O)) };
+    else if (w.render.moons.length) {
+      const m = w.render.moons[0], a = m.phase + (t0 + 4) * 0.33 * m.speed;
+      const P = [Math.cos(a)*m.orbit, Math.sin(a)*Math.sin(m.inclination)*m.orbit, Math.sin(a)*Math.cos(m.inclination)*m.orbit];
+      const rel = P.map((x, k) => x - s.O[k]);
+      other = { dir: T(s, norm(rel)), radius: Math.asin(Math.min(1, m.radius / len(rel))) };
+    }
+    if (other) {
+      const sep = Math.acos(Math.max(-1, Math.min(1, dot(other.dir, c.dir))));
+      assert.ok(sep > other.radius + own * 0.6, `${w.name}: twin overlaps the ${w.render.kind === 2 ? "giant" : "moon"}`);
+    }
+    kinds.add(w.kind);
+  }
+  assert.strictEqual(kinds.size, 7);
+});

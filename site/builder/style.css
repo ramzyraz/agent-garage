@@ -39,6 +39,15 @@ summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px;
 .land { width: 100%; margin: 0 0 8px; padding: 11px 8px; border-radius: 12px; border: 1px solid #9fc4ff55;
   background: linear-gradient(90deg, #2b4a8a99, #6a3d8a99); font-weight: 600; }
 .land:hover { filter: brightness(1.2); }
+.addfriend { width: 100%; margin: 0 0 8px; padding: 9px 8px; border-radius: 12px; border: 1px dashed #ffffff33;
+  background: transparent; color: #c9d4ee; }
+.addfriend:hover { background: #ffffff12; }
+.friendbar { display: flex; gap: 6px; margin: 0 0 8px; }
+.friendbar[hidden] { display: none; }
+.friendbar input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; border: 1px solid #f0b4ff55;
+  background: #ffffff10; color: #fff; font: inherit; outline: none; }
+.friendbar input:focus { border-color: #f0b4ff; }
+.friendbar button { width: 42px; border-radius: 12px; border: 1px solid #ffffff22; background: #ffffff12; }
 .landed #survey, .landed .chips { display: none; }
 .landed .card { backdrop-filter: blur(6px); background: #070912a0; }
 .status { margin: 8px 0 0; min-height: 1.2em; font-size: 13px; color: #9fc4ff; }

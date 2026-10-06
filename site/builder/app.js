@@ -23,7 +23,7 @@
   if (renderer && window.Surface) $("land").hidden = false;
 
   const state = { world: null, time: 0, yaw: 0, userYaw: 0, pitch: 0.28, dist: 6, targetDist: 6, shift: 0, form: 0, formFrom: 0, formT: 1,
-    mode: "orbit", fade: 1, lookYaw: 0, lookPitch: 0, focal: 1, landTime: 0 };
+    mode: "orbit", fade: 1, lookYaw: 0, lookPitch: 0, focal: 1, landTime: 0, friend: null };
   const HQ = /[?&]hq\b/.test(location.search); // screenshots: never lower the resolution
   const quality = window.RenderQuality.create(window.devicePixelRatio || 1, HQ);
   const renderMode = () => state.mode === "land" ? "land" : "orbit";
@@ -105,8 +105,24 @@
     if (!same && !live) state.dist = state.targetDist * 1.25;
   }
 
-  function setHash() {
-    history.replaceState(null, "", "#w=" + encodeURIComponent(state.world.name) + (state.mode === "land" ? "&land" : ""));
+  function hashFor() {
+    return "#w=" + encodeURIComponent(state.world.name) + (state.friend ? "&with=" + encodeURIComponent(state.friend.name) : "")
+      + (state.mode === "land" ? "&land" : "");
+  }
+  function setHash() { history.replaceState(null, "", hashFor()); }
+
+  // Twin worlds: a second name hangs in this world's sky (behind it in orbit, over the horizon when landed).
+  function setFriend(name, { push = true } = {}) {
+    const n = W.normalize(name || "");
+    state.friend = n ? W.generate(n) : null;
+    $("friendbar").hidden = !state.friend && document.activeElement !== $("friend") && !$("friend").value;
+    $("addfriend").hidden = !$("friendbar").hidden;
+    if (push && state.world) setHash();
+    if (state.world) showMode();
+  }
+  function openFriend() {
+    $("addfriend").hidden = true; $("friendbar").hidden = false;
+    $("friend").focus();
   }
   // Land: dive toward the planet, then fade up on its surface. Gas giants have no ground,
   // so you stand on their first moon instead.
@@ -115,9 +131,11 @@
     const landed = state.mode === "land", w = state.world;
     document.body.classList.toggle("landed", landed);
     $("land").textContent = landed ? "🛰️ Back to orbit" : w.kind === "gas" ? "🚀 Land on a moon" : "🚀 Land on this world";
-    $("note").textContent = !landed ? w.note : w.kind === "gas"
-      ? `A gas giant has no ground, so you're standing on its moon ${moonName(w)}.`
-      : `You're standing on ${w.name}. Every world has its own sky.`;
+    const f = state.friend && state.friend.name;
+    $("note").textContent = !landed ? (f ? `${f} is its twin world, close enough to see from the ground. Land and look up.` : w.note)
+      : w.kind === "gas" ? (f ? `You're on ${moonName(w)}, a moon of ${w.name}. ${f} hangs beside the giant.`
+        : `A gas giant has no ground, so you're standing on its moon ${moonName(w)}.`)
+      : f ? `You're standing on ${w.name}. That's ${f} in the sky.` : `You're standing on ${w.name}. Every world has its own sky.`;
     $("hint").textContent = landed ? "Drag to look around · scroll to zoom" : "Drag to spin · scroll to zoom";
   }
   function setMode(mode) {
@@ -137,8 +155,8 @@
     } else if (state.mode === "land") setMode("orbit");
   });
 
-  function nameFromHash() {
-    const m = /[#&]w=([^&]*)/.exec(location.hash);
+  function nameFromHash(key = "w") {
+    const m = new RegExp("[#&]" + key + "=([^&]*)").exec(location.hash);
     if (!m) return "";
     try { return W.normalize(decodeURIComponent(m[1])); } catch (e) { return ""; }
   }
@@ -150,6 +168,23 @@
     typeTimer = setTimeout(() => { if (W.normalize(input.value)) setWorld(input.value, { live: true }); }, 90);
   });
   input.addEventListener("change", () => { if (W.normalize(input.value)) A.track("world-named"); });
+  let friendTimer = 0;
+  $("addfriend").addEventListener("click", openFriend);
+  $("friend").addEventListener("input", () => {
+    clearTimeout(friendTimer);
+    friendTimer = setTimeout(() => setFriend($("friend").value), 90);
+  });
+  $("friend").addEventListener("change", () => { if (state.friend) A.track("twin-named"); });
+  $("friend").addEventListener("keydown", (e) => { if (e.key === "Enter") $("friend").blur(); });
+  $("unpair").addEventListener("click", () => { $("friend").value = ""; $("friend").blur(); setFriend(""); });
+  $("swap").addEventListener("click", () => {
+    if (!state.friend) return;
+    const mine = state.world.name, theirs = state.friend.name;
+    input.value = theirs; $("friend").value = mine;
+    state.friend = W.generate(mine);
+    setWorld(theirs);
+    A.track("twin-swapped");
+  });
   $("form").addEventListener("submit", (e) => { e.preventDefault(); input.blur(); });
   $("surprise").addEventListener("click", () => {
     const n = W.randomName();
@@ -168,6 +203,8 @@
   addEventListener("hashchange", () => {
     const n = nameFromHash();
     if (n && (!state.world || n !== state.world.name)) { input.value = n; setWorld(n, { push: false }); }
+    const f = nameFromHash("with");
+    if (f !== (state.friend ? state.friend.name : "")) { $("friend").value = f; setFriend(f, { push: false }); }
     const land = /[#&]land\b/.test(location.hash);
     if (land && state.mode === "orbit" && getSurface()) setMode("land");
     else if (!land && state.mode === "land") setMode("orbit");
@@ -212,16 +249,37 @@
   canvas.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
 
   // Share link.
-  function link() { return location.origin + location.pathname + "#w=" + encodeURIComponent(state.world.name) + (state.mode === "land" ? "&land" : ""); }
+  function link() { return location.origin + location.pathname + hashFor(); }
   $("copy").addEventListener("click", async () => {
     const w = state.world;
-    const text = state.mode === "land"
+    const f = state.friend && state.friend.name;
+    const text = f ? (state.mode === "land" ? `I'm standing on a world called ${w.name}, and ${f} is in its sky: ${link()}`
+      : `${w.name} and ${f} are twin worlds. Look: ${link()}`)
+      : state.mode === "land"
       ? `I'm standing on ${w.kind === "gas" ? "a moon of " : ""}a planet called ${w.name}. Look at this sky: ${link()}`
       : `I found a planet called ${w.name}. ${w.label}, ${w.note} ${link()}`;
     try { await navigator.clipboard.writeText(text); $("status").textContent = "Link copied. Paste it anywhere."; }
     catch (e) { window.prompt("Copy this link:", link()); }
     A.track("link-copied");
   });
+
+  // The twin's sprite and where it hangs. Orbit: up and to the right, behind the system, kept on screen.
+  // Units match the orbit shader (planet centre at 0, 0; height of the shorter side is 1).
+  function twin(st, w = innerWidth, h = innerHeight, top = view ? view.top : 0) {
+    if (!st.friend || !renderer) return null;
+    if (st.mode === "land") {
+      const c = window.Surface.companion(st.world, st.friend, st.landTime, w / h);
+      return { ...c, tex: renderer.sprite(st.friend, st.time, c.sun) };
+    }
+    const d = st.dist, R = sceneRadius(st.world), fr = st.friend.render;
+    const planet = 1.8 / Math.sqrt(Math.max(d * d - 1, 1e-3));
+    const scene = 1.8 * R / Math.sqrt(Math.max(d * d - R * R, 1e-3));
+    const r = planet * 0.42, half = r * Math.max(1.15, fr.ring ? fr.ringOut : 0) / 0.85;
+    const unit = Math.min(w, h);
+    const x = Math.min(0.72 * scene + r, w / 2 / unit - (st.shiftX || 0) - r * 1.4);
+    const y = Math.min(0.6 * scene + r, (h / 2 - top) / unit - st.shift - r * 1.4);
+    return { at: [x, y, half], tex: renderer.sprite(st.friend, st.time, renderer.SUN) };
+  }
 
   // Postcard: re-render at a fixed size, then draw the survey on top.
   function wrap(g, text, x, y, maxW, lh, draw = true) {
@@ -242,8 +300,11 @@
       const [cw, ch] = [canvas.width, canvas.height];
       canvas.width = w; canvas.height = h;
       const landed = state.mode === "land" && getSurface();
-      if (landed) surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12 });
-      else renderer.draw({ ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) });
+      if (landed) surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12, comp: twin(state, w, h) });
+      else {
+        const pc = { ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) };
+        renderer.draw({ ...pc, comp: twin(pc, w, h, 40) });
+      }
       g.drawImage(canvas, 0, 0);
       canvas.width = cw; canvas.height = ch;
       if (landed) surface.draw(state); else renderer.draw(state);
@@ -266,9 +327,9 @@
     g.translate(0, -lift);
     g.fillStyle = "#9aa3b8"; g.font = `500 30px ${font}`;
     const where = state.mode !== "land" ? wd.designation : wd.kind === "gas" ? "VIEW FROM ITS MOON" : "VIEW FROM THE SURFACE";
-    g.fillText(`${wd.label.toUpperCase()}  ·  ${where}`, 70, h - 360);
+    g.fillText(`${state.friend ? "TWIN WORLDS" : wd.label.toUpperCase()}  ·  ${where}`, 70, h - 360);
     g.fillStyle = "#ffffff"; g.font = `700 88px ${font}`;
-    g.fillText(wd.name, 70, h - 270, w - 140);
+    g.fillText(state.friend ? `${wd.name} & ${state.friend.name}` : wd.name, 70, h - 270, w - 140);
     g.fillStyle = "#cdd3e1"; g.font = `italic 36px ${font}`;
     let y = wrap(g, note, 70, h - 205, w - 140, 46);
     g.font = `400 28px ${font}`; g.fillStyle = "#e9ecf5";
@@ -318,10 +379,12 @@
       if (state.mode === "land") {
         state.fade = Math.min(1, state.fade + dt / 1.4);
         if (!pointers.size) { state.lookYaw += vel; vel *= 0.92; }
+        state.comp = twin(state);
         surface.draw(state);
       } else {
         if (!pointers.size) { state.userYaw += vel; vel *= 0.94; }
         state.yaw = state.time * state.world.render.spin + state.userYaw;
+        state.comp = twin(state);
         renderer.draw(state);
       }
     }
@@ -331,9 +394,11 @@
   const initial = nameFromHash();
   const initialLand = /[#&]land\b/.test(location.hash);
   if (initial) { input.value = initial; A.track("link-opened"); }
+  const initialFriend = initial && nameFromHash("with");
+  if (initialFriend) { $("friend").value = initialFriend; setFriend(initialFriend, { push: false }); A.track("twin-opened"); }
   setWorld(initial || SHOWCASE[Math.floor(Math.random() * SHOWCASE.length)], { push: !!initial });
   if (initial && initialLand && getSurface()) setMode("land");
   requestAnimationFrame(frame);
 
-  window.__namesake = { state, setWorld, makePostcard, layout, getView: () => view, sceneRadius, setMode };
+  window.__namesake = { state, setWorld, setFriend, makePostcard, layout, getView: () => view, sceneRadius, setMode };
 })();

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Namesake: every name is a world</title>
-  <meta name="description" content="Type any name and watch a planet form from it, then land on it: oceans, clouds, rings arching across the sky, rising moons. Same name, same world, for everyone.">
+  <meta name="description" content="Type any name and watch a planet form from it, then land on it: oceans, clouds, rings arching across the sky, rising moons. Add a friend's name and their world hangs in your sky.">
   <meta property="og:title" content="Namesake: every name is a world">
   <meta property="og:description" content="Type any name. A planet forms. Land on it and look up at its sky.">
   <meta property="og:url" content="https://ramzyraz.github.io/agent-garage/builder/">
@@ -42,6 +42,12 @@
       <dl class="facts" id="facts"></dl>
     </details>
     <button type="button" id="land" class="land" hidden>🚀 Land on this world</button>
+    <button type="button" id="addfriend" class="addfriend">👥 Put a friend's world in this sky</button>
+    <div class="friendbar" id="friendbar" hidden>
+      <input id="friend" maxlength="40" placeholder="Their name…" aria-label="A friend's name: their world appears in this sky" spellcheck="false">
+      <button type="button" id="swap" title="Stand on their world instead">⇄</button>
+      <button type="button" id="unpair" title="Remove their world">✕</button>
+    </div>
     <div class="actions">
       <button type="button" id="copy">🔗 Copy link</button>
       <button type="button" id="postcard">🖼️ Save postcard</button>

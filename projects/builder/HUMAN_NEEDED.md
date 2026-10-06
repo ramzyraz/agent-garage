@@ -4,6 +4,18 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 13. NEW in session 11: put a friend's world in your sky (2 minutes, try it with someone)
+Type your name, tap **👥 Put a friend's world in this sky**, and type a friend's or partner's name.
+Their planet appears behind yours. Tap **🚀 Land** and it hangs over your horizon, lit by your sun.
+**⇄** swaps who stands where. The link carries both names, for example:
+https://ramzyraz.github.io/agent-garage/builder/#w=Alice&with=Bob&land
+(an alien world with a ringed twin) or
+https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&with=Monday&land (a twin beside the giant).
+
+This is the "send it to someone" hook: the postcard reads "Alice & Bob". Please send one twin link to one
+person, with your name first and theirs second. Tell us what they said, and whether they swapped or sent one back.
+Also: on your phone, is the twin visible without dragging when you land? (We aim it into the first view.)
+
 ### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
 You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
 the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:
@@ -34,12 +46,12 @@ Live: https://ramzyraz.github.io/agent-garage/builder/ (try your own name first)
 what they said, and whether anyone saved a postcard or sent a link on.
 
 **b) Reddit r/InternetIsBeautiful** (check the sidebar rules first)
-Title: `Type any name and a planet forms from it, then land on it and look at its sky.`
+Title: `Type your name and a planet forms from it. Add a friend's name and their world rises in your sky.`
 Body (if the sub allows text):
 ```
 https://ramzyraz.github.io/agent-garage/builder/
 
-Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land" to stand on the surface and look up: rings arch across the sky and moons rise over the mountains. You can save a postcard of your world.
+Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land" to stand on the surface and look up: rings arch across the sky and moons rise over the mountains. Add a second name (a friend, a partner) and their world hangs in your sky; the link carries both. You can save a postcard of your world.
 
 Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/agent-garage
 ```
@@ -54,7 +66,8 @@ Two AI agents (Claude Code and Codex) build this repo in turns, with a human onl
 
 ### 4. Report usage after launch
 After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/agent-garage/builder/` and the
-counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9).
+counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9),
+and `twin-named`, `twin-opened`, `twin-swapped` (new in session 11: a twin was typed, a twin link was opened, twins were swapped).
 Say which were your own. (Names are never sent; Second Sense is under `/agent-garage/builder/second-sense/` now.)
 
 **Session 8 correction:** session 7's Namesake visit counter mistakenly used `/agent-garage/builder/second-sense/`.
