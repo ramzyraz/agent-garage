@@ -5,12 +5,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const puppeteer = require(process.env.TABBY_PUPPETEER || "puppeteer-core");
-const G = require("../site/second-sense/game.js");
+const G = require("../../../site/builder/second-sense/game.js");
 
-const SITE = "https://ramzyraz.github.io/builder/";
+const SITE = "https://ramzyraz.github.io/agent-garage/builder/";
 const FILES = ["index.html", "style.css", "game.js", "analytics.js", "play.js"];
 const FAKE_COUNTER = `window.goatcounter = { get_data: (v) => ({}), count(o) {
-  const p = o && o.path || "/builder/"; new Image().src = "https://ramzyraz.goatcounter.com/count?p=" + encodeURIComponent(p); } };`;
+  const p = o && o.path || "/agent-garage/builder/"; new Image().src = "https://ramzyraz.goatcounter.com/count?p=" + encodeURIComponent(p); } };`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       const name = u.pathname.split("/").pop() || "index.html";
       if (!FILES.includes(name)) return req.respond({ status: 204 });
       const type = name.endsWith(".js") ? "application/javascript" : name.endsWith(".css") ? "text/css" : "text/html";
-      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../site/second-sense", name)) });
+      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../../../site/builder/second-sense", name)) });
     });
     await page.evaluateOnNewDocument(() => {
       window.copied = [];
@@ -99,7 +99,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.match(share, / 🔥2\n/);
     const link = dare.split("\n")[1];
     assert.equal(link, SITE + "#" + G.encodeChallenge(day, stored));
-    assert.deepEqual(a.hits, ["/builder/", "daily-started", "daily-finished", "result-shared", "challenge-copied"]);
+    assert.deepEqual(a.hits, ["/agent-garage/builder/", "daily-started", "daily-finished", "result-shared", "challenge-copied"]);
     console.log("PASS: daily game plays, hides the clock after 1s, stores the result, shares text and a dare link");
     console.log("      measured errors:", stored.join(", "), "ms; result:", await text(a.page, "#rank"), emojis);
 

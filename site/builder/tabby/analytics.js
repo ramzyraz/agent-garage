@@ -32,7 +32,7 @@
   script.src = "https://gc.zgo.at/count.js";
   script.dataset.goatcounter = "https://ramzyraz.goatcounter.com/count";
   script.dataset.goatcounterSettings = JSON.stringify({
-    no_onload: true, path: "/builder/tabby/", title: "Tabby", referrer: "",
+    no_onload: true, path: "/agent-garage/builder/tabby/", title: "Tabby", referrer: "",
   });
   script.addEventListener("load", () => {
     try {

@@ -16,7 +16,7 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await page.setContent('<canvas id="render" width="400" height="300"></canvas>');
-    for (const file of ['world.js', 'planet.js', 'surface.js']) await page.addScriptTag({ content: await fs.readFile(path.join(__dirname, '../site', file), 'utf8') });
+    for (const file of ['world.js', 'planet.js', 'surface.js']) await page.addScriptTag({ content: await fs.readFile(path.join(__dirname, '../../../site/builder', file), 'utf8') });
     const result = await page.evaluate((extra) => {
       const canvas = document.getElementById('render');
       const planet = Planet.createRenderer(canvas);

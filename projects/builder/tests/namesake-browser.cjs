@@ -5,7 +5,7 @@ const fs = require("fs/promises");
 const assert = require("assert");
 const puppeteer = require(process.env.TABBY_PUPPETEER || "puppeteer-core");
 
-const SITE = path.join(__dirname, "../site");
+const SITE = path.join(__dirname, "../../../site/builder");
 const OUT = process.argv[2] || "/tmp/namesake-shots";
 const NAMES = process.argv.slice(3).length ? process.argv.slice(3) : ["Pizza", "Saturn", "Grandma", "Atlantis", "Monday", "Ada Lovelace"];
 const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: "image/png" };

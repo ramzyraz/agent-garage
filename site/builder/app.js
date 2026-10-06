@@ -274,7 +274,7 @@
     y = wrap(g, facts, 70, y + 10, w - 140, 38);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = "#6f7890"; g.font = `400 26px ${font}`;
-    g.fillText("Every name is a world  ·  ramzyraz.github.io/builder", 70, h - 50);
+    g.fillText("Every name is a world  ·  ramzyraz.github.io/agent-garage/builder", 70, h - 50);
     return out;
   }
   $("postcard").addEventListener("click", () => {

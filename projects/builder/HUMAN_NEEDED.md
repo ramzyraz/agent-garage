@@ -7,7 +7,7 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
 You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
 the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:
-- https://ramzyraz.github.io/builder/#w=Dreadrilaer&land (a ringed giant, from its moon)
+- https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&land (a ringed giant, from its moon)
 - your own name, then tap **🚀 Land on this world**. Drag to look around.
 
 This view is much heavier for the phone than the planet view (it draws a whole landscape per pixel).
@@ -16,14 +16,14 @@ look blurry/blocky (it lowers the resolution itself if the phone struggles)? Doe
 Did the landscape look good? Does **Save postcard** from the surface give a good image?
 
 ### 11. Recheck the phone view after session 8 (1 minute)
-Open https://ramzyraz.github.io/builder/#w=Dreadrilaer on the same Android phone.
+Open https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer on the same Android phone.
 The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
 Please check portrait and landscape: can you see the whole ring without the card covering it?
 Does dragging still feel smooth with the moons? On short screens, tap **World survey** to expand the facts.
 Tell us if that makes anything overlap or if the world feels too small. This verifies the fix for your #10 report.
 
 ### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
-Live: https://ramzyraz.github.io/builder/ (try your own name first). Reply with links and any comments.
+Live: https://ramzyraz.github.io/agent-garage/builder/ (try your own name first). Reply with links and any comments.
 
 **a) Show 2–3 people in person or in a chat.** This matters most. Ask them to type their own name. Tell us
 what they said, and whether anyone saved a postcard or sent a link on.
@@ -32,28 +32,28 @@ what they said, and whether anyone saved a postcard or sent a link on.
 Title: `Type any name and a planet forms from it, then land on it and look at its sky.`
 Body (if the sub allows text):
 ```
-https://ramzyraz.github.io/builder/
+https://ramzyraz.github.io/agent-garage/builder/
 
 Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land" to stand on the surface and look up: rings arch across the sky and moons rise over the mountains. You can save a postcard of your world.
 
-Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/builder
+Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/agent-garage
 ```
 
 **c) Hacker News, "Show HN"**
 Title: `Show HN: Namesake – type a name, get a procedural planet you can land on (WebGL shaders)`
-URL: `https://ramzyraz.github.io/builder/`
+URL: `https://ramzyraz.github.io/agent-garage/builder/`
 First comment:
 ```
-Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 9 you can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
+Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 9 you can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/agent-garage
 ```
 
 ### 4. Report usage after launch
-After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
+After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/agent-garage/builder/` and the
 counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9).
-Say which were your own. (Names are never sent; Second Sense is under `/builder/second-sense/` now.)
+Say which were your own. (Names are never sent; Second Sense is under `/agent-garage/builder/second-sense/` now.)
 
-**Session 8 correction:** session 7's Namesake visit counter mistakenly used `/builder/second-sense/`.
-New homepage visits now use `/builder/`. Earlier counts on the Second Sense path can include Namesake;
+**Session 8 correction:** session 7's Namesake visit counter mistakenly used `/agent-garage/builder/second-sense/`.
+New homepage visits now use `/agent-garage/builder/`. Earlier counts on the Second Sense path can include Namesake;
 fixed event labels were already correct. We cannot separate those earlier visits.
 
 ## Done
@@ -81,10 +81,10 @@ All limits are removed (see the updated AGENT.md): no budget cap, no size limit,
 deadline, any tech. What you build is your call. Keep or drop the current game as you see fit.
 
 **Session 7 (Claude Code):** built **Namesake** (type a name and a planet forms) as the new homepage.
-Second Sense moved to `/builder/second-sense/`. Posts in #9.
+Second Sense moved to `/agent-garage/builder/second-sense/`. Posts in #9.
 
 ### 7. (Retired in session 7) Second Sense phone test
-Open https://ramzyraz.github.io/builder/ on your phone, play today's 5, and tell us:
+Open https://ramzyraz.github.io/agent-garage/builder/ on your phone, play today's 5, and tell us:
 did the taps feel instant? Was it fun or just frustrating? What rank did you get?
 Then tap "Dare a friend" and check the link opens properly when you paste it into a chat.
 If the friend plays, ask them to tap **"Send it back"** and send you the reply. Does it show
@@ -108,21 +108,21 @@ Body:
 ```
 You get a target time. Tap to start; the clock is visible for one second, then it vanishes. Tap to stop when you think you've hit the target. Five rounds, same targets for everyone each day, and you get a Wordle-style result like 🎯🟩🟨🟩🟥.
 
-https://ramzyraz.github.io/builder/
+https://ramzyraz.github.io/agent-garage/builder/
 
 Then there's a "dare a friend" link: they see your score and get the same targets.
 
-Disclosure: this was built by two AI agents (Claude Code and Codex) as a public experiment: 4 days, $0, goal is one real user. Code and logs: https://github.com/ramzyraz/builder
+Disclosure: this was built by two AI agents (Claude Code and Codex) as a public experiment: 4 days, $0, goal is one real user. Code and logs: https://github.com/ramzyraz/agent-garage
 
 What rank did you get? I'm curious whether the 1-second visible window is too easy or too hard.
 ```
 
 **c) Hacker News, "Show HN"**
 Title: `Show HN: Second Sense – a daily game testing how well you can feel time passing`
-URL: `https://ramzyraz.github.io/builder/`
+URL: `https://ramzyraz.github.io/agent-garage/builder/`
 First comment:
 ```
-Built by AI agents as a public experiment (4 days, $0, goal: one real user). Repo and session logs: https://github.com/ramzyraz/builder
+Built by AI agents as a public experiment (4 days, $0, goal: one real user). Repo and session logs: https://github.com/ramzyraz/agent-garage
 
 Five targets per day (seeded from the date, same for everyone), the clock hides after 1s, scored by total error. No backend: a "dare" link just carries your five errors in the URL hash. Timing uses pointerdown + performance.now(). I'd love to know if people's internal clocks drift early or late on the longer targets.
 ```
@@ -133,8 +133,8 @@ Five targets per day (seeded from the date, same for everyone), the clock hides 
 that people would play, screenshot and send to a friend. Hold the Tabby launch posts.
 
 **Session 4 (Claude Code):** pivoted to **Second Sense**, a daily "stop the clock blind" game
-with emoji results and dare-a-friend links. It's live at https://ramzyraz.github.io/builder/.
-Tabby moved to `/builder/tabby/`. New posts are in #6. Reasoning is in `log/session-04.md`.
+with emoji results and dare-a-friend links. It's live at https://ramzyraz.github.io/agent-garage/builder/.
+Tabby moved to `/agent-garage/builder/tabby/`. New posts are in #6. Reasoning is in `log/session-04.md`.
 
 ### 2. Tabby launch posts: retired (product pivoted, see #5). Not posted.
 

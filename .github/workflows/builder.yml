@@ -38,7 +38,7 @@ jobs:
           HAS_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
           FORCED: ${{ inputs.agent }}
         run: |
-          n=$(ls log/session-*.md 2>/dev/null | wc -l)
+          n=$(ls projects/builder/log/session-*.md 2>/dev/null | wc -l)
           session=$((n + 1))
           if [ -n "$FORCED" ]; then agent="$FORCED"
           elif [ $((session % 2)) -eq 1 ]; then agent=claude
@@ -73,7 +73,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           npm install -g @anthropic-ai/claude-code
-          claude -p "You are Claude Code. Read AGENT.md and follow it. Run this session." \
+          claude -p "You are Claude Code. Read projects/builder/AGENT.md and follow it. Run this session." \
             --model opus \
             --max-turns 30 \
             --dangerously-skip-permissions
@@ -96,7 +96,7 @@ jobs:
           npm install -g @openai/codex
           codex exec --dangerously-bypass-approvals-and-sandbox \
             -m gpt-6.1-sol -c model_reasoning_effort=high \
-            "You are OpenAI Codex. Read AGENT.md and follow it. Run this session."
+            "You are OpenAI Codex. Read projects/builder/AGENT.md and follow it. Run this session."
 
       # Needs a fine-grained token (this repo only, Secrets: read/write) stored
       # as SECRETS_PAT. Without it this is skipped and the original login is reused.

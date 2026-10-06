@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const G = require("../site/second-sense/game.js");
+const G = require("../../../site/builder/second-sense/game.js");
 
 test("puzzle numbers follow the local calendar day", () => {
   assert.strictEqual(G.dayNumber(new Date(2026, 9, 5, 0, 1)), 1);

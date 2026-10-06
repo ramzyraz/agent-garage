@@ -1,7 +1,7 @@
 // Run: node --test tests/*.test.js
 const test = require("node:test");
 const assert = require("node:assert");
-const S = require("../site/tabby/settle.js");
+const S = require("../../../site/builder/tabby/settle.js");
 
 test("splitEven distributes leftover cents", () => {
   assert.deepStrictEqual(S.splitEven(1000, 3), [334, 333, 333]);

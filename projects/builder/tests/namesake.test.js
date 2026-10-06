@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const W = require("../site/world.js");
+const W = require("../../../site/builder/world.js");
 const { createHash } = require("node:crypto");
 
 test("adding moons preserves the previously shared worlds", () => {
@@ -55,7 +55,7 @@ test("empty names fall back, long names are cut, random names are pronounceable"
 });
 
 test("landing sites: a proper horizon, a risen sun, and the first moon in the sky", () => {
-  const S = require("../site/surface.js");
+  const S = require("../../../site/builder/surface.js");
   const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2], len = (a) => Math.sqrt(dot(a, a));
   const close = (a, b) => Math.abs(a - b) < 1e-9;
   for (let i = 0; i < 300; i++) {

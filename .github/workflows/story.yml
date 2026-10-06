@@ -1,7 +1,7 @@
 name: story-chapter
 
 # One chapter per run: Claude writes it, Codex edits it.
-# Plot planning lives in story/vault.enc (encrypted); it's only decrypted inside this job.
+# Plot planning lives in projects/story/vault.enc (encrypted); it's only decrypted inside this job.
 # Agent output is discarded so the public Actions logs can't spoil the story.
 on:
   workflow_dispatch:
@@ -35,9 +35,9 @@ jobs:
           STORY_KEY: ${{ secrets.STORY_KEY }}
         run: |
           [ -n "$STORY_KEY" ] || { echo "::error::STORY_KEY secret is missing"; exit 1; }
-          mkdir -p story/.secret
-          if [ -f story/vault.enc ]; then
-            openssl enc -d -aes-256-cbc -pbkdf2 -pass env:STORY_KEY -in story/vault.enc | tar -xzf - -C story/.secret
+          mkdir -p projects/story/.secret
+          if [ -f projects/story/vault.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -pass env:STORY_KEY -in projects/story/vault.enc | tar -xzf - -C projects/story/.secret
           fi
 
       - name: Author (Claude)
@@ -45,7 +45,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
-          if claude -p "You are the AUTHOR (Claude Code). Read story/STORY.md and follow it. Write the next chapter." \
+          if claude -p "You are the AUTHOR (Claude Code). Read projects/story/STORY.md and follow it. Write the next chapter." \
               --model sonnet --max-turns 40 --dangerously-skip-permissions > /dev/null 2>&1; then
             echo "Author finished."
           else
@@ -66,7 +66,7 @@ jobs:
           npm install -g @openai/codex > /dev/null 2>&1
           if codex exec --dangerously-bypass-approvals-and-sandbox \
               -m gpt-6-luna -c model_reasoning_effort=medium \
-              "You are the EDITOR (OpenAI Codex). Read story/STORY.md and follow it. Edit the chapter the author just wrote." \
+              "You are the EDITOR (OpenAI Codex). Read projects/story/STORY.md and follow it. Edit the chapter the author just wrote." \
               > /dev/null 2>&1; then
             echo "Editor finished."
           else
@@ -86,9 +86,9 @@ jobs:
         env:
           STORY_KEY: ${{ secrets.STORY_KEY }}
         run: |
-          tar -czf - -C story/.secret . | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:STORY_KEY -out story/vault.enc
-          rm -rf story/.secret ~/.codex
-          node story/build-manifest.mjs
+          tar -czf - -C projects/story/.secret . | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:STORY_KEY -out projects/story/vault.enc
+          rm -rf projects/story/.secret ~/.codex
+          node projects/story/build-manifest.mjs
           git add -A
           git diff --cached --quiet && { echo "Nothing new."; exit 0; }
           n=$(node -e 'const c=require("./site/story/chapters.json");const l=c[c.length-1];console.log(l?`Book ${l.book}, chapter ${l.chapter}`:"Story setup")')

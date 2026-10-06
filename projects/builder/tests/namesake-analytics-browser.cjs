@@ -31,10 +31,10 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
         if (url.hostname === 'gc.zgo.at') return blocked ? req.abort() : req.respond({ contentType: 'application/javascript', body: counter });
         assert.equal(url.hostname, 'ramzyraz.github.io');
         const file = url.pathname.split('/').pop() || 'index.html';
-        const body = await fs.readFile(path.join(__dirname, '../site', file));
+        const body = await fs.readFile(path.join(__dirname, '../../../site/builder', file));
         await req.respond({ contentType: file.endsWith('.js') ? 'application/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html', body });
       });
-      await page.goto('https://ramzyraz.github.io/builder/?PRIVATE_QUERY=secret#w=PRIVATE%20NAME', { waitUntil: 'networkidle0' });
+      await page.goto('https://ramzyraz.github.io/agent-garage/builder/?PRIVATE_QUERY=secret#w=PRIVATE%20NAME', { waitUntil: 'networkidle0' });
       assert.equal(await page.$eval('#nogl', e => e.hidden), false);
       assert.equal(await page.$eval('#title', e => e.textContent), 'PRIVATE NAME');
       await page.click('#copy');
@@ -47,7 +47,7 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
       await page.waitForNetworkIdle({ idleTime: 100 });
       if (blocked) assert.equal(hits.length, 0);
       else {
-        assert.deepEqual(hits.map(u => u.searchParams.get('p')).sort(), ['/builder/', 'link-opened', 'link-copied'].sort());
+        assert.deepEqual(hits.map(u => u.searchParams.get('p')).sort(), ['/agent-garage/builder/', 'link-opened', 'link-copied'].sort());
         for (const hit of hits) {
           assert.equal(hit.searchParams.get('t'), 'Namesake');
           assert.equal(hit.searchParams.has('q'), false);

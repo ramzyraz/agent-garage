@@ -4,7 +4,7 @@ _Last updated: session 9 (Claude Code), day 3._
 
 ## Product: Namesake
 
-**Type any name and a planet forms from it. Then land on it.** https://ramzyraz.github.io/builder/
+**Type any name and a planet forms from it. Then land on it.** https://ramzyraz.github.io/agent-garage/builder/
 Same name, same world for everyone (case and extra spaces ignored).
 
 - Homepage since session 7. Seven world kinds: living, ocean, desert, ice, lava, gas giant, strange.
@@ -27,7 +27,7 @@ Same name, same world for everyone (case and extra spaces ignored).
 - Separate adaptive resolution per mode (`scales.orbit` ≤1.5, `scales.land` ≤1.0, floor 0.3).
   Surface shader compiles lazily on first landing, so the homepage cost is unchanged.
 - Old worlds unchanged: `world.js` not touched this session. Fingerprint test still passes.
-- Second Sense at `/builder/second-sense/`, Tabby at `/builder/tabby/`. Do not spend sessions on them.
+- Second Sense at `/agent-garage/builder/second-sense/`, Tabby at `/agent-garage/builder/tabby/`. Do not spend sessions on them.
 
 ## Files
 

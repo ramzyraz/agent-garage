@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const puppeteer = require(process.env.TABBY_PUPPETEER || "puppeteer-core");
-const S = require("../site/tabby/settle.js");
+const S = require("../../../site/builder/tabby/settle.js");
 
 (async () => {
   const response = await fetch("https://gc.zgo.at/count.js");
@@ -46,7 +46,7 @@ const S = require("../site/tabby/settle.js");
           await request.respond({ status: 204 });
           return;
         }
-        const body = await fs.readFile(path.join(__dirname, "../site/tabby", filename));
+        const body = await fs.readFile(path.join(__dirname, "../../../site/builder/tabby", filename));
         const contentType = filename.endsWith(".js") ? "application/javascript" : filename.endsWith(".css") ? "text/css" : "text/html";
         await request.respond({ contentType, body });
       }
@@ -73,7 +73,7 @@ const S = require("../site/tabby/settle.js");
   }
 
   try {
-    const shared = await open("https://ramzyraz.github.io/builder/tabby/?PRIVATE_QUERY=secret#" + code);
+    const shared = await open("https://ramzyraz.github.io/agent-garage/builder/tabby/?PRIVATE_QUERY=secret#" + code);
     await shared.page.waitForFunction(() => typeof window.goatcounter?.count === "function");
     assert.equal(await shared.page.$eval("#title", (el) => el.value), ledger.title);
     const transfers = await shared.page.$eval("#transfers", (el) => el.textContent);
@@ -90,7 +90,7 @@ const S = require("../site/tabby/settle.js");
     await addExpense(shared.page, "12.00");
     await shared.page.waitForNetworkIdle({ idleTime: 100 });
     assert.deepEqual(shared.hits.map((hit) => hit.searchParams.get("p")).sort(), [
-      "/builder/tabby/", "expense-added", "populated-link-copied", "populated-summary-copied", "shared-tab-opened",
+      "/agent-garage/builder/tabby/", "expense-added", "populated-link-copied", "populated-summary-copied", "shared-tab-opened",
     ].sort());
     for (const hit of shared.hits) {
       assert.equal(hit.searchParams.get("t"), "Tabby");
@@ -107,7 +107,7 @@ const S = require("../site/tabby/settle.js");
     assert.deepEqual(shared.errors, []);
     console.log("PASS: private payloads, shared-link opening, valid expenses, successful sharing, failed clipboard");
 
-    const delayed = await open("https://ramzyraz.github.io/builder/tabby/", "delayed");
+    const delayed = await open("https://ramzyraz.github.io/agent-garage/builder/tabby/", "delayed");
     await delayed.page.click("#copy-link");
     for (const name of ["Ana", "Ben"]) {
       await delayed.page.type("#person-name", name);
@@ -116,11 +116,11 @@ const S = require("../site/tabby/settle.js");
     await addExpense(delayed.page, "10");
     await delayed.release();
     await delayed.page.waitForNetworkIdle({ idleTime: 100 });
-    assert.deepEqual(delayed.hits.map((hit) => hit.searchParams.get("p")), ["/builder/tabby/", "expense-added"]);
+    assert.deepEqual(delayed.hits.map((hit) => hit.searchParams.get("p")), ["/agent-garage/builder/tabby/", "expense-added"]);
     assert.deepEqual(delayed.errors, []);
     console.log("PASS: delayed script preserves events; empty-tab copies do not count as use");
 
-    const blocked = await open("https://ramzyraz.github.io/builder/tabby/#" + code, "blocked");
+    const blocked = await open("https://ramzyraz.github.io/agent-garage/builder/tabby/#" + code, "blocked");
     await addExpense(blocked.page, "10");
     await blocked.page.click("#copy-summary");
     await blocked.page.waitForFunction(() => window.copiedTexts.length === 1);

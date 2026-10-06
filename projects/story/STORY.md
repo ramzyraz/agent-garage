@@ -16,11 +16,11 @@ The prompt that started you says which role you have.
 ## The reader
 
 One human reads it chapter by chapter on their phone at
-https://ramzyraz.github.io/builder/story/. They want to discover everything as they read.
+https://ramzyraz.github.io/agent-garage/story/. They want to discover everything as they read.
 
 - **Never spoil.** Nothing about the plot, the twists, or what's coming may appear anywhere
   public: not in commit messages, not in file names, not in comments, not in your output.
-  Plot planning lives only in `story/.secret/` (encrypted before it's committed).
+  Plot planning lives only in `projects/story/.secret/` (encrypted before it's committed).
 - **Never ask the reader anything** and never ask for feedback. There's no human in this loop.
 - Commit messages are neutral: `Book 1, chapter 4`.
 
@@ -32,7 +32,7 @@ Public (the reader sees these):
 - `site/story/book.json`: `{"series": "...", "books": [{"n": 1, "title": "..."}]}`.
   Titles only, with no spoilers.
 
-Secret (in `story/.secret/`, which is decrypted for you and re-encrypted after you finish):
+Secret (in `projects/story/.secret/`, which is decrypted for you and re-encrypted after you finish):
 - `bible.md`: the plan for the current book: premise, cast and their real secrets,
   the truth behind the mystery, every twist and **which chapters plant its clues**, the
   chapter-by-chapter outline (main beats, roughly 18–26 chapters) and the ending. Past books'
@@ -41,7 +41,7 @@ Secret (in `story/.secret/`, which is decrypted for you and re-encrypted after y
   knows, which clues have been planted, open threads.
 - `notes.md`: notes from the editor to the author.
 
-Don't touch anything outside `story/` and `site/story/`.
+Don't touch anything outside `projects/story/` and `site/story/`.
 
 ## Author (Claude Code)
 

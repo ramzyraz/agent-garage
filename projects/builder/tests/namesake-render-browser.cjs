@@ -14,7 +14,7 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
     const page = await browser.newPage(), errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.setContent('<canvas id="render" width="300" height="300"></canvas>');
-    for (const file of ['world.js', 'planet.js']) await page.addScriptTag({ content: await fs.readFile(path.join(__dirname, '../site', file), 'utf8') });
+    for (const file of ['world.js', 'planet.js']) await page.addScriptTag({ content: await fs.readFile(path.join(__dirname, '../../../site/builder', file), 'utf8') });
     const result = await page.evaluate(() => {
       const canvas = document.getElementById('render'), renderer = Planet.createRenderer(canvas);
       if (!renderer) throw new Error('WebGL unavailable');
