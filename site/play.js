@@ -5,6 +5,7 @@
   const track = (name) => window.SSAnalytics?.track(name);
   const today = G.dayNumber(new Date());
   const BASE = location.origin + location.pathname;
+  const played = (d) => { try { return !!localStorage.getItem("ss-day-" + d); } catch (e) { return false; } };
   const saved = () => { try { return JSON.parse(localStorage.getItem("ss-day-" + today)); } catch (e) { return null; } };
 
   const challenge = G.decodeChallenge(location.hash);
@@ -134,6 +135,8 @@
     $("rank").textContent = G.title(t);
     $("emojis").textContent = g.errors.map(G.grade).join("");
     $("total").textContent = G.fmt(t);
+    $("tendency").textContent = G.tendency(g.errors);
+    drawTimeline(g);
     $("rounds").innerHTML = "<tr><th>Target</th><th>You</th><th>Off</th></tr>" + g.targets.map((tg, i) => {
       const e = g.errors[i];
       return `<tr><td>${G.fmt(tg)}</td><td>${G.fmt(tg + e)}</td><td>${G.grade(e)} ${e < 0 ? "−" : "+"}${G.fmt(Math.abs(e))}</td></tr>`;
@@ -148,7 +151,26 @@
         : mine === theirs ? "Exact tie with your friend. Spooky."
         : `Your friend wins by ${G.fmt(mine - theirs)}. Practice, then try again tomorrow.`;
     } else $("versus").hidden = true;
-    $("comeback").textContent = g.daily ? "New targets tomorrow." : "";
+    const s = g.daily ? G.streak(today, played) : 0;
+    $("streak").hidden = s < 2;
+    $("streak").textContent = `🔥 ${s}-day streak`;
+    clearInterval(countdown);
+    const tickDown = () => { $("comeback").textContent = `Next puzzle in ${G.untilTomorrow(new Date())}.`; };
+    if (g.daily) { tickDown(); countdown = setInterval(tickDown, 30000); } else $("comeback").textContent = "";
+  }
+  let countdown = null;
+
+  // One row per round: the target is the centre line, the dot is where you stopped.
+  const SPAN = 1000; // ms shown either side of the target; bigger misses pin to the edge
+  function drawTimeline(g) {
+    $("timeline").innerHTML = g.targets.map((tg, i) => {
+      const e = g.errors[i];
+      const x = 50 + 50 * Math.max(-1, Math.min(1, e / SPAN));
+      const off = Math.abs(e) > SPAN ? " off" : "";
+      const label = `Round ${i + 1}: target ${G.fmt(tg)}, ${Math.abs(e) <= 5 ? "dead on" : G.fmt(Math.abs(e)) + (e < 0 ? " early" : " late")}`;
+      return `<div class="tl-row" title="${label}"><span class="tl-t">${G.fmt(tg)}</span>` +
+        `<span class="tl-track"><span class="tl-dot g${G.level(e)}${off}" style="left:${x.toFixed(1)}%"></span></span></div>`;
+    }).join("") + `<div class="tl-axis"><span>← early</span><span>target</span><span>late →</span></div>`;
   }
 
   async function copy(text, okMsg) {
@@ -169,7 +191,7 @@
   }
 
   $("share").addEventListener("click", async () => {
-    if (await copy(G.shareText(today, current.errors, BASE), "Copied! Paste it in the group chat.")) track("result-shared");
+    if (await copy(G.shareText(today, current.errors, BASE, G.streak(today, played)), "Copied! Paste it in the group chat.")) track("result-shared");
   });
   $("dare").addEventListener("click", async () => {
     const t = G.total(current.errors);

@@ -68,6 +68,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const a = await open(SITE);
     assert.match(await text(a.page, "#daylabel"), new RegExp(`#${day}$`));
     assert.equal(await visible(a.page, "challenge"), false);
+    await a.page.evaluate((d) => localStorage.setItem("ss-day-" + (d - 1), "[0,0,0,0,0]"), day); // played yesterday
     await a.page.click("#play");
     const targets = await play(a.page, [0, 0, 400, 0, -900]);
     assert.deepEqual(targets, G.targets(day), "browser uses today's shared targets");
@@ -79,10 +80,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // Timer accuracy in a headless browser: within ~120 ms of what we aimed for.
     [0, 0, 400, 0, -900].forEach((o, i) => assert.ok(Math.abs(stored[i] - o) < 120, `round ${i + 1}: ${stored[i]} vs ${o}`));
     assert.equal(emojis, stored.map(G.grade).join(""));
+    // Result extras: per-round timeline, tendency, streak, countdown.
+    const dots = await a.page.$$eval(".tl-dot", (els) => els.map((el) => [el.className, parseFloat(el.style.left)]));
+    assert.equal(dots.length, 5);
+    dots.forEach(([cls, left], i) => {
+      assert.ok(cls.includes("g" + G.level(stored[i])), cls);
+      assert.ok(Math.abs(left - (50 + 50 * Math.max(-1, Math.min(1, stored[i] / 1000)))) < 0.1, `dot ${i}: ${left}`);
+    });
+    assert.ok(dots[4][1] < 15, "the 0.9s-early round sits near the left edge");
+    assert.equal(await text(a.page, "#tendency"), G.tendency(stored));
+    assert.equal(await text(a.page, "#streak"), "🔥 2-day streak");
+    assert.match(await text(a.page, "#comeback"), /^Next puzzle in \d+h \d+m\.$/);
+    await a.page.screenshot({ path: "/tmp/ss-result.png", fullPage: true });
     await a.page.click("#share");
     await a.page.click("#dare");
     const [share, dare] = await a.page.evaluate(() => window.copied);
-    assert.equal(share, G.shareText(day, stored, SITE));
+    assert.equal(share, G.shareText(day, stored, SITE, 2));
+    assert.match(share, / 🔥2\n/);
     const link = dare.split("\n")[1];
     assert.equal(link, SITE + "#" + G.encodeChallenge(day, stored));
     assert.deepEqual(a.hits, ["/builder/", "daily-started", "daily-finished", "result-shared", "challenge-copied"]);

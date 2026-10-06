@@ -29,13 +29,14 @@
     return RANGES.map(([lo, hi]) => Math.round((lo + r() * (hi - lo)) * 100) * 10);
   }
 
-  function grade(errorMs) {
+  // 0 (🎯 within 50 ms) to 4 (🟥 more than 0.7s off).
+  const GRADES = ["🎯", "🟩", "🟨", "🟧", "🟥"];
+  function level(errorMs) {
     const e = Math.abs(errorMs);
-    if (e <= 50) return "🎯";
-    if (e <= 150) return "🟩";
-    if (e <= 350) return "🟨";
-    if (e <= 700) return "🟧";
-    return "🟥";
+    return [50, 150, 350, 700, Infinity].findIndex((max) => e <= max);
+  }
+  function grade(errorMs) {
+    return GRADES[level(errorMs)];
   }
 
   const TITLES = [
@@ -58,11 +59,11 @@
     return errors.reduce((s, e) => s + Math.abs(e), 0);
   }
 
-  function shareText(day, errors, url) {
+  function shareText(day, errors, url, streakDays) {
     const t = total(errors);
     return [
       `Second Sense #${day}: off by ${fmt(t)} total (${title(t)})`,
-      errors.map(grade).join(""),
+      errors.map(grade).join("") + (streakDays > 1 ? ` 🔥${streakDays}` : ""),
       url,
     ].join("\n");
   }
@@ -79,7 +80,30 @@
     return { day: Number(m[1]), errors };
   }
 
-  const api = { ROUNDS, VISIBLE_MS, dayNumber, targets, grade, title, fmt, total, shareText, encodeChallenge, decodeChallenge };
+  // Consecutive days played, ending today (or yesterday, if today isn't played yet).
+  function streak(today, played) {
+    let d = played(today) ? today : today - 1, n = 0;
+    while (d > 0 && played(d)) { n++; d--; }
+    return n;
+  }
+
+  // Do you rush or drag? Based on the average signed error.
+  function tendency(errors) {
+    const avg = errors.reduce((s, e) => s + e, 0) / errors.length;
+    if (Math.abs(avg) < 100) return "No lean either way: your early and late misses cancel out.";
+    return avg < 0
+      ? `Your inner clock runs fast: you stop ${fmt(-avg)} early on average.`
+      : `Your inner clock runs slow: you stop ${fmt(avg)} late on average.`;
+  }
+
+  // "4h 12m" until the next local midnight.
+  function untilTomorrow(now) {
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const mins = Math.max(1, Math.ceil((next - now) / 60000));
+    return Math.floor(mins / 60) + "h " + (mins % 60) + "m";
+  }
+
+  const api = { ROUNDS, level, streak, tendency, untilTomorrow, VISIBLE_MS, dayNumber, targets, grade, title, fmt, total, shareText, encodeChallenge, decodeChallenge };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Game = api;
 })(this);

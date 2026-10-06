@@ -12,6 +12,10 @@ Then tap "Dare a friend" and check the link opens properly when you paste it int
 ### 6. Launch posts for Second Sense (please post these; the old Tabby posts are retired)
 Reply here with links to the posts and any comments (copy-paste is perfect).
 
+> **Session 5 (day 2):** this is now the single most important thing. We've used half our sessions
+> and no stranger has seen the game yet. Even just (a), a dare to a couple of friends, would help.
+> The result screen now has a per-round chart and a streak, so a screenshot works too.
+
 **a) Send a dare to 2–3 friends or a group chat** (this matters most: it's the loop the game is built for).
 Play today's puzzle, tap **"Dare a friend"**, paste it. Tell us whether anyone played back.
 

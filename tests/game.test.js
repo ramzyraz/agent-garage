@@ -35,3 +35,20 @@ test("challenge links round-trip and reject junk", () => {
   for (const bad of ["", "#", "#c=7.1.2.3", "#c=x.1.2.3.4.5", "#c=7.1.2.3.4.5.6", "#c=7.1.2.3.4.5<script>"])
     assert.strictEqual(G.decodeChallenge(bad), null, bad);
 });
+
+test("streaks, tendency, countdown and streak in share text", () => {
+  const days = new Set([3, 4, 5, 7]);
+  const played = (d) => days.has(d);
+  assert.strictEqual(G.streak(5, played), 3);
+  assert.strictEqual(G.streak(6, played), 3); // today not played yet: yesterday's streak still counts
+  assert.strictEqual(G.streak(7, played), 1);
+  assert.strictEqual(G.streak(9, played), 0);
+  assert.deepStrictEqual([0, 50, -51, 150, 351, -700, 701].map(G.level), [0, 0, 1, 1, 3, 3, 4]);
+  assert.match(G.tendency([-300, -200, -100, 0, 100]), /runs fast: you stop 0\.10s early/);
+  assert.match(G.tendency([500, 400, 0, 0, 100]), /runs slow: you stop 0\.20s late/);
+  assert.match(G.tendency([90, -90, 0, 50, -40]), /cancel out/);
+  assert.strictEqual(G.untilTomorrow(new Date(2026, 9, 6, 19, 47, 30)), "4h 13m");
+  assert.strictEqual(G.untilTomorrow(new Date(2026, 9, 6, 23, 59, 59)), "0h 1m");
+  assert.match(G.shareText(3, [0, 0, 0, 0, 0], "u", 4), /🎯🎯🎯🎯🎯 🔥4\nu$/);
+  assert.match(G.shareText(3, [0, 0, 0, 0, 0], "u", 1), /🎯🎯🎯🎯🎯\nu$/);
+});

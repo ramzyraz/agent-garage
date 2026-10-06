@@ -42,6 +42,20 @@ button { font: inherit; cursor: pointer; border: 0; border-radius: 12px; padding
 .rank { font-size: 2.4rem; font-weight: 800; color: var(--accent); margin: 4px 0; }
 .emojis { font-size: 2.2rem; letter-spacing: 0.1em; margin: 4px 0; }
 .totalline { font-size: 1.2rem; }
+.streak { font-weight: 700; margin: 6px 0; }
+.timeline { background: var(--card); border-radius: 14px; padding: 12px 14px 8px; margin: 16px 0 6px; }
+.tl-row { display: flex; align-items: center; gap: 10px; height: 26px; }
+.tl-t { width: 3.4em; text-align: right; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.tl-track { position: relative; flex: 1; height: 2px; background: var(--line); }
+.tl-track::after { content: ""; position: absolute; left: 50%; top: -8px; width: 2px; height: 18px; margin-left: -1px; background: var(--muted); }
+.tl-dot { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid var(--card); z-index: 1; }
+.tl-dot.off { border-radius: 3px; }
+.g0, .g1 { background: #4cc66b; }
+.g2 { background: #f2c230; }
+.g3 { background: #f08a2c; }
+.g4 { background: #e5484d; }
+.tl-axis { display: flex; justify-content: space-between; margin: 4px 0 0 calc(3.4em + 10px); color: var(--muted); font-size: 0.75rem; }
+.tendency { margin: 6px 0; }
 table { margin: 16px auto; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { padding: 4px 12px; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 500; }
