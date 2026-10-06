@@ -2,78 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Second Sense: how good is your inner clock?</title>
-  <meta name="description" content="A 30-second daily game. Stop the clock at exactly 4.37 seconds, after it disappears. Five rounds, same for everyone today. Then dare a friend.">
-  <meta property="og:type" content="website">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Namesake: every name is a world</title>
+  <meta name="description" content="Type any name and watch a planet form from it: oceans, clouds, rings, city lights. Same name, same world, for everyone.">
+  <meta property="og:title" content="Namesake: every name is a world">
+  <meta property="og:description" content="Type any name and watch a planet form from it. What does yours look like?">
   <meta property="og:url" content="https://ramzyraz.github.io/builder/">
-  <meta property="og:title" content="Second Sense: how good is your inner clock?">
-  <meta property="og:description" content="Stop the clock at exactly the target time, after it vanishes. 5 rounds a day, 30 seconds. Then dare a friend to beat you.">
   <meta property="og:image" content="https://ramzyraz.github.io/builder/og.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Second Sense: target 4.37s, the clock fades to ?.??">
+  <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#03040a">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <header>
-      <h1>Second Sense</h1>
-      <p class="sub">How good is your inner clock? <span id="daylabel"></span></p>
-    </header>
+  <canvas id="sky" aria-label="A rotating planet generated from the name"></canvas>
+  <p id="nogl" hidden>Your browser couldn't start WebGL, so the planet can't be drawn. The world's survey is still below.</p>
 
-    <section id="intro">
-      <div id="challenge" class="banner" hidden></div>
-      <ol class="how">
-        <li>You get a target, like <b>4.37s</b>.</li>
-        <li>Tap to start. The clock shows for <b>1 second</b>, then vanishes.</li>
-        <li>Tap to stop when you <i>feel</i> you've hit the target.</li>
-      </ol>
-      <p class="muted">5 rounds, about 30 seconds. Everyone gets the same targets today.</p>
-      <button id="play" class="primary big">Play today's 5</button>
-      <button id="practice" class="ghost">Practice (random targets)</button>
-    </section>
+  <header class="top">
+    <div class="brand"><b>Namesake</b><span>Every name is a world.</span></div>
+    <form id="form" class="namebar" autocomplete="off">
+      <input id="name" maxlength="40" placeholder="Type any name…" aria-label="Name a world" spellcheck="false">
+      <button type="button" id="surprise" title="Random world">🎲</button>
+    </form>
+    <div class="chips" id="chips">Try:
+      <button type="button">your name</button><button type="button">Pizza</button><button type="button">Monday</button><button type="button">Grandma</button><button type="button">Atlantis</button>
+    </div>
+  </header>
 
-    <section id="round" hidden>
-      <p class="roundlabel"><span id="roundno"></span> · Target <b id="target"></b></p>
-      <button id="pad" class="pad" aria-live="polite">
-        <span id="clock" class="clock">0.00</span>
-        <span id="hint" class="hint">Tap to start</span>
-      </button>
-      <p id="verdict" class="verdict" aria-live="polite"></p>
-      <button id="next" class="primary" hidden>Next round</button>
-    </section>
+  <section class="card" id="card" aria-live="polite">
+    <p class="kind"><span id="label"></span> · <span id="desig"></span></p>
+    <h1 id="title"></h1>
+    <p class="note" id="note"></p>
+    <dl class="facts" id="facts"></dl>
+    <div class="actions">
+      <button type="button" id="copy">🔗 Copy link</button>
+      <button type="button" id="postcard">🖼️ Save postcard</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
 
-    <section id="result" hidden>
-      <p class="muted" id="resultlabel"></p>
-      <p class="rank" id="rank"></p>
-      <p class="emojis" id="emojis"></p>
-      <p class="totalline">Off by <b id="total"></b> in total</p>
-      <p id="streak" class="streak" hidden></p>
-      <div id="versus" class="banner" hidden></div>
-      <div id="timeline" class="timeline" role="img" aria-label="Where you stopped in each round, compared with the target"></div>
-      <p id="tendency" class="tendency"></p>
-      <table id="rounds"></table>
-      <div class="actions" id="shareactions">
-        <button id="share" class="primary">Share result</button>
-        <button id="dare" class="primary alt">Dare a friend (link)</button>
-      </div>
-      <p id="copied" class="muted" aria-live="polite"></p>
-      <button id="again" class="ghost">Practice more</button>
-      <p class="muted" id="comeback"></p>
-    </section>
+  <footer class="foot">
+    Drag to spin · scroll to zoom · same name, same world for everyone.
+    <span class="long">Built by two AI agents</span> (<a href="https://github.com/ramzyraz/builder">code and logs</a>).
+    Also by them: <a href="second-sense/">Second Sense</a>.
+  </footer>
 
-    <footer>
-      A public experiment: two AI agents building a product in 4 days with $0.
-      <a href="https://github.com/ramzyraz/builder">Code and logs</a>.
-      We count visits and button presses with <a href="https://www.goatcounter.com/privacy">GoatCounter</a>
-      (no cookies, no scores, no links).
-      Feedback? <a href="https://github.com/ramzyraz/builder/issues">Open an issue</a>.
-    </footer>
-  </main>
-  <script src="game.js"></script>
+  <script src="world.js"></script>
   <script src="analytics.js"></script>
-  <script src="play.js"></script>
+  <script src="planet.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

@@ -1,95 +1,72 @@
 # State
 
-_Last updated: session 6 (OpenAI Codex), day 2._
+_Last updated: session 7 (Claude Code), day 3._
 
-## The product: Second Sense (pivoted in session 4)
+## The product: Namesake (new in session 7)
 
-**A 30-second daily game: stop the clock at an exact target time after the clock disappears.**
-https://ramzyraz.github.io/builder/ (Pages is live, HTTP 200. The deploy runs after every session.)
+**Type any name and a planet forms from it.** https://ramzyraz.github.io/builder/
+The same name always gives the same world, for everyone (case and extra spaces ignored).
 
-- **The loop:** you get 5 targets (e.g. 4.37s). Tap to start. The clock shows for 1 second,
-  then fades to `?.??`. Tap to stop when you *feel* you've hit it. Each round gets
-  an emoji (🎯 ≤0.05s, 🟩 ≤0.15, 🟨 ≤0.35, 🟧 ≤0.7, 🟥 worse). Your total error
-  gives you a rank (Atomic clock, Metronome, Swiss watch, Kitchen timer, Sundial, Goldfish).
-- **Why it should spread:** everyone gets the same targets each day (like Wordle), so results
-  can be compared. "Share result" copies a Wordle-style emoji line. **"Dare a friend"** copies a
-  link (`#c=<day>.<5 errors in ms>`). The friend who opens it sees "You've been dared:
-  off by 1.29s…", and after playing sees whether they won.
-- **Reply loop (session 6):** a dared player's result shows both scores and a **"Send it back"**
-  button for that day's puzzle, whether they win, tie or lose. It shares both totals, the verdict,
-  and a link (`#c=<day>.<reply errors>&r=<original errors>`). Opening the reply shows the
-  two-score matchup immediately, even without localStorage on that device. On the original
-  device, "See today's result" compares its saved score with the replying friend.
-  New hashes in an existing game tab show the new dare and cancel any in-progress practice timer.
-- **Result screen (session 5):** rank, emojis, total, a 🔥 streak (if 2+ days in a row), a
-  per-round **timeline** (dot = where you stopped, centre line = target, ±1s span, bigger misses
-  pin to the edge as a square), a "tendency" line (your clock runs fast/slow, or the misses cancel out),
-  the numbers table, share/dare buttons, and "Next puzzle in 4h 13m" (updates every 30s).
-  The share text adds ` 🔥N` after the emojis when the streak is 2 or more.
-- **Why we pivoted:** the human (HUMAN_NEEDED #5, now Done) said Tabby was "meh":
-  expense splitters are everywhere and nobody shares one for fun. They asked for something people
-  play, screenshot and send to friends. Ideas considered in session 4 are in `log/session-04.md`.
-- **Tabby still works** at https://ramzyraz.github.io/builder/tabby/ (moved to `site/tabby/`,
-  with its own analytics path `/builder/tabby/`). Don't spend sessions on it.
+- **Why:** the human (HUMAN_NEEDED #8) removed all limits and said Second Sense isn't wow-worthy.
+  They want something they can show people. Namesake goes for visual "wait, an AI built that?"
+  plus a personal hook: everyone types their own name, their partner's, their dog's, and sends it on.
+- **What you see:** a full-screen 3D planet, drawn entirely by one WebGL fragment shader (no meshes,
+  no textures): fractal terrain with bump lighting, oceans with sun glint, polar ice, drifting clouds,
+  city lights on the night side of some living worlds, glowing cracks on lava worlds, banded gas giants
+  with a storm, rings that cast shadows (and get shadowed), an atmosphere halo and a starfield.
+- **Seven kinds:** living, ocean, desert, ice, lava, gas giant, strange (random palette).
+  Each world has a designation ("Lyra-3311 b"), a one-line field note, and six facts (radius,
+  gravity, day, year, temperature, moons). All of it is generated from the name in `site/world.js`.
+- **Interaction:** typing reshapes the planet live (90 ms debounce, a short "forming" animation).
+  Drag to spin (with inertia), scroll or pinch to zoom, 🎲 for a random pronounceable name, example chips.
+- **Sharing:** the URL is `#w=<name>`. "Copy link" copies a sentence plus the link. "Save postcard"
+  renders a 1080×1350 PNG (planet + name + note + facts + URL). On touch devices it opens the
+  native share sheet with the file; elsewhere it downloads.
+- **Second Sense** (the previous product, a daily timing game) moved to `/builder/second-sense/` and
+  still works (browser test passes). Its analytics path is now `/builder/second-sense/`.
+  **Tabby** is still at `/builder/tabby/`. Don't spend sessions on either.
 
 ## Files
-- `site/game.js`: pure logic (puzzle number from the local date, seeded targets, grades, titles,
-  share text, dare-link encoding). `site/play.js`: UI. `site/analytics.js`: GoatCounter, fixed
-  labels only. Events: `daily-started`, `daily-finished`, `result-shared`, `challenge-copied`,
-  `challenge-opened`, `practice-started`. No scores or links are sent.
-- Puzzle #1 = 5 Oct 2026 (local calendar day). Today's result is saved in localStorage
-  (`ss-day-N`). Streaks are counted from those keys (a streak still shows if today isn't played yet but
-  yesterday was). After reloading you see your result rather than a replay. Practice mode uses random
-  targets and has no share buttons.
-- Timing uses `pointerdown`/`keydown` (Space/Enter) and `performance.now()`.
+- `site/world.js`: name → world (pure, works in Node). `generate(name)` returns `{name, seed, kind, label,
+  designation, note, facts, render}`. `render` holds every shader parameter (palette of 6 colours, sea level,
+  clouds, ice latitude, rings, tilt, spin…).
+- `site/planet.js`: the WebGL renderer. `createRenderer(canvas).draw(state)`. The whole look is the FRAG string.
+- `site/app.js`: UI, input, drag/zoom, postcard, adaptive resolution (drops the render scale if frames are slow;
+  `?hq` in the URL disables that, which is used for screenshots). `window.__namesake` is exposed for tests.
+- `site/analytics.js`: GoatCounter, fixed labels only, never names. Events: `world-named`, `world-surprise`,
+  `chip-used`, `link-copied`, `postcard-saved`, `link-opened`. The page view path is `/builder/` (hash not sent).
+- `site/og.png`: 1200×630 screenshot of "Ada Lovelace" (UI buttons hidden), rendered with headless Chrome.
 
 ## Tests
-- `node --test tests/*.test.js`: 11 pass (6 game, 5 Tabby).
-- Browser tests (`cd /tmp/pt && npm i puppeteer-core`, then
-  `TABBY_PUPPETEER=/tmp/pt/node_modules/puppeteer-core node tests/<file>.cjs`):
-  `game-browser.cjs` plays a full daily game by keyboard on a phone-sized screen. It checks the clock
-  hides after 1s, that measured errors are within 120 ms of intended (they were within 14 ms),
-  storage and replay blocking, the timeline dot positions/colours, tendency, streak (it seeds
-  "played yesterday"), countdown, share/dare text and analytics events (intercepted).
-  Session 6 adds win/tie/loss replies with seeded friend scores, truly separate browser profiles,
-  both scores on a fresh device, replies in the original tab, old-day dares, canceled native
-  sharing and a blocked-clipboard manual-copy fallback. Phone-sized screenshots were inspected.
-  Tabby's browser checks last passed in session 5; its files weren't changed this session.
-- `site/og.png` is a 1200×630 preview card, screenshotted with headless Chrome from an HTML
-  card. The source isn't in the repo, so recreate it the same way if needed.
+- `node --test tests/*.test.js`: 14 pass (3 Namesake, 6 Second Sense, 5 Tabby).
+- Browser (`cd /tmp/pt && npm i puppeteer-core`, then `TABBY_PUPPETEER=/tmp/pt/node_modules/puppeteer-core node tests/<file>`):
+  `namesake-browser.cjs [outdir] [names…]` renders worlds at desktop and phone size with software WebGL
+  (SwiftShader), saves screenshots, types a name live, builds a postcard, checks the planet pixel isn't black,
+  no console errors, and that no name leaks into outside requests. It's slow (~2 min for 2 names).
+  `game-browser.cjs` (Second Sense) still passes after the move.
+- Screenshots were inspected by eye: Pizza (green gas giant), Grandma (lava), Atlantis (ringed living world
+  with city lights), Monday (ice), Ada Lovelace (living), Zed (purple gas giant postcard), phone layout.
 
 ## Next 3 tasks
-1. Check HUMAN_NEEDED for launch replies and counts (#4, #6, #7). Act on real feedback first.
-   As of session 6 there were no replies yet. The posts may not be out. Six of twelve sessions
-   are used, and there is still no confirmed outside player. HUMAN_NEEDED #6 now asks for the
-   smallest useful launch: one dare sent to a friend, one reply, then a report here.
-2. Use the first player's experience to fix one concrete stumbling point in play or sharing.
-   The reply loop is implemented; avoid adding more features without evidence. If feedback
-   still hasn't arrived, check the existing keyboard/touch flow at narrow phone sizes and
-   across a daily rollover rather than inventing another product.
-3. Taste test the difficulty. Is 1s visible too generous/harsh? Are the rank thresholds right?
-   (A real person's first try will probably land at "Kitchen timer"/"Sundial". That's fine if
-   it makes them want to retry tomorrow.) Consider a gentler "hold your breath" style variant only
-   if feedback asks.
+1. Read HUMAN_NEEDED replies (#9 launch posts, #10 phone check). Real-phone performance is the biggest
+   unknown: the shader is heavy (~50 noise calls per pixel). If it stutters, lower octaves on small screens
+   or render the planet at half resolution and upscale.
+2. More wow per world, in order of value: a moon or two orbiting (the facts already list moons), a slow
+   sun-terminator sweep, aurora on cold worlds, a "compare two names" side-by-side view (couples, friends) that
+   is very shareable. Keep each world's look stable for a given name if possible: changing `world.js`
+   random-draw order changes everyone's planet. Append new `r()` calls at the END of `generate`.
+3. Variety check: generate ~30 random names and look at them. Ice worlds are mostly white (acceptable, but
+   could use more crevasses/blue). Gas giant "warp" blotches look a bit like terrain.
 
 ## Open problems
-- Not tested on a real phone. Touch latency on iOS Safari could differ (we use
-  `touch-action: manipulation` and pointerdown). Ask the human to try it on their phone.
-- Anyone can cheat (use a stopwatch). That's fine: it's a game among friends, with no leaderboard.
-- Dare links trust the sender's numbers. Fine for the same reason.
-- An older dare shows its historical score, but today's result doesn't claim a win/loss against
-  different targets. The button makes a fresh dare for today instead of a reply.
-- All timing checks are automated; the reply win/tie/loss cases use seeded scores. These are
-  verification, not evidence of real users. Test analytics are intercepted, not sent to GoatCounter.
-- Session numbering: session 4 was run by Claude Code, not Codex (the workflow falls back to
-  whichever agent has credentials, or it was forced). Whoever runs next: just count log files.
-
-- The timeline only covers ±1s around the target. Everything worse looks the same (a red square at the edge).
-  The table shows the exact numbers.
+- Not yet seen on a real phone or a real GPU. Headless Chrome uses software rendering (slow, so the adaptive
+  scale kicks in and screenshots look blocky unless `?hq`).
+- The ring planets are drawn further away so the ring fits, which makes the planet itself small.
+- No WebGL → a plain message plus the text survey (untested in a browser without WebGL).
+- Determinism across GPUs: the noise uses float hashing; worlds should look the same but fine detail may
+  differ slightly between devices. The facts and kind are exact (computed in JS).
 
 ## What we know about users
-- Still nothing from a stranger. The human's feedback on Tabby: well built, but the idea is
-  not interesting. Lesson: "useful but boring" doesn't get shared; the product needs a reason
-  for people to send it to someone.
-- Distribution is still the bottleneck. The reply change is a hypothesis about helping friends
-  compare results, not proof that anyone finds the game fun.
+- Still no outside user for any of our three products. The human's feedback is the only signal so far:
+  Tabby "meh" (useful but boring), Second Sense "not wow-worthy". They want something impressive to show
+  people. Namesake is a bet that visual quality and a personal hook (your own name) beat a clever mechanic.

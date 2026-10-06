@@ -4,21 +4,60 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
-### 8. From the human: all limits are off
+### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
+Live: https://ramzyraz.github.io/builder/ (try your own name first). Reply with links and any comments.
+
+**a) Show 2–3 people in person or in a chat.** This matters most. Ask them to type their own name. Tell us
+what they said, and whether anyone saved a postcard or sent a link on.
+
+**b) Reddit r/InternetIsBeautiful** (check the sidebar rules first)
+Title: `Type any name and a planet forms from it. Same name, same world for everyone.`
+Body (if the sub allows text):
+```
+https://ramzyraz.github.io/builder/
+
+Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. You can save a postcard of your world.
+
+Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/builder
+```
+
+**c) Hacker News, "Show HN"**
+Title: `Show HN: Namesake – type a name, get a procedurally generated planet (one WebGL shader)`
+URL: `https://ramzyraz.github.io/builder/`
+First comment:
+```
+Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. This is session 7. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
+```
+
+### 10. Please open it on your phone (1 minute)
+Does the planet spin smoothly or stutter? Does typing feel live? Does "Save postcard" open the share sheet and
+produce a good image? What phone is it? This is the biggest unknown: we've only seen it in software rendering.
+
+### 4. Report usage after launch
+After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
+counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`.
+Say which were your own. (Names are never sent; Second Sense is under `/builder/second-sense/` now.)
+
+## Done
+
+### 8. From the human: all limits are off (answered in session 7)
 I want something wow-worthy. Something I can show people and say "I built this.
 Cool, ain't it?" Second Sense isn't that.
 
 All limits are removed (see the updated AGENT.md): no budget cap, no size limit, no
 deadline, any tech. What you build is your call. Keep or drop the current game as you see fit.
 
-### 7. Please try it on your phone (2 minutes)
+**Session 7 (Claude Code):** built **Namesake** (type a name and a planet forms) as the new homepage.
+Second Sense moved to `/builder/second-sense/`. Posts in #9.
+
+### 7. (Retired in session 7) Second Sense phone test
 Open https://ramzyraz.github.io/builder/ on your phone, play today's 5, and tell us:
 did the taps feel instant? Was it fun or just frustrating? What rank did you get?
 Then tap "Dare a friend" and check the link opens properly when you paste it into a chat.
 If the friend plays, ask them to tap **"Send it back"** and send you the reply. Does it show
 both scores and the correct winner when you open it? This is the new session-6 change.
 
-### 6. Launch posts for Second Sense (please post these; the old Tabby posts are retired)
+### 6. (Retired in session 7) Second Sense launch posts
 Reply here with links to the posts and any comments (copy-paste is perfect).
 
 > **Session 6 (day 2):** six of twelve sessions are complete, and we still have no evidence of
@@ -55,14 +94,6 @@ Built by AI agents as a public experiment (4 days, $0, goal: one real user). Rep
 Five targets per day (seeded from the date, same for everyone), the clock hides after 1s, scored by total error. No backend: a "dare" link just carries your five errors in the URL hash. Timing uses pointerdown + performance.now(). I'd love to know if people's internal clocks drift early or late on the longer targets.
 ```
 
-### 4. Report usage after launch
-After the posts go out, please open https://ramzyraz.goatcounter.com and paste the visit count
-for `/builder/` and the counts for `daily-started`, `daily-finished`, `result-shared`,
-`challenge-copied`, `challenge-opened`, `practice-started`. Say which were your own plays.
-(Old Tabby events, if any, are under `/builder/tabby/` now.) If a stranger replies that they
-played or dared someone, paste that too. That's our "first real user" evidence.
-
-## Done
 
 ### 5. Human feedback: pivot to something fun
 **From the human:** Tabby works but the idea is meh; build something interesting and fun

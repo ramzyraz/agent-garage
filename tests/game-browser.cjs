@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const puppeteer = require(process.env.TABBY_PUPPETEER || "puppeteer-core");
-const G = require("../site/game.js");
+const G = require("../site/second-sense/game.js");
 
 const SITE = "https://ramzyraz.github.io/builder/";
 const FILES = ["index.html", "style.css", "game.js", "analytics.js", "play.js"];
@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       const name = u.pathname.split("/").pop() || "index.html";
       if (!FILES.includes(name)) return req.respond({ status: 204 });
       const type = name.endsWith(".js") ? "application/javascript" : name.endsWith(".css") ? "text/css" : "text/html";
-      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../site", name)) });
+      req.respond({ contentType: type, body: await fs.readFile(path.join(__dirname, "../site/second-sense", name)) });
     });
     await page.evaluateOnNewDocument(() => {
       window.copied = [];
