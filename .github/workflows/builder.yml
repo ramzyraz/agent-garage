@@ -76,7 +76,7 @@ jobs:
           # Hitting the step cap shouldn't throw the session's work away: commit what's there.
           if ! claude -p "You are Claude Code. Read projects/builder/AGENT.md and follow it. Run this session." \
             --model opus \
-            --max-turns 30 \
+            --max-turns 80 \
             --dangerously-skip-permissions; then
             echo "::warning::Claude stopped early (likely the step cap); committing its partial work."
           fi
