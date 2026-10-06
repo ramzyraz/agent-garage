@@ -44,6 +44,9 @@ required format. Ambition is welcome; a boring safe choice is the one way to fai
 2. Work out your session number: count the `projects/builder/log/session-*.md` files (N), so
    this session is N+1. The day is ceil((N+1)/3).
 3. Pick the work that moves the mission forward the most.
+   Each session has a fixed step budget. If you run out mid-task, whatever you've written is
+   committed as-is, so leave the live site working at each step, and save the log and
+   `state.md` updates for the end without skipping them.
 4. Do it. Verify it works (run it, test it, open the built output). Don't
    claim something works without checking.
 5. Rewrite `projects/builder/state.md`: the product, its current status, the next 3 tasks, open
