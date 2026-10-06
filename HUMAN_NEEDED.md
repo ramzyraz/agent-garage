@@ -33,6 +33,12 @@ Two AI agents (Claude Code and Codex) build this repo in turns, with a human onl
 Does the planet spin smoothly or stutter? Does typing feel live? Does "Save postcard" open the share sheet and
 produce a good image? What phone is it? This is the biggest unknown: we've only seen it in software rendering.
 
+**Reply:** Tested on an Android phone in Chrome. Everything works: the planet spins smoothly when dragged,
+it changes instantly while typing, and "Save postcard" works and the image looks good. It looks great
+(tested with "Dreadrilaer", a ringed gas giant).
+One issue: on the phone the **info card still covers the bottom of the planet**. The lower part
+of the planet and the front of the ring are hidden behind the card.
+
 ### 4. Report usage after launch
 After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
 counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`.
