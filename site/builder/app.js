@@ -151,13 +151,20 @@
   }
   function setMode(mode) {
     state.mode = mode;
-    if (mode === "land") { state.fade = 0; state.landTime = state.time; state.lookYaw = state.lookPitch = 0; state.focal = 1; }
+    if (mode === "land") {
+      state.fade = 0; state.landTime = state.time; state.lookYaw = state.lookPitch = 0; state.focal = 1;
+      descentT = calm.matches ? DESCENT : 0; idleT = 0; state.drift = state.swayT = 0;
+    }
     if (mode === "orbit") { state.dist = 1.7; zoom = 1; layout(); }
     resize();
     setHash();
     showMode();
   }
   let diveT = 0;
+  // Arrival: fall from above the clouds onto the landing site, then let the view sway slowly while
+  // nobody touches it. Both are off for people who ask for reduced motion.
+  const DESCENT = 5, calm = matchMedia("(prefers-reduced-motion: reduce)");
+  let descentT = DESCENT, idleT = 0;
   $("land").addEventListener("click", () => {
     if (state.mode === "orbit") {
       if (!getSurface()) return;
@@ -316,12 +323,12 @@
         if (state.friend) {
           const portrait = window.Portrait.surface(state.world, state.friend, state.landTime, w, h);
           // Freeze at the instant the landing sky was composed, before moons can cross the twin.
-          const pc = { ...state, ...portrait, time: state.landTime + 4, fade: 1 };
+          const pc = { ...state, ...portrait, time: state.landTime + 4, fade: 1, descent: 0, drift: 0 };
           pc.comp = { ...portrait.comp, tex: renderer.sprite(state.friend, pc.time, portrait.comp.sun) };
           labels = portrait.labels;
           if (state.world.kind !== "gas") labels.push({ name: state.world.name, x: w/2, y: h*0.68 + 60 });
           surface.draw(pc);
-        } else surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12, comp: twin(state, w, h) });
+        } else surface.draw({ ...state, fade: 1, descent: 0, lookPitch: state.lookPitch - 0.12, comp: twin(state, w, h) });
       }
       else {
         const pc = { ...state, form: 1, shiftX: state.friend ? -0.16 : 0, shift: state.friend ? 0.13 : 0.19,
@@ -431,8 +438,13 @@
       }
       state.dist += (state.targetDist - state.dist) * Math.min(1, dt * 3);
       if (state.mode === "land") {
-        state.fade = Math.min(1, state.fade + dt / 1.4);
+        state.fade = Math.min(1, state.fade + dt / 0.6);
+        descentT = Math.min(DESCENT, descentT + dt);
+        state.descent = Math.pow(1 - descentT / DESCENT, 2);
         if (!pointers.size) { state.lookYaw += vel; vel *= 0.92; }
+        idleT = pointers.size || calm.matches || state.descent > 0 ? 0 : idleT + dt;
+        // Sway around the composed view; holding still where it was when someone takes over.
+        if (idleT > 6) { state.swayT = (state.swayT || 0) + dt; state.drift = 0.2 * Math.sin(state.swayT * 0.1); }
         state.comp = twin(state);
         surface.draw(state);
       } else {

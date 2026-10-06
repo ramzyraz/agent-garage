@@ -5,7 +5,7 @@
   const VERT = "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}";
   const FRAG = `
 precision highp float;
-uniform vec2 uRes, uSpot; uniform float uTime, uFocal, uFade, uYaw, uPitch;
+uniform vec2 uRes, uSpot; uniform float uTime, uFocal, uFade, uYaw, uPitch, uAlt;  // uAlt: height above the standing eye while descending
 uniform vec3 uO, uE, uU, uN, uL;             // observer, tangent frame and sun, in planet-local space
 uniform vec3 uSeed; uniform float uSea, uCloud, uIce, uCity, uRough, uScale, uLat, uMode, uBands, uSky;
 uniform vec3 uG0, uG1, uG2, uG3, uG4, uG5;   // ground palette
@@ -24,6 +24,16 @@ float noise(vec3 x){
 const mat3 m3 = mat3(0.00,0.80,0.60, -0.80,0.36,-0.48, -0.60,-0.48,0.64);
 float fbm(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 6; i++){ s += a*noise(p); p = m3*p*2.02; a *= 0.5; } return s/0.984; }
 float fbm3(vec3 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 3; i++){ s += a*noise(p); p = m3*p*2.02; a *= 0.5; } return s/0.875; }
+
+// The cloud deck: a layer 14 units above the standing eye (gCloudY), shared by the sky, the view from
+// above it while descending, and the shadows it casts.
+float gCloudY;
+float cloudCov(vec2 xz, const int detail){
+  vec2 cp = xz*0.035 + uSeed.zx + vec2(uTime*0.006, 0.0);
+  float cn = detail > 0 ? fbm(vec3(cp.x, uSeed.y, cp.y) + vec3(0.0, fbm3(vec3(cp*0.6, 2.0))*1.2, 0.0)) : fbm3(vec3(cp.x, uSeed.y, cp.y));
+  float th = 0.66 - uCloud*0.32;
+  return smoothstep(th, th + 0.18, cn);
+}
 
 // Terrain. 'H' uses the same scale as the planet view: below uSea is sea, 1 is the high peaks.
 const mat2 m2 = mat2(0.8, -0.6, 0.6, 0.8);
@@ -93,6 +103,8 @@ vec3 gasColor(vec3 p){
   col = mix(col, uP2, smoothstep(0.6, 1.0, b2)*0.7);
   col = mix(col, uP3, smoothstep(0.75, 1.0, b)*smoothstep(0.4, 0.8, warp));
   col = mix(col, uP4, smoothstep(0.55, 0.7, fbm3(p*9.0 + uSeed + vec3(0.0, 0.0, uTime*0.02)))*0.35);
+  // Fine streaks along the bands: up close the giant should read as weather, not a soft ball.
+  col *= 0.86 + 0.28*fbm3(vec3(p.x*5.0, p.y*48.0 + (warp - 0.5)*3.0, p.z*5.0) + uSeed);
   float lon = atan(p.z, p.x);
   float sl = fract(uSeed.z*0.37)*6.28 - 3.14, sa = (fract(uSeed.x*0.13) - 0.5)*0.9;
   vec2 d = vec2(mod(lon - sl + 3.14159, 6.28318) - 3.14159, (p.y - sa)*2.2);
@@ -116,6 +128,8 @@ vec3 skyBase(vec3 d){
   return col*uSky;
 }
 
+vec3 gRo;     // camera position
+float gPix;   // one pixel, as an angle
 vec3 sky(vec3 d){
   vec3 L = sunT();
   vec3 sb = skyBase(d);
@@ -153,7 +167,8 @@ vec3 sky(vec3 d){
       vec3 lit = base*(pow(max(dif, 0.0), 0.8)*1.15*sunlight(p, true) + 0.012);
       float rim = pow(1.0 - max(dot(p, -dw), 0.0), 2.5);
       lit += uAtmo*rim*smoothstep(-0.25, 0.6, dif)*0.8;
-      obj = lit; hasObj = 1.0;
+      float tc = -dot(uO, dw);
+      obj = lit; hasObj = clamp((1.0 - length(uO + dw*tc))/(tc*gPix), 0.0, 1.0);
     }
   }
   // Moons.
@@ -171,8 +186,11 @@ vec3 sky(vec3 d){
         base *= 1.0 - smoothstep(0.62, 0.78, crater)*0.45;
         float behind = -dot(hit, uL), shadow = 1.0;
         if (behind > 0.0) shadow = smoothstep(0.96, 1.04, length(hit + uL*behind));
-        obj = base*(max(dot(nrm, uL), 0.0)*1.2*shadow + 0.03);
-        hasObj = 1.0;
+        vec3 q = m.xyz - uO; float along = dot(q, dw);
+        float cov = clamp((m.w - length(q - dw*along))/(along*gPix), 0.0, 1.0);
+        vec3 mc = base*(max(dot(nrm, uL), 0.0)*1.2*shadow + 0.03);
+        obj = hasObj > 0.0 ? mix(obj, mc, cov) : mc;
+        hasObj = max(hasObj, cov);
       }
     }
   }
@@ -198,12 +216,8 @@ vec3 sky(vec3 d){
     }
   }
   // Cloud deck overhead.
-  if (uCloud > 0.0 && d.y > 0.0){
-    float tc = 14.0/d.y;
-    vec2 cp = d.xz*tc*0.035 + uSeed.zx + vec2(uTime*0.006, 0.0);
-    float cn = fbm(vec3(cp.x, uSeed.y, cp.y) + vec3(0.0, fbm3(vec3(cp*0.6, 2.0))*1.2, 0.0));
-    float th = 0.66 - uCloud*0.32;
-    float cov = smoothstep(th, th + 0.18, cn)*smoothstep(0.0, 0.12, d.y);
+  if (uCloud > 0.0 && d.y > 0.0 && gRo.y < gCloudY){
+    float cov = cloudCov(gRo.xz + d.xz*(gCloudY - gRo.y)/d.y, 1)*smoothstep(0.0, 0.12, d.y);
     float lit = 0.25 + 0.85*smoothstep(-0.1, 0.4, L.y);
     vec3 cc = uCloudCol*lit*mix(vec3(1.0), vec3(1.0, 0.72, 0.5), 1.0 - smoothstep(0.05, 0.45, L.y));
     col = mix(col, cc*uSky + sb*0.2, cov*0.9);
@@ -213,11 +227,7 @@ vec3 sky(vec3 d){
 
 float cloudShadow(vec3 p, vec3 L){
   if (uCloud <= 0.0 || L.y <= 0.02) return 1.0;
-  vec2 q = p.xz + L.xz*(14.0 - p.y)/L.y;
-  vec2 cp = q*0.035 + uSeed.zx + vec2(uTime*0.006, 0.0);
-  float cn = fbm3(vec3(cp.x, uSeed.y, cp.y));
-  float th = 0.66 - uCloud*0.32;
-  return 1.0 - 0.55*smoothstep(th, th + 0.18, cn);
+  return 1.0 - 0.55*cloudCov(p.xz + L.xz*(gCloudY - p.y)/L.y, 0);
 }
 
 float softShadow(vec3 p, vec3 L){
@@ -257,9 +267,13 @@ void main(){
   float a = amp();
   float sea = uSea > 0.0 ? seaY() : -1e3;
   vec3 ro = vec3(uSpot.x, max(groundY(uSpot, 6), sea) + 0.32 + a*0.04, uSpot.y);
+  gCloudY = ro.y + 14.0;
+  ro.y += uAlt;
+  gRo = ro;
+  gPix = 1.2/(uFocal*min(uRes.x, uRes.y));
 
   // March the terrain; the sea is a flat plane.
-  float tMax = 140.0;
+  float tMax = 140.0 + uAlt*3.0;
   float tSea = rd.y < 0.0 ? (sea - ro.y)/rd.y : 1e9;
   float tEnd = min(tMax, tSea);
   float t = 0.05, hit = 0.0;
@@ -268,7 +282,7 @@ void main(){
     float h = p.y - groundY(p.xz, 5);
     if (h < 0.0015*t){ hit = 1.0; break; }
     if (t > tEnd || (rd.y > 0.0 && p.y > a*1.8)) break;
-    t += max(0.02, h*0.45);
+    t += max(0.02 + uAlt*0.002, h*0.45);
   }
 
   vec3 col;
@@ -278,7 +292,7 @@ void main(){
   if (uMode > 1.5) ambient += uP1*0.05;
 
   if (hit > 0.5 && t < tSea){
-    dist = t;
+    dist = min(t, tMax*0.999);   // a last step can overshoot the far plane: still fog it
     vec3 p = ro + rd*t;
     float e = 0.004*t + 0.01;
     float hc = groundY(p.xz, 7);
@@ -317,10 +331,21 @@ void main(){
     col = sky(rd);
     if (rd.y < 0.0) dist = tMax*0.9;   // past the far plane: fade into the haze
   }
-  // Aerial perspective toward the world's own sky colour.
+  // Aerial perspective toward the world's own sky colour (thinner looking down from altitude).
   if (dist < tMax){
-    float fog = max(1.0 - exp(-dist*0.012*uSky - dist*0.002), smoothstep(0.6*tMax, tMax, dist));
+    float thick = 1.0/(1.0 + uAlt*0.04*max(-rd.y, 0.0)*6.0);
+    float fog = max(1.0 - exp(-(dist*0.012*uSky + dist*0.002)*thick), smoothstep(0.6*tMax, tMax, dist));
     col = mix(col, skyBase(normalize(vec3(rd.x, 0.03, rd.z))) + ambient*0.05, fog);
+  }
+  // Descending: the top of the cloud deck, lit from above, with the ground showing through the gaps.
+  if (uCloud > 0.0 && ro.y > gCloudY && rd.y < 0.0){
+    float tc = (ro.y - gCloudY)/(-rd.y);
+    if (tc < dist){
+      float cov = cloudCov(ro.xz + rd.xz*tc, 1);
+      vec3 top = uCloudCol*(0.3 + 1.0*smoothstep(-0.1, 0.4, L.y))*mix(vec3(1.0), vec3(1.0, 0.75, 0.55), 1.0 - smoothstep(0.05, 0.45, L.y));
+      top = mix(top, skyBase(normalize(vec3(rd.x, 0.03, rd.z))), 1.0 - exp(-tc*0.006));
+      col = mix(col, top*uSky + ambient*0.1, cov*0.92);
+    }
   }
 
   col = col/(1.0 + col*0.35);
@@ -407,7 +432,7 @@ void main(){
       const E = cross(U, N);
       const O = add(centre, sc(U, m.radius));
       // Sun low and behind your right shoulder, so the giant shows a bright gibbous face.
-      return { O, U, N, E, L: L0(U, N, E, 0.2, 2.25), lat: 0, moon: m, yaw: 0, pitch: 0.4 };
+      return { O, U, N, E, L: L0(U, N, E, 0.2, 2.25), lat: 0, moon: m, yaw: 0, pitch: 0.3 };
     }
     let lat = 0.38;
     const frame = (lon) => {
@@ -507,8 +532,12 @@ void main(){
         // Portrait screens are narrow: widen the lens so the sky still fits side to side.
         gl.uniform1f(u("uFocal"), (state.focal || 1) * (canvas.height > canvas.width * 1.1 ? 0.75 : 1));
         gl.uniform1f(u("uFade"), state.fade == null ? 1 : state.fade);
-        gl.uniform1f(u("uYaw"), s.yaw + (state.lookYaw || 0) + (state.comp ? state.comp.look : 0));
-        gl.uniform1f(u("uPitch"), Math.max(-0.6, Math.min(1.35, s.pitch + (state.lookPitch || 0))));
+        // Arrival: 'descent' runs 1 → 0. The camera drops from high above, tilted down at the land,
+        // and levels out to the composed first view as it reaches the ground.
+        const dsc = state.descent || 0;
+        gl.uniform1f(u("uAlt"), 60 * dsc * dsc);
+        gl.uniform1f(u("uYaw"), s.yaw + (state.lookYaw || 0) + (state.drift || 0) + (state.comp ? state.comp.look : 0) - 0.5 * dsc);
+        gl.uniform1f(u("uPitch"), Math.max(-0.6, Math.min(1.35, s.pitch + (state.lookPitch || 0))) - 0.75 * dsc);
         for (const k of ["O", "E", "U", "N", "L"]) gl.uniform3fv(u("u" + k), s[k]);
         gl.uniform3fv(u("uSeed"), r.seed);
         const gas = r.kind === 2;

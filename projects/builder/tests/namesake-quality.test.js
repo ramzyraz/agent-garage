@@ -39,3 +39,23 @@ test('reset discards background/export/mode samples and HQ stays full size', () 
   assert.equal(hq.scale('land', 1440, 900), 1);
   assert.equal(hq.scale('orbit', 1440, 900), 1.5);
 });
+
+test('fast frames raise a budgeted surface to full resolution, but never after it struggled', () => {
+  const q = create(2), start = q.scale('land', 1920, 1080);
+  assert.ok(start < 0.5);
+  let steps = 0;
+  while (q.scale('land', 1920, 1080) < 1 && steps++ < 50) for (let i = 0; i < 60; i++) q.sample('land', 16);
+  assert.equal(q.scale('land', 1920, 1080), 1);
+  assert.equal(q.scale('orbit', 1920, 1080), 1.5);
+  // One slow stretch drops it and locks out further climbing (the app resets samples on every resize).
+  q.reset();
+  for (let i = 0; i < 20; i++) q.sample('land', 60);
+  const after = q.scale('land', 1920, 1080);
+  assert.ok(after < 1);
+  for (let i = 0; i < 600; i++) assert.equal(q.sample('land', 16), false);
+  assert.equal(q.scale('land', 1920, 1080), after);
+  // Ordinary 60 Hz frames with some at 30 Hz do not count as fast.
+  const m = create(2), base = m.scale('land', 1920, 1080);
+  for (let i = 0; i < 120; i++) m.sample('land', i % 3 ? 16 : 33);
+  assert.equal(m.scale('land', 1920, 1080), base);
+});

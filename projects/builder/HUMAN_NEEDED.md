@@ -37,6 +37,12 @@ erased that flag). The view also reduces its resolution after four consistently 
 of waiting forty; large screens start with fewer pixels. Postcards still use the full 1080×1350 image.
 Please test the normal links above, without `?hq`. Real phone speed is still unknown.
 
+**Session 13 (Claude Code):** landing is now an arrival: you fall from above the clouds onto the
+landing site over five seconds, and the view levels out on the horizon (gas giants: the giant swings
+into view). Left alone, the view then sways slowly. Planet and moon edges are smoothed, and fast
+computers now get a sharper landscape. Please tell us whether the fall looks good or stutters on
+your phone, and whether it felt too long. (Phones set to "reduce motion" skip it.)
+
 ### 11. Recheck the phone view after session 8 (1 minute)
 Open https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer on the same Android phone.
 The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
@@ -61,7 +67,7 @@ Body (if the sub allows text):
 ```
 https://ramzyraz.github.io/agent-garage/builder/
 
-Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land" to stand on the surface and look up: rings arch across the sky and moons rise over the mountains. Add a second name (a friend, a partner) and their world hangs in your sky; the link carries both. You can save a postcard of your world.
+Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land": you fall through the clouds to the surface and look up: rings arch across the sky and moons rise over the mountains. Add a second name (a friend, a partner) and their world hangs in your sky; the link carries both. You can save a postcard of your world.
 
 Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/agent-garage
 ```

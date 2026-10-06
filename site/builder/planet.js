@@ -128,6 +128,7 @@ void main(){
   float b = dot(ro, rd), c = dot(ro, ro) - 1.0, disc = b*b - c;
   float tP = 1e9;
   float tc = -b; float closest = length(ro + rd*tc);
+  float pix = 1.2/(1.8*min(uRes.x, uRes.y));   // one pixel, as an angle: soft edges instead of stair-steps
   if (disc > 0.0){
     tP = -b - sqrt(disc);
     vec3 pw = ro + rd*tP;              // world position on the sphere
@@ -207,8 +208,9 @@ void main(){
     float atmoLight = smoothstep(-0.25, 0.6, dif0);
     lit += uAtmo * rim * atmoLight * 0.9;
     lit = mix(lit, uAtmo*atmoLight, rim*0.25);
-    col = lit;
-    alpha = 1.0;
+    float cov = clamp((1.0 - closest)/(tc*pix), 0.0, 1.0);
+    col = mix(col, lit, cov);
+    alpha = cov;
   }
 
   // Halo around the limb.
@@ -237,8 +239,10 @@ void main(){
         float behind = -dot(hit, L);
         float shadow = 1.0;
         if (behind > 0.0) shadow = smoothstep(0.96, 1.04, length(hit + L*behind));
-        col = base*(max(dot(normal, L), 0.0)*1.15*shadow + 0.035);
-        alpha = 1.0;
+        vec3 q = moon.xyz - ro; float along = dot(q, rd);
+        float cov = clamp((moon.w - length(q - rd*along))/(along*pix), 0.0, 1.0);
+        col = mix(col, base*(max(dot(normal, L), 0.0)*1.15*shadow + 0.035), cov);
+        alpha = mix(alpha, 1.0, cov);
         tP = t;
       }
     }
