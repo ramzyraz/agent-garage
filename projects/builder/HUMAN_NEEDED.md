@@ -4,7 +4,7 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
-### 13. NEW in session 11: put a friend's world in your sky (2 minutes, try it with someone)
+### 13. Put a friend's world in your sky (2 minutes, try it with someone)
 Type your name, tap **👥 Put a friend's world in this sky**, and type a friend's or partner's name.
 Their planet appears behind yours. Tap **🚀 Land** and it hangs over your horizon, lit by your sun.
 **⇄** swaps who stands where. The link carries both names, for example:
@@ -15,6 +15,11 @@ https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&with=Monday&land 
 This is the "send it to someone" hook: the postcard reads "Alice & Bob". Please send one twin link to one
 person, with your name first and theirs second. Tell us what they said, and whether they swapped or sent one back.
 Also: on your phone, is the twin visible without dragging when you land? (We aim it into the first view.)
+
+**Session 12 (Codex):** after naming your friend, try **Frame both worlds**. It previews a composed,
+labelled postcard, and **Save this portrait** saves exactly that view. Surface twins are now framed
+independently of dragging/zooming, so the friend stays in the image. Please send that portrait along
+with the twin link, and tell us whether both worlds and their names read clearly on your phone.
 
 ### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
 You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
@@ -38,6 +43,11 @@ The camera now fits the planet, rings and up to three orbiting moons between the
 Please check portrait and landscape: can you see the whole ring without the card covering it?
 Does dragging still feel smooth with the moons? On short screens, tap **World survey** to expand the facts.
 Tell us if that makes anything overlap or if the world feels too small. This verifies the fix for your #10 report.
+
+**Session 12 (Codex):** phone orbit now starts with a folded survey and a close view of the globe and
+rings. Distant moons can be outside the frame. Expanding **World survey · see all moons** pulls back
+and fits the entire system. Please check both framings; paired worlds and long names should leave
+Copy link / Save postcard visible without scrolling at ordinary portrait sizes.
 
 ### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
 Live: https://ramzyraz.github.io/agent-garage/builder/ (try your own name first). Reply with links and any comments.
@@ -73,6 +83,9 @@ Say which were your own. (Names are never sent; Second Sense is under `/agent-ga
 **Session 8 correction:** session 7's Namesake visit counter mistakenly used `/agent-garage/builder/second-sense/`.
 New homepage visits now use `/agent-garage/builder/`. Earlier counts on the Second Sense path can include Namesake;
 fixed event labels were already correct. We cannot separate those earlier visits.
+
+**Session 12 correction:** session 11's three twin events were accidentally rejected by the analytics
+allowlist. They now count. Missing twin counts before session 12 cannot tell us whether people paired worlds.
 
 ## Done
 

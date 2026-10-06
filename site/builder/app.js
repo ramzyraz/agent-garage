@@ -5,7 +5,7 @@
   const $ = (id) => document.getElementById(id);
   const canvas = $("sky");
   const input = $("name");
-  const compact = matchMedia("(max-height: 720px) and (max-width: 720px), (max-height: 500px)");
+  const compact = matchMedia("(max-width: 720px), (orientation: portrait), (max-height: 500px)");
   const setSurvey = () => { $("survey").open = !compact.matches; };
   setSurvey();
   compact.addEventListener("change", setSurvey);
@@ -35,8 +35,14 @@
     const r = world.render;
     return Math.max(1.12, r.ring ? r.ringOut : 0, ...r.moons.map((m) => m.orbit + m.radius));
   }
-  function fitDist(world, halfSize = 0.42) {
-    const radius = sceneRadius(world);
+  function getFitRadius() {
+    // A folded phone survey leads with the globe. Expanding it pulls back to its
+    // complete moon system. The planet and rings always fit above the controls.
+    return compact.matches && !$("survey").open
+      ? Math.max(1.12, state.world.render.ring ? state.world.render.ringOut : 0)
+      : sceneRadius(state.world);
+  }
+  function fitDist(world, halfSize = 0.42, radius = sceneRadius(world)) {
     return radius * Math.sqrt(1 + Math.pow(1.8 / Math.max(halfSize, 0.06), 2));
   }
   function layout() {
@@ -45,7 +51,7 @@
     const stacked = matchMedia("(max-width: 720px), (orientation: portrait)").matches;
     const panelBottom = innerHeight - foot.top + 12;
     $("card").style.setProperty("--card-bottom", panelBottom + "px");
-    $("card").style.setProperty("--card-height", Math.max(100, (foot.top - top.bottom - 24) * (stacked ? 0.62 : 1)) + "px");
+    $("card").style.setProperty("--card-height", Math.max(100, (foot.top - top.bottom - 24) * (stacked ? 0.70 : 1)) + "px");
     const card = $("card").getBoundingClientRect();
     const left = stacked ? 14 : card.right + 22;
     const right = innerWidth - 14;
@@ -56,7 +62,7 @@
     state.shift = (innerHeight / 2 - (y + bottom) / 2) / unit;
     state.shiftX = ((left + right) / 2 - innerWidth / 2) / unit;
     state.fit = Math.max(0.06, Math.min(right - left, bottom - y) * 0.46 / unit);
-    if (state.world) state.targetDist = fitDist(state.world, state.fit) * zoom;
+    if (state.world) state.targetDist = fitDist(state.world, state.fit, getFitRadius()) * zoom;
   }
   function resize() {
     const scale = quality.scale(renderMode(), innerWidth, innerHeight);
@@ -68,6 +74,7 @@
   addEventListener("resize", resize);
   resize();
 
+  $("survey").addEventListener("toggle", layout);
   new ResizeObserver(layout).observe($("card"));
   new ResizeObserver(layout).observe(document.querySelector("header"));
 
@@ -81,9 +88,10 @@
       zoom = 1;
     }
     $("title").textContent = world.name;
+    $("title").title = world.name;
     $("label").textContent = world.label;
     $("desig").textContent = world.designation;
-    $("note").textContent = world.note;
+    $("note").textContent = W.description(world);
     const facts = $("facts");
     facts.replaceChildren(...world.facts.map(([k, v]) => {
       const d = document.createElement("div");
@@ -130,9 +138,12 @@
   function showMode() {
     const landed = state.mode === "land", w = state.world;
     document.body.classList.toggle("landed", landed);
-    $("land").textContent = landed ? "🛰️ Back to orbit" : w.kind === "gas" ? "🚀 Land on a moon" : "🚀 Land on this world";
+    document.body.classList.toggle("paired", !!state.friend);
+    $("land").textContent = landed ? "🛰️ Back to orbit" : w.kind === "gas" ? "🚀 Land on a moon" : compact.matches ? "🚀 Land" : "🚀 Land on this world";
+    $("addfriend").textContent = compact.matches ? "👥 Add a friend" : "👥 Put a friend's world in this sky";
     const f = state.friend && state.friend.name;
-    $("note").textContent = !landed ? (f ? `${f} is its twin world, close enough to see from the ground. Land and look up.` : w.note)
+    $("frameboth").hidden = !f;
+    $("note").textContent = !landed ? (f ? `${f} is its twin world, close enough to see from the ground. Land and look up.` : W.description(w))
       : w.kind === "gas" ? (f ? `You're on ${moonName(w)}, a moon of ${w.name}. ${f} hangs beside the giant.`
         : `A gas giant has no ground, so you're standing on its moon ${moonName(w)}.`)
       : f ? `You're standing on ${w.name}. That's ${f} in the sky.` : `You're standing on ${w.name}. Every world has its own sky.`;
@@ -257,7 +268,7 @@
       : `${w.name} and ${f} are twin worlds. Look: ${link()}`)
       : state.mode === "land"
       ? `I'm standing on ${w.kind === "gas" ? "a moon of " : ""}a planet called ${w.name}. Look at this sky: ${link()}`
-      : `I found a planet called ${w.name}. ${w.label}, ${w.note} ${link()}`;
+      : `I found a planet called ${w.name}. ${w.label}, ${W.description(w)} ${link()}`;
     try { await navigator.clipboard.writeText(text); $("status").textContent = "Link copied. Paste it anywhere."; }
     catch (e) { window.prompt("Copy this link:", link()); }
     A.track("link-copied");
@@ -271,7 +282,7 @@
       const c = window.Surface.companion(st.world, st.friend, st.landTime, w / h);
       return { ...c, tex: renderer.sprite(st.friend, st.time, c.sun) };
     }
-    const d = st.dist, R = sceneRadius(st.world), fr = st.friend.render;
+    const d = st.dist, R = st === state ? getFitRadius() : sceneRadius(st.world), fr = st.friend.render;
     const planet = 1.8 / Math.sqrt(Math.max(d * d - 1, 1e-3));
     const scene = 1.8 * R / Math.sqrt(Math.max(d * d - R * R, 1e-3));
     const r = planet * 0.42, half = r * Math.max(1.15, fr.ring ? fr.ringOut : 0) / 0.85;
@@ -296,17 +307,35 @@
     const out = document.createElement("canvas");
     out.width = w; out.height = h;
     const g = out.getContext("2d");
+    let labels = [];
     if (renderer) {
       const [cw, ch] = [canvas.width, canvas.height];
       canvas.width = w; canvas.height = h;
       const landed = state.mode === "land" && getSurface();
-      if (landed) surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12, comp: twin(state, w, h) });
+      if (landed) {
+        if (state.friend) {
+          const portrait = window.Portrait.surface(state.world, state.friend, state.landTime, w, h);
+          // Freeze at the instant the landing sky was composed, before moons can cross the twin.
+          const pc = { ...state, ...portrait, time: state.landTime + 4, fade: 1 };
+          pc.comp = { ...portrait.comp, tex: renderer.sprite(state.friend, pc.time, portrait.comp.sun) };
+          labels = portrait.labels;
+          if (state.world.kind !== "gas") labels.push({ name: state.world.name, x: w/2, y: h*0.68 + 60 });
+          surface.draw(pc);
+        } else surface.draw({ ...state, fade: 1, lookPitch: state.lookPitch - 0.12, comp: twin(state, w, h) });
+      }
       else {
-        const pc = { ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) };
-        renderer.draw({ ...pc, comp: twin(pc, w, h, 40) });
+        const pc = { ...state, form: 1, shiftX: state.friend ? -0.16 : 0, shift: state.friend ? 0.13 : 0.19,
+          dist: fitDist(state.world, state.friend ? 0.29 : 0.36) };
+        const comp = state.friend ? { at: [0.43, 0.23, 0.20], tex: renderer.sprite(state.friend, state.time, renderer.SUN) } : null;
+        renderer.draw({ ...pc, comp });
+        if (comp) {
+          labels = [{ name: state.world.name, x: w/2 + pc.shiftX*w, y: h/2 - (pc.shift + 1.8/Math.sqrt(pc.dist*pc.dist - 1))*w + 25 },
+            { name: state.friend.name, x: w/2 + (pc.shiftX + comp.at[0])*w, y: h/2 - (pc.shift + comp.at[1] + comp.at[2]*0.85/Math.max(1.15, state.friend.render.ring ? state.friend.render.ringOut : 0))*w + 25 }];
+        }
       }
       g.drawImage(canvas, 0, 0);
       canvas.width = cw; canvas.height = ch;
+      state.comp = twin(state);
       if (landed) surface.draw(state); else renderer.draw(state);
       // Exporting at full size can stall a frame; it isn't evidence the live view is slow.
       quality.reset(); skipSample = true;
@@ -316,8 +345,21 @@
     g.fillStyle = grad; g.fillRect(0, h - 620, w, 620);
     const font = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
     const wd = state.world;
+    // Each label points to its world, so a twin is unmistakably someone's planet.
+    for (const [i, label] of labels.entries()) {
+      const x = Math.max(210, Math.min(w - 210, label.x));
+      let y = Math.max(66, label.y - 60);
+      if (i && Math.abs(x - Math.max(210, Math.min(w - 210, labels[0].x))) < 410 && Math.abs(y - Math.max(66, labels[0].y - 60)) < 65) y += 70;
+      g.font = `600 28px ${font}`;
+      const name = label.name.length > 24 ? label.name.slice(0, 23) + "…" : label.name;
+      const width = Math.min(400, g.measureText(name).width + 36);
+      g.fillStyle = "rgba(3,4,10,0.78)";
+      g.beginPath(); g.roundRect(x - width/2, y - 32, width, 46, 14); g.fill();
+      g.fillStyle = "#fff"; g.textAlign = "center"; g.fillText(name, x, y, 364); g.textAlign = "left";
+      g.strokeStyle = "#ffffff80"; g.beginPath(); g.moveTo(x, y + 14); g.lineTo(label.x, label.y - 12); g.stroke();
+    }
     // Measure the note and facts first so long ones push the text block up, never into the footer.
-    const note = $("note").textContent || wd.note;
+    const note = $("note").textContent || W.description(wd);
     const facts = wd.facts.map(([k, v]) => `${k} ${v}`).join("   ·   ");
     g.font = `italic 36px ${font}`;
     let extra = wrap(g, note, 0, 0, w - 140, 46, false) - 46;
@@ -339,8 +381,20 @@
     g.fillText("Every name is a world  ·  ramzyraz.github.io/agent-garage/builder", 70, h - 50);
     return out;
   }
-  $("postcard").addEventListener("click", () => {
-    const out = makePostcard();
+  let preview = null;
+  function closePortrait() { $("portrait").close(); preview = null; $("portraitimage").removeAttribute("src"); }
+  $("frameboth").addEventListener("click", () => {
+    preview = makePostcard();
+    $("portraitimage").src = preview.toDataURL("image/png");
+    $("portraitimage").alt = `A portrait of ${state.world.name} and ${state.friend.name}`;
+    $("portrait").showModal();
+  });
+  $("portraitclose").addEventListener("click", closePortrait);
+  $("portrait").addEventListener("close", () => { preview = null; $("portraitimage").removeAttribute("src"); });
+  $("portraitsave").addEventListener("click", () => savePostcard(preview));
+  $("postcard").addEventListener("click", () => savePostcard(makePostcard()));
+  function savePostcard(out) {
+    if (!out) return;
     const fname = "namesake-" + state.world.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".png";
     out.toBlob(async (blob) => {
       const file = new File([blob], fname || "namesake.png", { type: "image/png" });
@@ -354,7 +408,7 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       $("status").textContent = "Postcard saved.";
     }, "image/png");
-  });
+  }
 
   // Animation loop with adaptive resolution for slower phones.
   let last = performance.now();
@@ -400,5 +454,5 @@
   if (initial && initialLand && getSurface()) setMode("land");
   requestAnimationFrame(frame);
 
-  window.__namesake = { state, setWorld, setFriend, makePostcard, layout, getView: () => view, sceneRadius, setMode };
+  window.__namesake = { state, setWorld, setFriend, makePostcard, layout, getView: () => view, sceneRadius, getFitRadius, setMode };
 })();

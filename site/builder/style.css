@@ -61,8 +61,8 @@ summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px;
   .namebar { flex-basis: 100%; max-width: none; }
   .chips { display: none; }
   .card { left: 10px; right: 10px; width: auto; padding: 14px 16px; }
-  h1 { font-size: 26px; }
-  .note { font-size: 14px; margin-bottom: 8px; }
+  h1 { font-size: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note { font-size: 14px; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .facts { gap: 4px 10px; margin-bottom: 10px; }
   .foot { text-align: center; bottom: 8px; font-size: 11px; }
   .foot .long { display: none; }
@@ -77,4 +77,30 @@ summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px;
 }
 @media (max-width: 360px) {
   .facts dd { font-size: 13px; }
+}
+
+.frameboth { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #f0b4ff55;
+  border-radius: 12px; background: #633d7a55; }
+.frameboth[hidden] { display: none; }
+.portrait { padding: 12px; border: 1px solid #ffffff33; border-radius: 18px; color: #e9ecf5;
+  background: #0b0e1a; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+.portrait::backdrop { background: #03040ae8; }
+.portrait img { display: block; width: min(60dvh, calc(100vw - 52px), 600px); height: auto; max-width: 100%; margin: 0 auto 12px; }
+
+@media (max-width: 720px), (orientation: portrait) {
+  .journey { display: flex; gap: 8px; }
+  .journey button { flex: 1; font-size: 13px; }
+  .journey button[hidden] { display: none; }
+}
+
+.surveyhint { display: none; }
+@media (max-width: 720px), (orientation: portrait) {
+  details:not([open]) .surveyhint { display: inline; }
+}
+
+@media (max-width: 720px), (orientation: portrait) {
+  .paired .note { display: none; }
+}
+@media (max-width: 360px) {
+  .actions button { font-size: 13px; }
 }

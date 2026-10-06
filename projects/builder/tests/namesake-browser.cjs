@@ -53,10 +53,10 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
   await shoot("Dreadrilaer", "phone.png");
   const checkFit = async () => {
     const fit = await page.evaluate(() => {
-      const { state: s, getView, sceneRadius } = window.__namesake;
+      const { state: s, getView, getFitRadius } = window.__namesake;
       const v = getView(), unit = Math.min(innerWidth, innerHeight);
-      // A sphere enclosing every orbit bounds all projections, even after dragging.
-      const r = sceneRadius(s.world);
+      // The active framing bounds the globe/rings in close-up and all moons in survey view.
+      const r = getFitRadius();
       const extent = 1.8 * r / Math.sqrt(s.targetDist*s.targetDist - r*r) * unit;
       const cx = innerWidth/2 + s.shiftX*unit, cy = innerHeight/2 - s.shift*unit;
       return { left: cx-extent-v.left, right: v.right-cx-extent,

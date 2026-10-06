@@ -176,7 +176,19 @@
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
-  const api = { normalize, hashString, rng, generate, randomName, KINDS };
+  // Flavor is seeded independently of the art. Correct visible claims at presentation
+  // time without consuming RNG draws or changing any previously shared world.
+  function description(world) {
+    let note = world.note;
+    if (world.kind === "lava") note = note.replace(/rivers glow \w+/, "rivers glow orange-red");
+    if (world.kind === "ice") note = note.replace(/ice is \w+-tinted/, "ice is blue-tinted");
+    if (world.kind === "gas") note = note.replace(/in the \w+ bands/, "in the cloud bands");
+    if (world.kind === "terran" && !world.render.cities)
+      note = note.replace("There are cities on the night side. Nobody has answered our signal yet.", "Nobody has answered our signal yet. The night side is quiet.");
+    return note;
+  }
+
+  const api = { normalize, hashString, rng, generate, randomName, description, KINDS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.World = api;
 })(typeof window !== "undefined" ? window : globalThis);

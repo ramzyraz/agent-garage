@@ -38,22 +38,33 @@
     <h1 id="title"></h1>
     <p class="note" id="note"></p>
     <details id="survey" open>
-      <summary>World survey</summary>
+      <summary>World survey <span class="surveyhint">· see all moons</span></summary>
       <dl class="facts" id="facts"></dl>
     </details>
-    <button type="button" id="land" class="land" hidden>🚀 Land on this world</button>
-    <button type="button" id="addfriend" class="addfriend">👥 Put a friend's world in this sky</button>
+    <div class="journey">
+      <button type="button" id="land" class="land" hidden>🚀 Land on this world</button>
+      <button type="button" id="addfriend" class="addfriend">👥 Put a friend's world in this sky</button>
+    </div>
     <div class="friendbar" id="friendbar" hidden>
       <input id="friend" maxlength="40" placeholder="Their name…" aria-label="A friend's name: their world appears in this sky" spellcheck="false">
       <button type="button" id="swap" title="Stand on their world instead">⇄</button>
       <button type="button" id="unpair" title="Remove their world">✕</button>
     </div>
+    <button type="button" id="frameboth" class="frameboth" hidden>Frame both worlds</button>
     <div class="actions">
       <button type="button" id="copy">🔗 Copy link</button>
       <button type="button" id="postcard">🖼️ Save postcard</button>
     </div>
     <p class="status" id="status" role="status"></p>
   </section>
+
+  <dialog id="portrait" class="portrait" aria-label="Twin worlds postcard preview">
+    <img id="portraitimage" alt="Your twin worlds postcard">
+    <div class="actions">
+      <button type="button" id="portraitclose">Back to exploring</button>
+      <button type="button" id="portraitsave">Save this portrait</button>
+    </div>
+  </dialog>
 
   <footer class="foot">
     <span id="hint">Drag to spin · scroll to zoom</span> · same name, same world for everyone.
@@ -65,6 +76,7 @@
   <script src="analytics.js"></script>
   <script src="planet.js"></script>
   <script src="surface.js"></script>
+  <script src="portrait.js"></script>
   <script src="quality.js"></script>
   <script src="app.js"></script>
 </body>
