@@ -31,6 +31,9 @@ h1 { margin: 2px 0 6px; font-size: 34px; line-height: 1.1; word-break: break-wor
 .facts div { min-width: 0; }
 .facts dt { color: #7f899f; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
 .facts dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.facts dd small { font-size: 10px; color: #7f899f; margin-left: 4px; }
+summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px; }
+.card { max-height: var(--card-height, 70vh); overflow: auto; bottom: var(--card-bottom, 44px); }
 .actions { display: flex; gap: 8px; }
 .actions button { flex: 1; padding: 10px 8px; border-radius: 12px; border: 1px solid #ffffff22; background: #ffffff12; }
 .status { margin: 8px 0 0; min-height: 1.2em; font-size: 13px; color: #9fc4ff; }
@@ -43,10 +46,21 @@ h1 { margin: 2px 0 6px; font-size: 34px; line-height: 1.1; word-break: break-wor
   .brand { flex-direction: row; align-items: baseline; gap: 8px; }
   .namebar { flex-basis: 100%; max-width: none; }
   .chips { display: none; }
-  .card { left: 10px; right: 10px; bottom: 50px; width: auto; padding: 14px 16px; }
+  .card { left: 10px; right: 10px; width: auto; padding: 14px 16px; }
   h1 { font-size: 26px; }
   .note { font-size: 14px; margin-bottom: 8px; }
   .facts { gap: 4px 10px; margin-bottom: 10px; }
   .foot { text-align: center; bottom: 8px; font-size: 11px; }
   .foot .long { display: none; }
+}
+
+@media (max-height: 500px) {
+  .card { padding: 12px 16px; }
+  h1 { font-size: 26px; }
+  .note { font-size: 13px; margin-bottom: 8px; }
+  summary { margin-bottom: 8px; }
+  .actions button { padding: 8px; font-size: 13px; }
+}
+@media (max-width: 360px) {
+  .facts dd { font-size: 13px; }
 }

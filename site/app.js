@@ -5,6 +5,10 @@
   const $ = (id) => document.getElementById(id);
   const canvas = $("sky");
   const input = $("name");
+  const compact = matchMedia("(max-height: 720px) and (max-width: 720px), (max-height: 500px)");
+  const setSurvey = () => { $("survey").open = !compact.matches; };
+  setSurvey();
+  compact.addEventListener("change", setSurvey);
   const SHOWCASE = ["Hello", "Pizza", "Atlantis", "Saturday", "Grandma", "Builder", "Moonlight", "Banana"];
 
   let renderer = null;
@@ -15,19 +19,45 @@
   let scale = Math.min(window.devicePixelRatio || 1, 1.5);
   const HQ = /[?&]hq\b/.test(location.search); // screenshots: never lower the resolution
 
-  function portrait() { return innerHeight > innerWidth; }
+  let zoom = 1;
+  let view = null;
+  function sceneRadius(world) {
+    const r = world.render;
+    return Math.max(1.12, r.ring ? r.ringOut : 0, ...r.moons.map((m) => m.orbit + m.radius));
+  }
+  function fitDist(world, halfSize = 0.42) {
+    const radius = sceneRadius(world);
+    return radius * Math.sqrt(1 + Math.pow(1.8 / Math.max(halfSize, 0.06), 2));
+  }
+  function layout() {
+    const top = $("form").closest("header").getBoundingClientRect();
+    const foot = document.querySelector("footer").getBoundingClientRect();
+    const stacked = matchMedia("(max-width: 720px), (orientation: portrait)").matches;
+    const panelBottom = innerHeight - foot.top + 12;
+    $("card").style.setProperty("--card-bottom", panelBottom + "px");
+    $("card").style.setProperty("--card-height", Math.max(100, (foot.top - top.bottom - 24) * (stacked ? 0.62 : 1)) + "px");
+    const card = $("card").getBoundingClientRect();
+    const left = stacked ? 14 : card.right + 22;
+    const right = innerWidth - 14;
+    const bottom = stacked ? card.top - 14 : foot.top - 14;
+    const y = top.bottom + 10;
+    const unit = Math.min(innerWidth, innerHeight);
+    view = { left, right, top: y, bottom };
+    state.shift = (innerHeight / 2 - (y + bottom) / 2) / unit;
+    state.shiftX = ((left + right) / 2 - innerWidth / 2) / unit;
+    state.fit = Math.max(0.06, Math.min(right - left, bottom - y) * 0.46 / unit);
+    if (state.world) state.targetDist = fitDist(state.world, state.fit) * zoom;
+  }
   function resize() {
     canvas.width = Math.max(1, Math.round(innerWidth * scale));
     canvas.height = Math.max(1, Math.round(innerHeight * scale));
-    state.shift = portrait() ? 0.2 : 0;
+    layout();
   }
   addEventListener("resize", resize);
   resize();
 
-  function baseDist(world) {
-    const r = world.render;
-    return Math.max(5.3, r.ring ? r.ringOut / 0.24 : 0);
-  }
+  new ResizeObserver(layout).observe($("card"));
+  new ResizeObserver(layout).observe(document.querySelector("header"));
 
   function setWorld(name, { live = false, push = true } = {}) {
     const world = W.generate(name);
@@ -36,8 +66,7 @@
     if (!same) {
       state.formFrom = live ? 0.45 : 0;
       state.formT = 0;
-      state.targetDist = baseDist(world);
-      if (!live) state.dist = state.targetDist * 1.25;
+      zoom = 1;
     }
     $("title").textContent = world.name;
     $("label").textContent = world.label;
@@ -48,12 +77,18 @@
       const d = document.createElement("div");
       const dt = document.createElement("dt"); dt.textContent = k;
       const dd = document.createElement("dd"); dd.textContent = v;
+      if (k === "Moons" && Number(v) > 3) {
+        const small = document.createElement("small"); small.textContent = "3 shown";
+        dd.append(small);
+      }
       d.append(dt, dd);
       return d;
     }));
     document.title = `${world.name} · Namesake`;
     if (push) history.replaceState(null, "", "#w=" + encodeURIComponent(world.name));
     $("status").textContent = "";
+    layout();
+    if (!same && !live) state.dist = state.targetDist * 1.25;
   }
 
   function nameFromHash() {
@@ -101,7 +136,7 @@
       const before = Math.hypot(a.x - b.x, a.y - b.y);
       p.x = e.clientX; p.y = e.clientY;
       const after = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch && before > 0) state.targetDist = clampDist(state.targetDist * before / after);
+      if (pinch && before > 0 && after > 0) setZoom(zoom * before / after);
       pinch = 1;
       return;
     }
@@ -114,8 +149,11 @@
   const up = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = 0; };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
-  function clampDist(d) { return Math.max(1.9, Math.min(24, d)); }
-  canvas.addEventListener("wheel", (e) => { e.preventDefault(); state.targetDist = clampDist(state.targetDist * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+  function setZoom(value) {
+    zoom = Math.max(0.6, Math.min(2.5, value));
+    layout();
+  }
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
 
   // Share link.
   function link() { return location.origin + location.pathname + "#w=" + encodeURIComponent(state.world.name); }
@@ -144,9 +182,10 @@
     if (renderer) {
       const [cw, ch] = [canvas.width, canvas.height];
       canvas.width = w; canvas.height = h;
-      renderer.draw({ ...state, form: 1, shift: 0.15, dist: baseDist(state.world) });
+      renderer.draw({ ...state, form: 1, shiftX: 0, shift: 0.19, dist: fitDist(state.world, 0.36) });
       g.drawImage(canvas, 0, 0);
       canvas.width = cw; canvas.height = ch;
+      renderer.draw(state);
     } else { g.fillStyle = "#03040a"; g.fillRect(0, 0, w, h); }
     const grad = g.createLinearGradient(0, h - 520, 0, h);
     grad.addColorStop(0, "rgba(3,4,10,0)"); grad.addColorStop(0.35, "rgba(3,4,10,0.85)"); grad.addColorStop(1, "rgba(3,4,10,1)");
@@ -212,5 +251,5 @@
   setWorld(initial || SHOWCASE[Math.floor(Math.random() * SHOWCASE.length)], { push: !!initial });
   requestAnimationFrame(frame);
 
-  window.__namesake = { state, setWorld, makePostcard };
+  window.__namesake = { state, setWorld, makePostcard, layout, getView: () => view, sceneRadius };
 })();

@@ -1,14 +1,15 @@
 // Namesake renderer: one full-screen fragment shader draws the planet, clouds, rings,
-// atmosphere and stars. Everything is computed per pixel; there are no meshes or textures.
+// atmosphere, orbiting moons and stars. No meshes or textures.
 (function () {
   const VERT = "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}";
   const FRAG = `
 precision highp float;
-uniform vec2 uRes; uniform float uTime, uDist, uShift, uForm;
+uniform vec2 uRes; uniform float uTime, uDist, uShift, uShiftX, uForm;
 uniform mat3 uM; uniform vec3 uAxis, uSun;
 uniform vec3 uSeed; uniform float uKind, uSea, uCloud, uIce, uCity, uRough, uScale, uBands;
 uniform vec3 uP0, uP1, uP2, uP3, uP4, uP5, uAtmo, uCloudCol, uRingCol;
 uniform float uRing, uRingIn, uRingOut;
+uniform vec4 uMoons[3]; uniform vec3 uMoonColors[3];
 
 float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float noise(vec3 x){
@@ -73,9 +74,31 @@ vec3 gasColor(vec3 p){
   return col;
 }
 
+float sphereHit(vec3 ro, vec3 rd, vec3 centre, float radius){
+  vec3 q = ro - centre;
+  float b = dot(q, rd), d = b*b - dot(q, q) + radius*radius;
+  if (d <= 0.0) return 1e9;
+  float t = -b - sqrt(d);
+  return t > 0.0 ? t : 1e9;
+}
+float moonLight(vec3 p, vec3 L){
+  float light = 1.0;
+  for (int i = 0; i < 3; i++){
+    vec4 moon = uMoons[i];
+    vec3 q = moon.xyz - p;
+    float t = dot(q, L);
+    if (moon.w > 0.0 && t > 0.0){
+      float edge = max(0.006, t*0.025);
+      light *= smoothstep(moon.w - edge, moon.w + edge, length(q - L*t));
+    }
+  }
+  return light;
+}
+
 void main(){
   vec2 uv = (gl_FragCoord.xy - 0.5*uRes)/min(uRes.x, uRes.y);
   uv.y -= uShift;
+  uv.x -= uShiftX;
   vec3 ro = vec3(0.0, 0.0, uDist);
   vec3 rd = normalize(vec3(uv, -1.8));
   vec3 L = uSun;
@@ -129,6 +152,8 @@ void main(){
     vec3 nw = n * uM;                  // back to world (uM is orthonormal)
     float dif = max(dot(nw, L), 0.0);
     float soft = smoothstep(-0.15, 0.25, dif0);
+    float eclipse = moonLight(pw, L);
+    dif *= eclipse;
 
     // Shadow cast by the ring onto the planet.
     if (uRing > 0.5){
@@ -144,11 +169,11 @@ void main(){
     }
 
     vec3 lit = base * (dif*1.15*soft + 0.02);
-    if (uKind > 1.5) lit = base * (pow(max(dif0, 0.0), 0.8)*1.1 + 0.015);
+    if (uKind > 1.5) lit = base * (pow(max(dif0, 0.0), 0.8)*1.1*eclipse + 0.015);
 
     // Ocean glint.
     vec3 hv = normalize(L - rd);
-    lit += vec3(1.0, 0.95, 0.85) * pow(max(dot(pw, hv), 0.0), 90.0) * water * 0.9 * soft;
+    lit += vec3(1.0, 0.95, 0.85) * pow(max(dot(pw, hv), 0.0), 90.0) * water * 0.9 * soft * eclipse;
 
     // Clouds.
     if (uCloud > 0.0){
@@ -157,7 +182,7 @@ void main(){
       float cn = fbm(pc*2.6 + uSeed.zxy + vec3(0.0, fbm3(pc*1.3)*1.5, 0.0));
       float th = 0.66 - uCloud*0.3;
       float cov = smoothstep(th, th + 0.14, cn) * uForm;
-      float cl = clamp(dif0*1.1 + 0.05, 0.0, 1.0);
+      float cl = clamp(dif0*1.1 + 0.05, 0.0, 1.0)*eclipse;
       lit = mix(lit, uCloudCol * cl, cov*0.92);
       emit *= 1.0 - cov*0.8;
     }
@@ -179,6 +204,29 @@ void main(){
     float lf = smoothstep(-0.35, 0.6, dot(cp, L));
     col += uAtmo * exp(-h/0.045) * lf * 0.85 * uForm;
     col += uAtmo * exp(-h/0.25) * lf * 0.12 * uForm;
+  }
+
+  // Major moons: depth-tested against the planet and each other. The planet
+  // eclipses them; they cast soft shadows back onto its surface.
+  for (int i = 0; i < 3; i++){
+    vec4 moon = uMoons[i];
+    if (moon.w > 0.0){
+      float t = sphereHit(ro, rd, moon.xyz, moon.w);
+      if (t < tP){
+        vec3 hit = ro + rd*t;
+        vec3 normal = (hit - moon.xyz)/moon.w;
+        vec3 local = uM*normal;
+        float terrain = fbm3(local*9.0 + uSeed + float(i)*13.0);
+        float crater = noise(local*22.0 + uSeed.zxy);
+        vec3 base = uMoonColors[i]*(0.65 + terrain*0.6);
+        base *= 1.0 - smoothstep(0.65, 0.78, crater)*0.45;
+        float behind = -dot(hit, L);
+        float shadow = 1.0;
+        if (behind > 0.0) shadow = smoothstep(0.96, 1.04, length(hit + L*behind));
+        col = base*(max(dot(normal, L), 0.0)*1.15*shadow + 0.035);
+        tP = t;
+      }
+    }
   }
 
   // Rings.
@@ -260,6 +308,7 @@ void main(){
         gl.uniform1f(u("uTime"), state.time);
         gl.uniform1f(u("uDist"), state.dist);
         gl.uniform1f(u("uShift"), state.shift);
+        gl.uniform1f(u("uShiftX"), state.shiftX || 0);
         gl.uniform1f(u("uForm"), state.form);
         gl.uniformMatrix3fv(u("uM"), false, colMajor);
         gl.uniform3f(u("uAxis"), M[3], M[4], M[5]);
@@ -272,6 +321,21 @@ void main(){
         gl.uniform3fv(u("uAtmo"), r.atmo);
         gl.uniform3fv(u("uCloudCol"), r.cloudCol);
         gl.uniform3fv(u("uRingCol"), r.ringCol);
+        const moons = [], colors = [];
+        for (let i = 0; i < 3; i++) {
+          const moon = r.moons[i];
+          if (!moon) { moons.push(0, 0, 0, 0); colors.push(0, 0, 0); continue; }
+          const angle = moon.phase + state.time * moon.speed;
+          const p = [Math.cos(angle) * moon.orbit,
+            Math.sin(angle) * Math.sin(moon.inclination) * moon.orbit,
+            Math.sin(angle) * Math.cos(moon.inclination) * moon.orbit];
+          // Planet-local -> world. Orbit tilts and turns with the dragged system.
+          for (let j = 0; j < 3; j++) moons.push(M[j]*p[0] + M[3+j]*p[1] + M[6+j]*p[2]);
+          moons.push(moon.radius * state.form);
+          colors.push(...moon.color);
+        }
+        gl.uniform4fv(u("uMoons[0]"), moons);
+        gl.uniform3fv(u("uMoonColors[0]"), colors);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
       },
     };

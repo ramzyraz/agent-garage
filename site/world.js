@@ -129,7 +129,7 @@
       .replace("{c}", COLOUR_WORDS[Math.floor(r() * COLOUR_WORDS.length)])
       .replace("{n}", String(2 + Math.floor(r() * 40)));
 
-    return {
+    const world = {
       name, seed, kind: k, label: kind.label, designation, note,
       render: {
         kind: k === "gas" ? 2 : k === "lava" ? 1 : 0,
@@ -152,6 +152,17 @@
         ["Moons", String(moons)],
       ],
     };
+    // Append draws after all original parameters: shared planets keep their appearance.
+    // Show up to three major moons; the survey includes smaller, distant satellites.
+    world.render.moons = Array.from({ length: Math.min(moons, 3) }, (_, i) => ({
+      radius: 0.10 + r() * 0.10,
+      orbit: (hasRing ? ringOut + 0.35 : 1.5) + i * 0.38 + r() * 0.12,
+      phase: r() * Math.PI * 2,
+      speed: (0.10 + r() * 0.08) / (1 + i * 0.5),
+      inclination: 0.12 + r() * 0.3,
+      color: hsl(25 + r() * 200, 0.12 + r() * 0.15, 0.48 + r() * 0.18),
+    }));
+    return world;
   }
 
   // Pronounceable random names for "Surprise me".

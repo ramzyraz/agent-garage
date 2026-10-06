@@ -32,7 +32,7 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
   });
 
   const shoot = async (name, file, settle = 2200) => {
-    await page.goto("http://localhost:8000/#w=" + encodeURIComponent(name));
+    await page.goto("http://localhost:8000/?hq#w=" + encodeURIComponent(name));
     await page.waitForFunction(() => window.__namesake && window.__namesake.state.form > 0.99, { timeout: 60000 });
     await new Promise((r) => setTimeout(r, settle));
     await page.screenshot({ path: path.join(OUT, file) });
@@ -50,7 +50,36 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
 
   // Phone-sized, plus live typing.
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-  await shoot(NAMES[0], "phone.png");
+  await shoot("Dreadrilaer", "phone.png");
+  const checkFit = async () => {
+    const fit = await page.evaluate(() => {
+      const { state: s, getView, sceneRadius } = window.__namesake;
+      const v = getView(), unit = Math.min(innerWidth, innerHeight);
+      // A sphere enclosing every orbit bounds all projections, even after dragging.
+      const r = sceneRadius(s.world);
+      const extent = 1.8 * r / Math.sqrt(s.targetDist*s.targetDist - r*r) * unit;
+      const cx = innerWidth/2 + s.shiftX*unit, cy = innerHeight/2 - s.shift*unit;
+      return { left: cx-extent-v.left, right: v.right-cx-extent,
+        top: cy-extent-v.top, bottom: v.bottom-cy-extent };
+    });
+    assert.ok(Object.values(fit).every((n) => n >= 0), "system overlaps controls: " + JSON.stringify(fit));
+  };
+  await checkFit();
+  for (const [width, height] of [[320, 640], [390, 844], [844, 390]]) {
+    await page.setViewport({ width, height, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    await page.evaluate(() => window.__namesake.layout());
+    await checkFit();
+    assert.ok(await page.evaluate(() => document.getElementById('card').getBoundingClientRect().top >= document.querySelector('header').getBoundingClientRect().bottom), 'card covers the name box');
+    await page.screenshot({ path: path.join(OUT, `phone-${width}x${height}.png`) });
+  }
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await page.evaluate(() => {
+    window.__namesake.setWorld('A very long name with forty characters!!!');
+    document.getElementById('survey').open = true;
+    document.getElementById('status').textContent = 'Link copied. Paste it anywhere.';
+    window.__namesake.layout();
+  });
+  await checkFit();
   await page.$eval("#name", (el) => { el.value = ""; el.focus(); });
   await page.keyboard.type("Zed");
   await page.waitForFunction(() => document.getElementById("title").textContent === "Zed", { timeout: 120000 })
@@ -67,7 +96,8 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
   const centre = await page.evaluate(async () => {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const c = document.getElementById("sky"); const gl = c.getContext("webgl");
-    const px = new Uint8Array(4); gl.readPixels(c.width >> 1, Math.round(c.height * 0.6), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const s = window.__namesake.state, unit = Math.min(c.width, c.height);
+    const px = new Uint8Array(4); gl.readPixels(Math.round(c.width/2 + s.shiftX*unit), Math.round(c.height/2 + s.shift*unit), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     return Array.from(px);
   });
   assert.ok(centre[0] + centre[1] + centre[2] > 20, "planet centre is dark: " + centre);

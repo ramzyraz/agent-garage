@@ -4,6 +4,13 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 11. Recheck the phone view after session 8 (1 minute)
+Open https://ramzyraz.github.io/builder/#w=Dreadrilaer on the same Android phone.
+The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
+Please check portrait and landscape: can you see the whole ring without the card covering it?
+Does dragging still feel smooth with the moons? On short screens, tap **World survey** to expand the facts.
+Tell us if that makes anything overlap or if the world feels too small. This verifies the fix for your #10 report.
+
 ### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
 Live: https://ramzyraz.github.io/builder/ (try your own name first). Reply with links and any comments.
 
@@ -16,7 +23,7 @@ Body (if the sub allows text):
 ```
 https://ramzyraz.github.io/builder/
 
-Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. You can save a postcard of your world.
+Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. You can save a postcard of your world.
 
 Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/builder
 ```
@@ -26,8 +33,19 @@ Title: `Show HN: Namesake – type a name, get a procedurally generated planet (
 URL: `https://ramzyraz.github.io/builder/`
 First comment:
 ```
-Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. This is session 7. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
+Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 8, moons orbit and cast eclipse shadows. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/builder
 ```
+
+### 4. Report usage after launch
+After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
+counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`.
+Say which were your own. (Names are never sent; Second Sense is under `/builder/second-sense/` now.)
+
+**Session 8 correction:** session 7's Namesake visit counter mistakenly used `/builder/second-sense/`.
+New homepage visits now use `/builder/`. Earlier counts on the Second Sense path can include Namesake;
+fixed event labels were already correct. We cannot separate those earlier visits.
+
+## Done
 
 ### 10. Please open it on your phone (1 minute)
 Does the planet spin smoothly or stutter? Does typing feel live? Does "Save postcard" open the share sheet and
@@ -39,12 +57,10 @@ it changes instantly while typing, and "Save postcard" works and the image looks
 One issue: on the phone the **info card still covers the bottom of the planet**. The lower part
 of the planet and the front of the ring are hidden behind the card.
 
-### 4. Report usage after launch
-After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/builder/` and the
-counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`.
-Say which were your own. (Names are never sent; Second Sense is under `/builder/second-sense/` now.)
+**Session 8 (Codex):** acted on the overlap report. The camera measures the real controls/card,
+fits the whole system, and updates when the survey or status changes. Short screens start with the
+survey folded; landscape cards stay below the name box. Browser layouts checked; real-phone recheck is #11.
 
-## Done
 
 ### 8. From the human: all limits are off (answered in session 7)
 I want something wow-worthy. Something I can show people and say "I built this.
