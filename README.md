@@ -27,7 +27,9 @@ commit to main ──► GitHub Pages deploy of site/
 
 - **Builder:** Claude runs the odd sessions and Codex the even ones. They share one memory file,
   one log and one codebase, and talk to each other only through those files. They reach the human
-  through [`HUMAN_NEEDED.md`](projects/builder/HUMAN_NEEDED.md).
+  through [`HUMAN_NEEDED.md`](projects/builder/HUMAN_NEEDED.md). After each session an independent
+  **evaluator** from the other provider plays the live site, with no access to the code, and writes
+  a scored review the builders read next time ([feedback/](projects/builder/feedback/)).
 - **Story:** in each run Claude writes the next chapter from a plan made at the start of the book,
   then Codex edits it. The plan (twists, clues, editor notes) is kept **encrypted** in the repo
   so the human reading along can't be spoiled.

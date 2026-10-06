@@ -20,12 +20,12 @@ jobs:
   session:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    # Only the session itself is serialized, so the timer job below never blocks runs.
     concurrency:
       group: builder-session
       cancel-in-progress: false
     outputs:
       ran: ${{ steps.guard.outputs.run }}
+      agent: ${{ steps.guard.outputs.agent }}
     steps:
       - uses: actions/checkout@v4
 
@@ -160,4 +160,80 @@ jobs:
       - id: deployment
         if: steps.site.outputs.exists == 'true'
         uses: actions/deploy-pages@v4
+
+  # An independent critic plays the freshly deployed site and writes a review the
+  # builders read next session. It runs in an empty folder: no code, no logs, just the URL.
+  # The other provider reviews: Codex reviews Claude's sessions and vice versa.
+  evaluate:
+    needs: [session, deploy-site]
+    if: needs.session.outputs.ran == 'true' && needs.deploy-site.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare
+        id: prep
+        run: |
+          n=$(ls projects/builder/log/session-*.md | wc -l)
+          echo "n=$(printf %02d "$n")" >> "$GITHUB_OUTPUT"
+          if [ "${{ needs.session.outputs.agent }}" = claude ]; then echo "reviewer=codex"; else echo "reviewer=claude"; fi >> "$GITHUB_OUTPUT"
+          mkdir -p /tmp/eval && cp projects/builder/EVALUATOR.md /tmp/eval/
+          sleep 60   # let the Pages CDN pick up the new deploy
+
+      - name: Review (Claude)
+        if: steps.prep.outputs.reviewer == 'claude'
+        working-directory: /tmp/eval
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
+          claude -p "You are Claude Code, the evaluator. Read EVALUATOR.md and follow it. This is the review after session ${{ steps.prep.outputs.n }}." \
+            --model sonnet --max-turns 30 --dangerously-skip-permissions
+
+      - name: Restore Codex login
+        if: steps.prep.outputs.reviewer == 'codex'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          mkdir -p ~/.codex && chmod 700 ~/.codex
+          printf '%s' "$CODEX_AUTH_JSON" > ~/.codex/auth.json
+          chmod 600 ~/.codex/auth.json
+          sha256sum ~/.codex/auth.json | cut -d' ' -f1 > /tmp/auth.sha
+
+      - name: Review (Codex)
+        if: steps.prep.outputs.reviewer == 'codex'
+        working-directory: /tmp/eval
+        run: |
+          npm install -g @openai/codex > /dev/null 2>&1
+          codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox \
+            -m gpt-6.1-sol -c model_reasoning_effort=medium \
+            "You are OpenAI Codex, the evaluator. Read EVALUATOR.md and follow it. This is the review after session ${{ steps.prep.outputs.n }}."
+
+      - name: Save refreshed Codex login
+        if: always() && steps.prep.outputs.reviewer == 'codex'
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_PAT }}
+        run: |
+          [ -f ~/.codex/auth.json ] && [ -n "$GH_TOKEN" ] || exit 0
+          sha256sum ~/.codex/auth.json | cut -d' ' -f1 | cmp -s - /tmp/auth.sha && exit 0
+          gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < ~/.codex/auth.json
+
+      - name: Commit the review
+        run: |
+          rm -rf ~/.codex
+          [ -f /tmp/eval/feedback.md ] || { echo "::error::The evaluator wrote no feedback.md"; exit 1; }
+          mkdir -p projects/builder/feedback
+          cp /tmp/eval/feedback.md "projects/builder/feedback/after-session-${{ steps.prep.outputs.n }}.md"
+          git config user.name "evaluator (${{ steps.prep.outputs.reviewer }})"
+          git config user.email "52238175+ramzyraz@users.noreply.github.com"
+          git add projects/builder/feedback
+          git commit -q -m "Review after session ${{ steps.prep.outputs.n }} (${{ steps.prep.outputs.reviewer }})"
+          git pull -q --rebase origin main && git push -q
 

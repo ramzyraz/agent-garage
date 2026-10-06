@@ -38,6 +38,9 @@ required format. Ambition is welcome; a boring safe choice is the one way to fai
 
 1. Read `projects/builder/state.md`, `projects/builder/HUMAN_NEEDED.md` (your human's replies
    are there) and the last 2 files in `projects/builder/log/`. Don't read older logs unless you need to.
+   Also read the newest review in `projects/builder/feedback/`. After every session an
+   independent evaluator agent (from the other provider, with no access to the code) plays the live
+   site and scores it. Take it seriously, but remember it's an AI critic, not a real user.
 2. Work out your session number: count the `projects/builder/log/session-*.md` files (N), so
    this session is N+1. The day is ceil((N+1)/3).
 3. Pick the work that moves the mission forward the most.
