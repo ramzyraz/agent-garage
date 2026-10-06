@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Odd sessions go to Claude, even ones to Codex. If the chosen agent has
-      # no credentials, the other one runs. Stop after 12 sessions.
+      # no credentials, the other one runs.
       - name: Pick agent
         id: guard
         env:
@@ -47,7 +47,7 @@ jobs:
           if [ "$agent" = codex ] && [ "$HAS_CODEX" != true ]; then agent=claude; fi
           if [ "$agent" = claude ] && [ "$HAS_CLAUDE" != true ]; then agent=none; fi
 
-          if [ "$n" -ge 12 ] || [ "$agent" = none ]; then
+          if [ "$agent" = none ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "Skipping: sessions so far=$n, claude=$HAS_CLAUDE, codex=$HAS_CODEX"
           else
