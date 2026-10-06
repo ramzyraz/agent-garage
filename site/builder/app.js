@@ -24,10 +24,10 @@
 
   const state = { world: null, time: 0, yaw: 0, userYaw: 0, pitch: 0.28, dist: 6, targetDist: 6, shift: 0, form: 0, formFrom: 0, formT: 1,
     mode: "orbit", fade: 1, lookYaw: 0, lookPitch: 0, focal: 1, landTime: 0 };
-  // Separate resolutions: the surface raymarcher is much heavier than the orbit view.
-  const scales = { orbit: Math.min(window.devicePixelRatio || 1, 1.5), land: Math.min(window.devicePixelRatio || 1, 1) };
-  let scale = scales.orbit;
   const HQ = /[?&]hq\b/.test(location.search); // screenshots: never lower the resolution
+  const quality = window.RenderQuality.create(window.devicePixelRatio || 1, HQ);
+  const renderMode = () => state.mode === "land" ? "land" : "orbit";
+  let skipSample = true;
 
   let zoom = 1;
   let view = null;
@@ -59,8 +59,10 @@
     if (state.world) state.targetDist = fitDist(state.world, state.fit) * zoom;
   }
   function resize() {
+    const scale = quality.scale(renderMode(), innerWidth, innerHeight);
     canvas.width = Math.max(1, Math.round(innerWidth * scale));
     canvas.height = Math.max(1, Math.round(innerHeight * scale));
+    quality.reset(); skipSample = true;
     layout();
   }
   addEventListener("resize", resize);
@@ -122,9 +124,7 @@
     state.mode = mode;
     if (mode === "land") { state.fade = 0; state.landTime = state.time; state.lookYaw = state.lookPitch = 0; state.focal = 1; }
     if (mode === "orbit") { state.dist = 1.7; zoom = 1; layout(); }
-    const next = mode === "land" ? scales.land : scales.orbit;
-    if (next !== scale) { scale = next; resize(); }
-    frames = slow = 0;
+    resize();
     setHash();
     showMode();
   }
@@ -176,7 +176,6 @@
   // Drag to spin, wheel or pinch to zoom.
   const pointers = new Map();
   let vel = 0, pinch = 0;
-  let frames = 0, slow = 0;
   canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); vel = 0; });
   canvas.addEventListener("pointermove", (e) => {
     const p = pointers.get(e.pointerId);
@@ -248,6 +247,8 @@
       g.drawImage(canvas, 0, 0);
       canvas.width = cw; canvas.height = ch;
       if (landed) surface.draw(state); else renderer.draw(state);
+      // Exporting at full size can stall a frame; it isn't evidence the live view is slow.
+      quality.reset(); skipSample = true;
     } else { g.fillStyle = "#03040a"; g.fillRect(0, 0, w, h); }
     const grad = g.createLinearGradient(0, h - 620, 0, h);
     grad.addColorStop(0, "rgba(3,4,10,0)"); grad.addColorStop(0.35, "rgba(3,4,10,0.85)"); grad.addColorStop(1, "rgba(3,4,10,1)");
@@ -296,10 +297,14 @@
 
   // Animation loop with adaptive resolution for slower phones.
   let last = performance.now();
+  document.addEventListener("visibilitychange", () => { last = performance.now(); quality.reset(); skipSample = true; });
   function frame(now) {
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const frameMs = now - last;
+    const dt = Math.min(0.1, frameMs / 1000);
     last = now;
     if (!document.hidden && renderer) {
+      if (skipSample) skipSample = false;
+      else if (quality.sample(renderMode(), frameMs)) resize();
       state.time += dt;
       state.formT = Math.min(1, state.formT + dt / 1.6);
       const e = 1 - Math.pow(1 - state.formT, 3);
@@ -319,21 +324,15 @@
         state.yaw = state.time * state.world.render.spin + state.userYaw;
         renderer.draw(state);
       }
-      frames++;
-      if (dt > 0.045) slow++;
-      if (frames === 40) {
-        const floor = state.mode === "land" ? 0.3 : 0.45;
-        if (!HQ && slow > 25 && scale > floor) { scale *= 0.75; scales[state.mode === "land" ? "land" : "orbit"] = scale; resize(); }
-        frames = 0; slow = 0;
-      }
     }
     requestAnimationFrame(frame);
   }
 
   const initial = nameFromHash();
+  const initialLand = /[#&]land\b/.test(location.hash);
   if (initial) { input.value = initial; A.track("link-opened"); }
   setWorld(initial || SHOWCASE[Math.floor(Math.random() * SHOWCASE.length)], { push: !!initial });
-  if (initial && /[#&]land\b/.test(location.hash) && getSurface()) setMode("land");
+  if (initial && initialLand && getSurface()) setMode("land");
   requestAnimationFrame(frame);
 
   window.__namesake = { state, setWorld, makePostcard, layout, getView: () => view, sceneRadius, setMode };

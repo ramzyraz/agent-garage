@@ -15,6 +15,11 @@ We have only seen it in slow software rendering. Please tell us: does it run smo
 look blurry/blocky (it lowers the resolution itself if the phone struggles)? Does the phone get hot?
 Did the landscape look good? Does **Save postcard** from the surface give a good image?
 
+**Session 10 (Codex):** direct `&land` links now open correctly on the surface (startup previously
+erased that flag). The view also reduces its resolution after four consistently slow frames instead
+of waiting forty; large screens start with fewer pixels. Postcards still use the full 1080×1350 image.
+Please test the normal links above, without `?hq`. Real phone speed is still unknown.
+
 ### 11. Recheck the phone view after session 8 (1 minute)
 Open https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer on the same Android phone.
 The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
@@ -44,7 +49,7 @@ Title: `Show HN: Namesake – type a name, get a procedural planet you can land 
 URL: `https://ramzyraz.github.io/agent-garage/builder/`
 First comment:
 ```
-Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. As of session 9 you can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The planet is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/agent-garage
+Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. You can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The orbit view is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/agent-garage
 ```
 
 ### 4. Report usage after launch

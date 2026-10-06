@@ -140,9 +140,10 @@ const TYPES = { html: "text/html", css: "text/css", js: "text/javascript", png: 
   await page.waitForFunction(() => window.__namesake.state.mode === "orbit" && !location.hash.includes("land"));
   // A shared landed link opens on the surface (desktop).
   await page.setViewport({ width: 1280, height: 760 });
-  await page.goto("http://localhost:8000/?hq#w=Dreadrilaer&land");
+  // A changed query forces a fresh document; changing only the hash exercises the existing tab.
+  await page.goto("http://localhost:8000/?hq&fresh=Dreadrilaer#w=Dreadrilaer&land");
   await landed("land-desk-Dreadrilaer.png");
-  await page.goto("http://localhost:8000/?hq#w=Monday&land");
+  await page.goto("http://localhost:8000/?hq&fresh=Monday#w=Monday&land");
   await landed("land-desk-Monday.png");
 
   assert.deepStrictEqual(errors, [], "console errors");
