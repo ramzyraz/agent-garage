@@ -28,5 +28,23 @@
     "book": 1,
     "chapter": 5,
     "title": "Chapter 5: The Statement"
+  },
+  {
+    "file": "b01-c06.md",
+    "book": 1,
+    "chapter": 6,
+    "title": "Chapter 6: Gray Water"
+  },
+  {
+    "file": "b01-c07.md",
+    "book": 1,
+    "chapter": 7,
+    "title": "Chapter 7: Unit 114"
+  },
+  {
+    "file": "b01-c08.md",
+    "book": 1,
+    "chapter": 8,
+    "title": "Chapter 8: The Fourteenth"
   }
 ]
