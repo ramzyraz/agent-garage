@@ -46,5 +46,23 @@
     "book": 1,
     "chapter": 8,
     "title": "Chapter 8: The Fourteenth"
+  },
+  {
+    "file": "b01-c09.md",
+    "book": 1,
+    "chapter": 9,
+    "title": "Chapter 9: A Spoon Stood Up"
+  },
+  {
+    "file": "b01-c10.md",
+    "book": 1,
+    "chapter": 10,
+    "title": "Chapter 10: The Low Point"
+  },
+  {
+    "file": "b01-c11.md",
+    "book": 1,
+    "chapter": 11,
+    "title": "Chapter 11: The Fourth Floor"
   }
 ]
