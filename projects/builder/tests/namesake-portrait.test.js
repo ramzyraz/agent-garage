@@ -34,3 +34,20 @@ test('visible flavor matches lava, ice, clouds and the presence of cities', () =
     if (w.kind === 'terran' && !w.render.cities) assert.ok(!note.includes('There are cities'));
   }
 });
+
+test('live shared skies fit complete named subjects in the clear UI rectangle', () => {
+  for (const [w, h, rect] of [
+    [390, 844, { left: 14, right: 376, top: 108, bottom: 494 }],
+    [320, 640, { left: 14, right: 306, top: 108, bottom: 314 }],
+    [1440, 1000, { left: 446, right: 1426, top: 94, bottom: 956 }]
+  ]) for (let i = 0; i < 200; i++) {
+    const p = P.surface(W.generate('name '+i), W.generate('friend '+i), 17, w, h, rect);
+    for (const d of p.points) {
+      const v = P.project(d, p.camera, w, h);
+      assert.ok(v.z > 0 && v.x > rect.left && v.x < rect.right && v.y > rect.top && v.y < rect.bottom,
+        `${w}x${h}: ${JSON.stringify(v)}`);
+    }
+    const horizon = P.project([Math.sin(p.camera.yaw), 0, Math.cos(p.camera.yaw)], p.camera, w, h);
+    assert.ok(horizon.y < rect.top+0.701*(rect.bottom-rect.top), 'reserve foreground terrain');
+  }
+});

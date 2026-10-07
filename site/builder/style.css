@@ -109,8 +109,23 @@ summary { cursor: pointer; color: #9aa3b8; font-size: 12px; margin-bottom: 10px;
 }
 
 @media (max-width: 720px), (orientation: portrait) {
-  .paired .note { display: none; }
+  .paired .note { display: -webkit-box; font-size: 12px; line-height: 1.3; -webkit-line-clamp: 2; }
+  .paired .card { padding-top: 10px; padding-bottom: 10px; }
+  .paired .journey button, .paired .actions button { padding-top: 8px; padding-bottom: 8px; }
 }
+
+.skylabels { position: fixed; inset: 0; pointer-events: none; }
+.skylabels span { position: absolute; transform: translate(-50%, -50%); max-width: 180px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px;
+  border: 1px solid #ffffff55; border-radius: 999px; background: #03040aa8;
+  color: #fff; font-size: 12px; text-shadow: 0 1px 3px #000; }
 @media (max-width: 360px) {
   .actions button { font-size: 13px; }
+  .paired .card { padding: 10px 12px; }
+  .paired h1 { font-size: 24px; margin-bottom: 4px; }
+  .paired summary { margin-bottom: 6px; }
+  .paired .friendbar, .paired .frameboth, .paired .journey button { margin-bottom: 6px; }
+  .paired .friendbar input { padding: 7px 10px; }
+  .paired .frameboth { padding: 6px; }
+  .paired .actions button, .paired .journey button { padding: 7px 4px; }
 }

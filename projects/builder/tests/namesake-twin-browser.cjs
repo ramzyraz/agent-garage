@@ -17,6 +17,17 @@ const PAIRS = (process.env.PAIRS || "Alice:Bob,Dreadrilaer:Monday,Atlantis:Satur
     args: ["--no-sandbox", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
   });
   const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    let callback, now;
+    window.requestAnimationFrame = cb => { callback = cb; return 1; };
+    window.advance = seconds => {
+      const proto = WebGLRenderingContext.prototype, draw = proto.drawArrays, count = Math.round(seconds*10);
+      try { for (let i = 0; i < count; i++) {
+        proto.drawArrays = i === count-1 ? draw : () => {};
+        now = (now == null ? performance.now() : now) + 100; callback(now);
+      } } finally { proto.drawArrays = draw; }
+    };
+  });
   const errors = [], analytics = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -28,9 +39,9 @@ const PAIRS = (process.env.PAIRS || "Alice:Bob,Dreadrilaer:Monday,Atlantis:Satur
     try { req.respond({ contentType: TYPES[name.split(".").pop()] || "text/plain", body: await fs.readFile(path.join(SITE, name)) }); }
     catch (e) { req.respond({ status: 404, body: "" }); }
   });
-  const settle = (ms) => new Promise((r) => setTimeout(r, ms));
-  const ready = () => page.waitForFunction(() => window.__namesake && window.__namesake.state.form > 0.99, { timeout: 60000 });
-  const landed = () => page.waitForFunction(() => window.__namesake.state.mode === "land" && window.__namesake.state.fade > 0.99, { timeout: 90000 });
+  const ready = () => page.evaluate(() => { advance(2); return __namesake.state.form > 0.99; }).then(ok => assert.ok(ok, 'formed world'));
+  const landed = () => page.evaluate(() => { advance(5.2); return __namesake.state.mode === 'land' && __namesake.state.fade === 1 && __namesake.state.descent === 0; })
+    .then(ok => assert.ok(ok, 'landed and arrived'));
   const ui = () => page.evaluate(() => ({ hash: location.hash, note: document.getElementById("note").textContent,
     friend: document.getElementById("friend").value, bar: !document.getElementById("friendbar").hidden,
     add: !document.getElementById("addfriend").hidden, title: document.getElementById("title").textContent }));
@@ -41,14 +52,14 @@ const PAIRS = (process.env.PAIRS || "Alice:Bob,Dreadrilaer:Monday,Atlantis:Satur
     n++;
     // Fresh document load each time (query changes), so startup parsing of &with= is what's tested.
     await page.goto(`http://localhost:8000/?hq&n=${n}#w=${encodeURIComponent(a)}&with=${encodeURIComponent(b)}`);
-    await ready(); await settle(1500);
+    await ready();
     let s = await ui();
     assert.ok(s.bar && !s.add, "friend bar open for a twin link");
     assert.strictEqual(s.friend, b);
     assert.ok(s.note.includes(b), s.note);
     await page.screenshot({ path: path.join(OUT, `orbit-${a}-${b}.png`) });
     await page.goto(`http://localhost:8000/?hq&n=${n}l#w=${encodeURIComponent(a)}&with=${encodeURIComponent(b)}&land`);
-    await landed(); await settle(800);
+    await landed();
     s = await ui();
     assert.ok(s.note.includes(b) && s.hash.includes("&with=") && s.hash.endsWith("&land"), JSON.stringify(s));
     await page.screenshot({ path: path.join(OUT, `land-${a}-${b}.png`) });
@@ -61,7 +72,7 @@ const PAIRS = (process.env.PAIRS || "Alice:Bob,Dreadrilaer:Monday,Atlantis:Satur
   assert.ok(s.add && !s.bar);
   await page.click("#addfriend");
   await page.type("#friend", "Bob");
-  await page.waitForFunction(() => location.hash === "#w=Alice&with=Bob");
+  await page.waitForFunction(() => location.hash === "#w=Alice&with=Bob", { polling: 100 });
   assert.strictEqual(await page.evaluate(() => window.__namesake.state.friend.name), "Bob");
   await page.click("#swap");
   s = await ui();
@@ -75,15 +86,15 @@ const PAIRS = (process.env.PAIRS || "Alice:Bob,Dreadrilaer:Monday,Atlantis:Satur
   assert.ok(s.add && !s.bar && s.hash === "#w=Bob", JSON.stringify(s));
   // Existing-tab hash change adds the twin back.
   await page.evaluate(() => { location.hash = "#w=Bob&with=Carol"; });
-  await page.waitForFunction(() => window.__namesake.state.friend && window.__namesake.state.friend.name === "Carol");
+  await page.waitForFunction(() => window.__namesake.state.friend && window.__namesake.state.friend.name === "Carol", { polling: 100 });
 
   // Phone portrait, landed, with a postcard.
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.goto("http://localhost:8000/?hq&phone#w=Dreadrilaer&with=Alice");
-  await ready(); await settle(1200);
+  await ready();
   await page.screenshot({ path: path.join(OUT, "phone-orbit.png") });
   await page.goto("http://localhost:8000/?hq&phone2#w=Alice&with=Dreadrilaer&land");
-  await landed(); await settle(800);
+  await landed();
   await page.screenshot({ path: path.join(OUT, "phone-land.png") });
   const lc = await page.evaluate(() => window.__namesake.makePostcard().toDataURL("image/png"));
   await fs.writeFile(path.join(OUT, "postcard-land.png"), Buffer.from(lc.split(",")[1], "base64"));

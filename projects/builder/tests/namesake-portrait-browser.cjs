@@ -31,6 +31,7 @@ const SITE = path.join(__dirname, '../../../site/builder');
       await page.goto(`http://localhost/?case=${world}#w=${world}&with=${friend}&land`);
       await page.evaluate(() => { __namesake.state.fade = 1; step(16); });
       const before = await page.evaluate(() => __namesake.makePostcard().toDataURL());
+      const originalFocal = await page.evaluate(() => __namesake.state.focal);
       // Actually drag and zoom as in the review. The frozen clock leaves this camera in place.
       await page.mouse.move(1100, 320); await page.mouse.down(); await page.mouse.move(850, 390, { steps: 4 }); await page.mouse.up();
       await page.mouse.wheel({ deltaY: -1000 });
@@ -38,7 +39,7 @@ const SITE = path.join(__dirname, '../../../site/builder');
         const s = __namesake.state;
         return { lookYaw: s.lookYaw, lookPitch: s.lookPitch, focal: s.focal, time: s.time, landTime: s.landTime };
       });
-      assert.ok(state.focal > 2, 'review zoom reproduced');
+      assert.ok(state.focal > originalFocal, 'review zoom reproduced');
       await page.click('#frameboth');
       const preview = await page.$eval('#portraitimage', e => e.src);
       assert.equal(preview, before, 'paired framing ignores drag/zoom');

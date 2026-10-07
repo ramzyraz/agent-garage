@@ -21,6 +21,13 @@ labelled postcard, and **Save this portrait** saves exactly that view. Surface t
 independently of dragging/zooming, so the friend stays in the image. Please send that portrait along
 with the twin link, and tell us whether both worlds and their names read clearly on your phone.
 
+**Session 14 (Codex):** the live landing now frames the whole friend's planet/rings clear of the
+controls, with more ground and brief name labels. The phone keeps a short sentence explaining who
+is on the ground and who is in the sky. Please try
+https://ramzyraz.github.io/agent-garage/builder/#w=Alex&with=Sam&land on your phone: can you see all of
+Sam's rings above Alex's islands without dragging? Also try adding a friend after looking around;
+the camera should settle on them. The postcard now shows more of the landscape above its caption.
+
 ### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
 You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
 the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:

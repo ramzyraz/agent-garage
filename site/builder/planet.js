@@ -125,13 +125,19 @@ void main(){
   }
 
   // Planet hit.
-  float b = dot(ro, rd), c = dot(ro, ro) - 1.0, disc = b*b - c;
+  float b = dot(ro, rd);
   float tP = 1e9;
-  float tc = -b; float closest = length(ro + rd*tc);
+  float tc = -b; float closest = length(cross(ro, rd));
   float pix = 1.2/(1.8*min(uRes.x, uRes.y));   // one pixel, as an angle: soft edges instead of stair-steps
-  if (disc > 0.0){
-    tP = -b - sqrt(disc);
-    vec3 pw = ro + rd*tP;              // world position on the sphere
+  // Draw the halo behind the entire silhouette. An inside-only coverage ramp used
+  // to expose black between the bright rim and the outside halo, making dotted edges.
+  float h = max(closest - 1.0, 0.0);
+  vec3 cp = (ro + rd*tc)/max(closest, 0.0001);
+  float lf = smoothstep(-0.35, 0.6, dot(cp, L));
+  col += uAtmo * (exp(-h/0.045)*0.85 + exp(-h/0.25)*0.12) * lf * uForm;
+  if (closest < 1.0 + tc*pix*0.5){
+    tP = -b - sqrt(max(1.0 - closest*closest, 0.0));
+    vec3 pw = normalize(ro + rd*tP);   // tangent samples outside the disc shade its nearest rim
     vec3 p = uM * pw;                  // planet-local position
     float dif0 = dot(pw, L);
     vec3 n = p; vec3 base; float water = 0.0, land = 0.0; vec3 emit = vec3(0.0);
@@ -208,18 +214,9 @@ void main(){
     float atmoLight = smoothstep(-0.25, 0.6, dif0);
     lit += uAtmo * rim * atmoLight * 0.9;
     lit = mix(lit, uAtmo*atmoLight, rim*0.25);
-    float cov = clamp((1.0 - closest)/(tc*pix), 0.0, 1.0);
+    float cov = clamp(0.5 + (1.0 - closest)/(tc*pix), 0.0, 1.0);
     col = mix(col, lit, cov);
     alpha = cov;
-  }
-
-  // Halo around the limb.
-  if (closest > 1.0){
-    float h = closest - 1.0;
-    vec3 cp = normalize(ro + rd*tc);
-    float lf = smoothstep(-0.35, 0.6, dot(cp, L));
-    col += uAtmo * exp(-h/0.045) * lf * 0.85 * uForm;
-    col += uAtmo * exp(-h/0.25) * lf * 0.12 * uForm;
   }
 
   // Major moons: depth-tested against the planet and each other. The planet
@@ -257,14 +254,21 @@ void main(){
         vec3 pr = ro + rd*t;
         float rr = length(pr);
         float x = (rr - uRingIn)/(uRingOut - uRingIn);
+#ifdef HAS_DERIVATIVES
+        float footprint = max(fwidth(rr), 0.0001);
+#else
+        float footprint = max(t*pix/max(abs(dn), 0.05), 0.0001);
+#endif
         if (x > 0.0 && x < 1.0){
-          float dens = 0.35 + 0.65*noise(vec3(rr*55.0, uSeed.x, 0.0));
+          float fine = mix(noise(vec3(rr*55.0, uSeed.x, 0.0)), 0.5, smoothstep(0.3, 1.0, footprint*55.0));
+          float dens = 0.35 + 0.65*fine;
           dens *= 0.6 + 0.4*noise(vec3(rr*9.0, uSeed.y, 1.0));
           dens *= smoothstep(0.0, 0.06, x)*smoothstep(1.0, 0.9, x);
           dens *= 1.0 - 0.85*smoothstep(0.02, 0.0, abs(x - 0.62));   // a Cassini-style gap
           float tc2 = -dot(pr, L);
           float sh = (tc2 > 0.0 && length(pr + L*tc2) < 1.0) ? 0.12 : 1.0;
-          vec3 rc = uRingCol * (0.25 + 0.85*sh) * (0.8 + 0.4*noise(vec3(rr*120.0, 2.0, uSeed.z)));
+          float grain = mix(noise(vec3(rr*120.0, 2.0, uSeed.z)), 0.5, smoothstep(0.3, 1.0, footprint*120.0));
+          vec3 rc = uRingCol * (0.25 + 0.85*sh) * (0.8 + 0.4*grain);
           float k = clamp(dens*0.9*uForm, 0.0, 1.0);
           col = mix(col, rc, k);
           alpha = mix(alpha, 1.0, k);
@@ -303,7 +307,9 @@ void main(){
     };
     const prog = gl.createProgram();
     gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+    const frag = gl.getExtension("OES_standard_derivatives") ? FRAG.replace("precision highp float;",
+      "#extension GL_OES_standard_derivatives : enable\n#define HAS_DERIVATIVES\nprecision highp float;") : FRAG;
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, frag));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
     const buf = gl.createBuffer();

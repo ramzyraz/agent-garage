@@ -8,7 +8,7 @@
   const compact = matchMedia("(max-width: 720px), (orientation: portrait), (max-height: 500px)");
   const setSurvey = () => { $("survey").open = !compact.matches; };
   setSurvey();
-  compact.addEventListener("change", setSurvey);
+  compact.addEventListener("change", () => { setSurvey(); if (state.world) { showMode(); layout(); } });
   const SHOWCASE = ["Hello", "Pizza", "Atlantis", "Saturday", "Grandma", "Builder", "Moonlight", "Banana"];
 
   let renderer = null;
@@ -31,6 +31,24 @@
 
   let zoom = 1;
   let view = null;
+  let landFit = null, landFitKey = "", landTouched = false, revealT = 0, reveal = null, landAnimate = false;
+  function composeLand(animate = false) {
+    if (state.mode !== "land" || !view || !state.friend) return;
+    const key = [state.world.seed, state.friend.seed, state.landTime, innerWidth, innerHeight, ...Object.values(view)].join(":");
+    if (key === landFitKey) return;
+    const priorLook = landFit ? landFit.comp.look : state.comp ? state.comp.look : 0;
+    landFitKey = key;
+    landFit = window.Portrait.surface(state.world, state.friend, state.landTime, innerWidth, innerHeight, view);
+    if (landTouched) return;
+    vel = 0;
+    const target = { lookYaw: landFit.lookYaw, lookPitch: landFit.lookPitch, focal: landFit.focal };
+    reveal = (animate || reveal) && !calm.matches && !state.descent ? {
+      from: { lookYaw: state.lookYaw + priorLook - landFit.comp.look, lookPitch: state.lookPitch, focal: state.focal }, target, t: 0
+    } : null;
+    if (!reveal) Object.assign(state, target);
+    state.landShift = landFit.landShift;
+    state.drift = state.swayT = 0; revealT = 0;
+  }
   function sceneRadius(world) {
     const r = world.render;
     return Math.max(1.12, r.ring ? r.ringOut : 0, ...r.moons.map((m) => m.orbit + m.radius));
@@ -63,6 +81,7 @@
     state.shiftX = ((left + right) / 2 - innerWidth / 2) / unit;
     state.fit = Math.max(0.06, Math.min(right - left, bottom - y) * 0.46 / unit);
     if (state.world) state.targetDist = fitDist(state.world, state.fit, getFitRadius()) * zoom;
+    composeLand(landAnimate);
   }
   function resize() {
     const scale = quality.scale(renderMode(), innerWidth, innerHeight);
@@ -107,7 +126,7 @@
     document.title = `${world.name} · Namesake`;
     if (push) setHash();
     $("status").textContent = "";
-    if (state.mode === "land") { state.landTime = state.time; state.fade = Math.min(state.fade, 0.5); state.lookYaw = state.lookPitch = 0; }
+    if (state.mode === "land") { state.landTime = state.time; state.fade = Math.min(state.fade, 0.5); state.lookYaw = state.lookPitch = 0; landTouched = false; landFitKey = ""; }
     showMode();
     layout();
     if (!same && !live) state.dist = state.targetDist * 1.25;
@@ -127,6 +146,11 @@
     $("addfriend").hidden = !$("friendbar").hidden;
     if (push && state.world) setHash();
     if (state.world) showMode();
+    if (state.mode === "land") {
+      landTouched = false; landFitKey = "";
+      if (!state.friend) { landFit = reveal = null; state.lookYaw = state.lookPitch = 0; state.focal = 1; state.landShift = [0, 0]; }
+      landAnimate = true; layout(); landAnimate = false;
+    }
   }
   function openFriend() {
     $("addfriend").hidden = true; $("friendbar").hidden = false;
@@ -143,10 +167,16 @@
     $("addfriend").textContent = compact.matches ? "👥 Add a friend" : "👥 Put a friend's world in this sky";
     const f = state.friend && state.friend.name;
     $("frameboth").hidden = !f;
-    $("note").textContent = !landed ? (f ? `${f} is its twin world, close enough to see from the ground. Land and look up.` : W.description(w))
+    $("note").textContent = !landed ? (f ? `${w.name} & ${f}: two worlds, one sky. Land and look up.` : W.description(w))
       : w.kind === "gas" ? (f ? `You're on ${moonName(w)}, a moon of ${w.name}. ${f} hangs beside the giant.`
         : `A gas giant has no ground, so you're standing on its moon ${moonName(w)}.`)
       : f ? `You're standing on ${w.name}. That's ${f} in the sky.` : `You're standing on ${w.name}. Every world has its own sky.`;
+    if (f && compact.matches) {
+      const short = name => { const letters = Array.from(name); return letters.length > 12 ? letters.slice(0, 11).join("") + "…" : name; };
+      $("note").textContent = !landed ? `${short(w.name)} & ${short(f)} share a sky. Land and look up.`
+        : w.kind === "gas" ? `On ${short(w.name)} I. ${short(f)} is beside the giant.`
+        : `You're on ${short(w.name)}. ${short(f)} is in the sky.`;
+    }
     $("hint").textContent = landed ? "Drag to look around · scroll to zoom" : "Drag to spin · scroll to zoom";
   }
   function setMode(mode) {
@@ -154,11 +184,12 @@
     if (mode === "land") {
       state.fade = 0; state.landTime = state.time; state.lookYaw = state.lookPitch = 0; state.focal = 1;
       descentT = calm.matches ? DESCENT : 0; idleT = 0; state.drift = state.swayT = 0;
+      landFitKey = ""; landTouched = false; reveal = null;
     }
     if (mode === "orbit") { state.dist = 1.7; zoom = 1; layout(); }
-    resize();
     setHash();
     showMode();
+    resize();
   }
   let diveT = 0;
   // Arrival: fall from above the clouds onto the landing site, then let the view sway slowly while
@@ -248,6 +279,7 @@
     p.x = e.clientX; p.y = e.clientY;
     const k = 3.2 / Math.min(innerWidth, innerHeight);
     if (state.mode === "land") {
+      landTouched = true; reveal = null; $("skylabels").hidden = true;
       const kl = k * 0.45 / state.focal;
       state.lookYaw -= dx * kl; vel = -dx * kl;
       state.lookPitch = Math.max(-0.8, Math.min(1.1, state.lookPitch + dy * kl));
@@ -260,7 +292,8 @@
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
   function setZoom(value) {
-    if (state.mode === "land") { state.focal = Math.max(0.7, Math.min(2.6, state.focal / value * zoom)); return; }
+    if (state.mode === "land") { landTouched = true; reveal = null; $("skylabels").hidden = true;
+      state.focal = Math.max(0.25, Math.min(2.6, state.focal / value * zoom)); return; }
     zoom = Math.max(0.6, Math.min(2.5, value));
     layout();
   }
@@ -286,7 +319,7 @@
   function twin(st, w = innerWidth, h = innerHeight, top = view ? view.top : 0) {
     if (!st.friend || !renderer) return null;
     if (st.mode === "land") {
-      const c = window.Surface.companion(st.world, st.friend, st.landTime, w / h);
+      const c = st === state && landFit ? landFit.comp : window.Surface.companion(st.world, st.friend, st.landTime, w / h);
       return { ...c, tex: renderer.sprite(st.friend, st.time, c.sun) };
     }
     const d = st.dist, R = st === state ? getFitRadius() : sceneRadius(st.world), fr = st.friend.render;
@@ -347,9 +380,9 @@
       // Exporting at full size can stall a frame; it isn't evidence the live view is slow.
       quality.reset(); skipSample = true;
     } else { g.fillStyle = "#03040a"; g.fillRect(0, 0, w, h); }
-    const grad = g.createLinearGradient(0, h - 620, 0, h);
+    const grad = g.createLinearGradient(0, h - 440, 0, h);
     grad.addColorStop(0, "rgba(3,4,10,0)"); grad.addColorStop(0.35, "rgba(3,4,10,0.85)"); grad.addColorStop(1, "rgba(3,4,10,1)");
-    g.fillStyle = grad; g.fillRect(0, h - 620, w, 620);
+    g.fillStyle = grad; g.fillRect(0, h - 440, w, 440);
     const font = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
     const wd = state.world;
     // Each label points to its world, so a twin is unmistakably someone's planet.
@@ -366,7 +399,9 @@
       g.strokeStyle = "#ffffff80"; g.beginPath(); g.moveTo(x, y + 14); g.lineTo(label.x, label.y - 12); g.stroke();
     }
     // Measure the note and facts first so long ones push the text block up, never into the footer.
-    const note = $("note").textContent || W.description(wd);
+    const note = state.friend ? (state.mode !== "land" ? `${wd.name} & ${state.friend.name}: two worlds, one sky.`
+      : wd.kind === "gas" ? `You're on ${moonName(wd)}, a moon of ${wd.name}. ${state.friend.name} hangs beside the giant.`
+      : `You're standing on ${wd.name}. That's ${state.friend.name} in the sky.`) : $("note").textContent || W.description(wd);
     const facts = wd.facts.map(([k, v]) => `${k} ${v}`).join("   ·   ");
     g.font = `italic 36px ${font}`;
     let extra = wrap(g, note, 0, 0, w - 140, 46, false) - 46;
@@ -438,16 +473,38 @@
       }
       state.dist += (state.targetDist - state.dist) * Math.min(1, dt * 3);
       if (state.mode === "land") {
+        if (reveal) {
+          reveal.t = Math.min(1, reveal.t + dt/0.8);
+          const k = reveal.t*reveal.t*(3-2*reveal.t);
+          for (const p of ["lookYaw", "lookPitch", "focal"]) state[p] = reveal.from[p] + (reveal.target[p]-reveal.from[p])*k;
+          if (reveal.t === 1) reveal = null;
+        }
         state.fade = Math.min(1, state.fade + dt / 0.6);
         descentT = Math.min(DESCENT, descentT + dt);
         state.descent = Math.pow(1 - descentT / DESCENT, 2);
         if (!pointers.size) { state.lookYaw += vel; vel *= 0.92; }
         idleT = pointers.size || calm.matches || state.descent > 0 ? 0 : idleT + dt;
         // Sway around the composed view; holding still where it was when someone takes over.
-        if (idleT > 6) { state.swayT = (state.swayT || 0) + dt; state.drift = 0.2 * Math.sin(state.swayT * 0.1); }
+        if (idleT > 6) { state.swayT = (state.swayT || 0) + dt; state.drift = (state.friend ? 0.025 : 0.2) * Math.sin(state.swayT * 0.1); }
         state.comp = twin(state);
         surface.draw(state);
+        revealT = state.descent > 0 || reveal ? 0 : revealT + dt;
+        const labels = $("skylabels");
+        labels.hidden = !landFit || !state.friend || state.descent > 0 || !!reveal || landTouched || revealT > 8;
+        if (!labels.hidden) {
+          const camera = { ...landFit.camera, yaw: landFit.camera.yaw + state.drift };
+          const c = landFit.comp, angle = Math.atan(c.size*0.85/Math.max(1.15, state.friend.render.ring ? state.friend.render.ringOut : 0));
+          const top = c.dir.map((x, i) => x*Math.cos(angle) + c.up[i]*Math.sin(angle));
+          const sky = window.Portrait.project(top, camera, innerWidth, innerHeight);
+          const ground = window.Portrait.project([Math.sin(camera.yaw), 0, Math.cos(camera.yaw)], camera, innerWidth, innerHeight);
+          if (!labels.children.length) labels.append(document.createElement("span"), document.createElement("span"));
+          [[state.friend.name, sky.x, Math.max(view.top+14, sky.y-14)], [state.world.kind === "gas" ? moonName(state.world) : state.world.name,
+            (view.left+view.right)/2, Math.min(view.bottom-22, ground.y+0.12*(view.bottom-view.top))]].forEach(([name, x, y], i) => {
+              const label = labels.children[i]; label.textContent = name; label.style.left = x + "px"; label.style.top = y + "px";
+            });
+        }
       } else {
+        $("skylabels").hidden = true;
         if (!pointers.size) { state.userYaw += vel; vel *= 0.94; }
         state.yaw = state.time * state.world.render.spin + state.userYaw;
         state.comp = twin(state);
@@ -466,5 +523,6 @@
   if (initial && initialLand && getSurface()) setMode("land");
   requestAnimationFrame(frame);
 
-  window.__namesake = { state, setWorld, setFriend, makePostcard, layout, getView: () => view, sceneRadius, getFitRadius, setMode };
+  window.__namesake = { state, setWorld, setFriend, makePostcard, layout, getView: () => view,
+    getLandFraming: () => landFit, sceneRadius, getFitRadius, setMode };
 })();

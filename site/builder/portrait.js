@@ -11,9 +11,10 @@
   function project(dir, camera, w, h) {
     const b = basis(camera.yaw, camera.pitch), z = dot(dir, b.fw);
     const f = camera.focal * (h > w * 1.1 ? 0.75 : 1), unit = Math.min(w, h);
-    return { x: w/2 + unit*f*dot(dir, b.rt)/z, y: h/2 - unit*f*dot(dir, b.up)/z, z };
+    return { x: w/2 + (camera.shiftX || 0)*unit + unit*f*dot(dir, b.rt)/z,
+      y: h/2 - (camera.shiftY || 0)*unit - unit*f*dot(dir, b.up)/z, z };
   }
-  function surface(world, friend, t0, w = 1080, h = 1350) {
+  function surface(world, friend, t0, w = 1080, h = 1350, rect = null) {
     const S = typeof module !== "undefined" && module.exports ? require("./surface.js") : root.Surface;
     const s = S.site(world, t0);
     let comp = S.companion(world, friend, t0, w/h);
@@ -53,24 +54,33 @@
       return yaw + Math.atan2(Math.sin(a), Math.cos(a));
     });
     yaw = (Math.min(...angles) + Math.max(...angles))/2;
-    // Fit full planet/ring bounds in the image above the caption. Search the vertical
-    // camera angle; each angle has an analytic maximum lens length for these bounds.
+    // The live scene uses the actual clear rectangle between the controls. Postcards
+    // reserve their caption separately. Both keep foreground below the horizon.
+    const unit = Math.min(w, h);
+    const box = rect || { left: 0, right: w, top: 0, bottom: h };
+    const bw = box.right-box.left, bh = box.bottom-box.top;
+    const shiftX = ((box.left+box.right)/2-w/2)/unit;
+    const shiftY = (h/2-(box.top+box.bottom)/2)/unit;
+    const side = 0.42*bw/unit, above = (rect ? 0.42 : 0.41)*bh/unit;
+    const below = (rect ? 0.12 : 0.10)*bh/unit;
+    const ground = (rect ? 0.20 : 0.09)*bh/unit;
+    // Search the vertical angle; every direction bounds the maximum lens length.
     let best = null;
     for (let pitch = -0.2; pitch <= 1.2; pitch += 0.005) {
-      let effective = pitch > 0 ? Math.min(1.4, 0.16*h/w/Math.tan(pitch)) : 1.4;
+      let effective = pitch > 0 ? Math.min(1.4, ground/Math.tan(pitch)) : 1.4;
       const b = basis(yaw, pitch);
       for (const dir of points) {
         const z = dot(dir, b.fw);
         if (z <= 0) { effective = 0; break; }
         const x = dot(dir, b.rt)/z, y = dot(dir, b.up)/z;
-        effective = Math.min(effective, 0.42/Math.max(Math.abs(x), 1e-9),
-          y > 0 ? 0.41*h/w/y : 0.10*h/w/Math.max(-y, 1e-9));
+        effective = Math.min(effective, side/Math.max(Math.abs(x), 1e-9),
+          y > 0 ? above/y : below/Math.max(-y, 1e-9));
       }
       if (!best || effective > best.effective) best = { yaw, pitch, effective };
     }
-    const camera = { yaw, pitch: best.pitch, focal: best.effective / (h > w*1.1 ? 0.75 : 1) };
+    const camera = { yaw, pitch: best.pitch, focal: best.effective / (h > w*1.1 ? 0.75 : 1), shiftX, shiftY };
     return { lookYaw: camera.yaw - s.yaw - comp.look, lookPitch: camera.pitch - s.pitch,
-      focal: camera.focal, comp, labels: bodies.map((b) => {
+      focal: camera.focal, landShift: [shiftX, shiftY], comp, labels: bodies.map((b) => {
         const centre = project(b.dir, camera, w, h);
         const rt = norm(cross([0, 1, 0], b.dir)), up = cross(b.dir, rt), radius = b.labelRadius || b.radius;
         const top = b.dir.map((x, k) => x*Math.cos(radius) + up[k]*Math.sin(radius));

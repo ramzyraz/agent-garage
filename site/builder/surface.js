@@ -5,7 +5,7 @@
   const VERT = "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}";
   const FRAG = `
 precision highp float;
-uniform vec2 uRes, uSpot; uniform float uTime, uFocal, uFade, uYaw, uPitch, uAlt;  // uAlt: height above the standing eye while descending
+uniform vec2 uRes, uSpot, uShift; uniform float uTime, uFocal, uFade, uYaw, uPitch, uAlt;  // uAlt: height above the standing eye while descending
 uniform vec3 uO, uE, uU, uN, uL;             // observer, tangent frame and sun, in planet-local space
 uniform vec3 uSeed; uniform float uSea, uCloud, uIce, uCity, uRough, uScale, uLat, uMode, uBands, uSky;
 uniform vec3 uG0, uG1, uG2, uG3, uG4, uG5;   // ground palette
@@ -257,6 +257,7 @@ vec3 groundColor(vec3 p, vec3 n, float H){
 
 void main(){
   vec2 uv = (gl_FragCoord.xy - 0.5*uRes)/min(uRes.x, uRes.y);
+  uv -= uShift;
   float cy = cos(uPitch), sy = sin(uPitch);
   vec3 fw = vec3(sin(uYaw)*cy, sy, cos(uYaw)*cy);
   vec3 rt = normalize(vec3(cos(uYaw), 0.0, -sin(uYaw)));
@@ -527,6 +528,7 @@ void main(){
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.uniform2f(u("uRes"), canvas.width, canvas.height);
+        gl.uniform2fv(u("uShift"), state.landShift || [0, 0]);
         gl.uniform2fv(u("uSpot"), landingSpot(state.world));
         gl.uniform1f(u("uTime"), state.time);
         // Portrait screens are narrow: widen the lens so the sky still fits side to side.

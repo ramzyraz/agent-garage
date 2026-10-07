@@ -40,6 +40,18 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
       moon.phase = Math.acos(p[0]/moon.orbit);
       moon.inclination = Math.atan2(p[1], p[2]);
       const eclipse = pixel();
+      // Isolate the atmosphere edge from terrain/bump lighting. The old inside-only
+      // AA exposed a black seam between the disc and halo at many azimuths.
+      const rimWorld = World.generate('Alex');
+      Object.assign(rimWorld.render, { kind: 2, ring: 0, moons: [], atmo: [0.2, 0.5, 1] });
+      renderer.draw({ world: rimWorld, time: 4, yaw: 0.3, pitch: 0.28, dist: 6, shift: 0, form: 1, sun: [0,0,1] });
+      const pixels = new Uint8Array(300*300*4), rim = [];
+      renderer.gl.readPixels(0, 0, 300, 300, renderer.gl.RGBA, renderer.gl.UNSIGNED_BYTE, pixels);
+      const radius = 1.8/Math.sqrt(35)*300;
+      for (let i = 0; i < 64; i++) {
+        const a = i*Math.PI/32, x = Math.floor(150+radius*Math.cos(a)), y = Math.floor(150+radius*Math.sin(a));
+        rim.push(pixels[(y*300+x)*4+2]);
+      }
       const atlas = document.createElement('canvas'); atlas.width = 1800; atlas.height = 1680;
       const g = atlas.getContext('2d'); g.fillStyle = '#03040a'; g.fillRect(0, 0, atlas.width, atlas.height);
       const names = ['Ada Lovelace', 'Dreadrilaer', 'Pizza', 'Monday', 'Grandma', 'Atlantis',
@@ -57,15 +69,16 @@ const puppeteer = require(process.env.TABBY_PUPPETEER || 'puppeteer-core');
         g.fillText(name + ' · ' + state.world.label, x+10, y+320);
         kinds.add(state.world.kind);
       });
-      return { bare, front, behind, eclipse, atlas: atlas.toDataURL('image/png'), kinds: [...kinds] };
+      return { bare, front, behind, eclipse, rim, atlas: atlas.toDataURL('image/png'), kinds: [...kinds] };
     });
     assert.notDeepEqual(result.front, result.bare, 'a foreground moon covers the planet');
     assert.deepEqual(result.behind, result.bare, 'the planet hides a moon behind it');
     assert.ok(result.eclipse.slice(0, 3).reduce((a, b) => a+b, 0) < result.bare.slice(0, 3).reduce((a, b) => a+b, 0)*0.6,
       'a moon eclipses the surface: ' + JSON.stringify([result.bare, result.eclipse]));
     assert.equal(result.kinds.length, 7, 'atlas covers every world kind');
+    assert.ok(Math.min(...result.rim) > 90, 'no dark seam around the bright atmospheric limb: '+JSON.stringify(result.rim));
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(out, 'atlas.png'), Buffer.from(result.atlas.split(',')[1], 'base64'));
-    console.log('PASS: foreground/background moons, eclipse shadow, 30-world atlas with all seven kinds');
+    console.log('PASS: foreground/background moons, eclipse shadow, continuous atmospheric rim, 30-world atlas with all seven kinds');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
