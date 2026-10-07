@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Untangle: see how any spreadsheet works</title>
+  <meta name="description" content="Drop in an Excel workbook you inherited. See how its sheets feed each other, where the assumptions are, and which formulas look wrong. Your file never leaves your browser.">
+  <meta property="og:title" content="Untangle: see how any spreadsheet works">
+  <meta property="og:description" content="A private, in-browser map of any Excel workbook: sheet flow, inputs, formula trees with real values, and the mistakes hiding in it.">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23182230'/%3E%3Cpath d='M7 10h6M7 16h6M7 22h6M19 10h6M19 22h6' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M13 10c3 0 3 12 6 12M13 22c3 0 3-12 6-12' stroke='%2353c29b' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="./" aria-label="Untangle home">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#182230"/><path d="M7 10h6M7 16h6M7 22h6M19 10h6M19 22h6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M13 10c3 0 3 12 6 12M13 22c3 0 3-12 6-12" stroke="#53c29b" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+      <span>Untangle</span>
+    </a>
+    <div id="fileBar" class="filebar" hidden>
+      <span id="fileName" class="fname"></span>
+      <button id="openAnother" class="ghost">Open another file</button>
+    </div>
+    <span class="private-pill" title="Untangle has no server. Your workbook is read by JavaScript in this tab and never sent anywhere.">🔒 Your file stays in this tab</span>
+  </header>
+
+  <main id="landing" class="landing">
+    <section class="hero">
+      <h1>See how any spreadsheet <em>really</em> works.</h1>
+      <p class="lede">Inherited a workbook with thousands of formulas and no map? Drop it here. In seconds you'll see how the sheets feed each other, where the assumptions are hiding, and which formulas look wrong.</p>
+      <label id="drop" class="drop" tabindex="0">
+        <input id="file" type="file" accept=".xlsx,.xlsm,.xltx,.xltm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="44" height="44"><rect x="9" y="5" width="30" height="38" rx="4" fill="#fff" stroke="#182230" stroke-width="2"/><path d="M15 15h18M15 22h18M15 29h10" stroke="#9aa3ae" stroke-width="2" stroke-linecap="round"/><circle cx="34" cy="34" r="9" fill="#1f9d6b"/><path d="M34 29v10M29 34l5 5 5-5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180 34 34)"/></svg>
+        </span>
+        <span class="drop-title">Drop an Excel file here</span>
+        <span class="drop-sub">or <u>choose one</u> · .xlsx or .xlsm</span>
+      </label>
+      <p class="sample-line">No file handy? <button id="trySample" class="linkish">Open a sample 5-year plan</button>. It has five mistakes planted in it. See if Untangle finds them all.</p>
+      <p id="loadError" class="load-error" role="alert" hidden></p>
+      <p id="loadProgress" class="load-progress" aria-live="polite" hidden></p>
+    </section>
+
+    <section class="features" aria-label="What you get">
+      <div class="feat">
+        <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="4" y="8" width="30" height="20" rx="4" class="f-in"/><rect x="4" y="36" width="30" height="20" rx="4" class="f-in"/><rect x="46" y="22" width="30" height="20" rx="4" class="f-calc"/><rect x="88" y="22" width="28" height="20" rx="4" class="f-out"/><path d="M34 18C42 18 40 30 46 30M34 46C42 46 40 34 46 34M76 32h12" class="f-edge"/></svg>
+        <h3>The whole map, not one arrow at a time</h3>
+        <p>Every sheet and how they feed each other, from inputs on the left to results on the right. Thousands of copied formulas collapse into a handful of readable blocks.</p>
+      </div>
+      <div class="feat">
+        <svg viewBox="0 0 120 64" aria-hidden="true"><text x="6" y="16" class="f-mono">= 152,598</text><path d="M14 22v34M14 32h10M14 50h10" class="f-edge"/><text x="28" y="36" class="f-mono2">Profit 203,464</text><text x="28" y="54" class="f-mono2">− Tax 50,866</text></svg>
+        <h3>Why is this number what it is?</h3>
+        <p>Click any cell to see its formula as a tree with the real value at every step, what it's built from, and everything that would change if you edited it.</p>
+      </div>
+      <div class="feat">
+        <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="6" y="14" width="22" height="16" rx="2" class="f-calc"/><rect x="30" y="14" width="22" height="16" rx="2" class="f-calc"/><rect x="54" y="14" width="22" height="16" rx="2" class="f-bad"/><rect x="78" y="14" width="22" height="16" rx="2" class="f-calc"/><text x="56" y="50" class="f-mono2">typed 2,280,000</text></svg>
+        <h3>The mistakes that hide in plain sight</h3>
+        <p>Numbers typed over formulas, totals that stop one row short, constants buried in formulas, unused assumptions, broken references, hidden sheets, links to other files.</p>
+      </div>
+    </section>
+
+    <section class="trust">
+      <h2>Private by design, and you can check</h2>
+      <p>Untangle has no server and no upload. Your workbook is unzipped and read by JavaScript inside this browser tab, then forgotten when you close it. To check: load this page, turn off your Wi-Fi, then drop your file. It still works. The page counts anonymous visits (GoatCounter, no cookies), and never sends anything from your file.</p>
+      <p class="small">Reads .xlsx and .xlsm (Excel 2007 and later; Google Sheets and LibreOffice can save as .xlsx). Old .xls files and password-protected workbooks need re-saving first. Untangle doesn't run macros. <a href="https://github.com/ramzyraz/agent-garage/tree/main/site/builder/untangle">Source code</a>.</p>
+    </section>
+  </main>
+
+  <main id="app" class="app" hidden>
+    <section class="summary" id="summary" aria-label="Workbook summary"></section>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" data-view="map" aria-selected="true">Map</button>
+      <button role="tab" data-view="issues">Issues <span class="count" id="issueCount"></span></button>
+      <button role="tab" data-view="inputs">Inputs <span class="count" id="inputCount"></span></button>
+      <span class="tab-sheets" id="sheetTabs"></span>
+    </nav>
+    <div class="work">
+      <section class="stage" id="stage" aria-live="polite"></section>
+      <aside class="inspector" id="inspector" aria-label="Cell details">
+        <div class="insp-empty">
+          <h3>Click any cell</h3>
+          <p>You'll see its formula as a tree with real values, what it's built from, and what changes if you edit it.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="foot">
+    Built by AI agents (Claude Code and Codex) in the open: <a href="https://github.com/ramzyraz/agent-garage">agent-garage</a> ·
+    <a href="../">more projects</a> · <a href="../../research/#001-understand-any-spreadsheet">the research behind it</a>
+  </footer>
+
+  <script src="analytics.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -4,109 +4,133 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 14. Try Untangle on a real spreadsheet you didn't build (5 minutes, most important)
+**Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
+It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
+
+So far it has only seen workbooks that we generated ourselves. Real Excel files are messier, and that is
+the biggest unknown. Please:
+1. Open it on a computer and drop in a real `.xlsx` you didn't build: a work model, a budget template,
+   anything with formulas. **The file never leaves your browser**, so you don't need to share it with us.
+2. Tell us: did it open? How long did "Mapped in …" say? Did the sheet map make sense? Were the "What looks
+   wrong" findings real problems, or false alarms? Which ones? Was anything obviously missing or confusing?
+   Paste any error message exactly.
+3. If you know someone who inherits spreadsheets at work (finance, operations, research), show them the
+   sample (https://ramzyraz.github.io/agent-garage/builder/untangle/#sample) and tell us what they said.
+
+We'll write launch posts (Show HN, r/excel) once it has survived a few real files.
+
+## Done
+
 ### From the human: Namesake is done, so move on to real problems
 A 7/10 from the evaluator is good enough, and I don't think there's much more to add to Namesake.
 It's finished and frozen (moved to `site/namesake/`). From now on your projects come from the
 Investigator's backlog of real, unsolved problems (see the updated AGENT.md). Pick one and build
 something great. Any open requests below about Namesake can be ignored.
 
-### 13. Put a friend's world in your sky (2 minutes, try it with someone)
-Type your name, tap **👥 Put a friend's world in this sky**, and type a friend's or partner's name.
-Their planet appears behind yours. Tap **🚀 Land** and it hangs over your horizon, lit by your sun.
-**⇄** swaps who stands where. The link carries both names, for example:
-https://ramzyraz.github.io/agent-garage/builder/#w=Alice&with=Bob&land
-(an alien world with a ringed twin) or
-https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&with=Monday&land (a twin beside the giant).
+**Session 15 (Claude Code):** picked backlog #1 and built **Untangle**, an in-browser map of any Excel
+workbook. Request #14 above asks for a real-file test. The old Namesake requests (#4, #9, #11, #12, #13) are
+retired below, unanswered and not needed any more.
 
-This is the "send it to someone" hook: the postcard reads "Alice & Bob". Please send one twin link to one
-person, with your name first and theirs second. Tell us what they said, and whether they swapped or sent one back.
-Also: on your phone, is the twin visible without dragging when you land? (We aim it into the first view.)
+### Retired in session 15: Namesake requests #13, #12, #11, #9, #4
+(Kept for the record; Namesake is frozen. No action needed.)
 
-**Session 12 (Codex):** after naming your friend, try **Frame both worlds**. It previews a composed,
-labelled postcard, and **Save this portrait** saves exactly that view. Surface twins are now framed
-independently of dragging/zooming, so the friend stays in the image. Please send that portrait along
-with the twin link, and tell us whether both worlds and their names read clearly on your phone.
+> ### 13. Put a friend's world in your sky (2 minutes, try it with someone)
+> Type your name, tap **👥 Put a friend's world in this sky**, and type a friend's or partner's name.
+> Their planet appears behind yours. Tap **🚀 Land** and it hangs over your horizon, lit by your sun.
+> **⇄** swaps who stands where. The link carries both names, for example:
+> https://ramzyraz.github.io/agent-garage/builder/#w=Alice&with=Bob&land
+> (an alien world with a ringed twin) or
+> https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&with=Monday&land (a twin beside the giant).
+>
+> This is the "send it to someone" hook: the postcard reads "Alice & Bob". Please send one twin link to one
+> person, with your name first and theirs second. Tell us what they said, and whether they swapped or sent one back.
+> Also: on your phone, is the twin visible without dragging when you land? (We aim it into the first view.)
+>
+> **Session 12 (Codex):** after naming your friend, try **Frame both worlds**. It previews a composed,
+> labelled postcard, and **Save this portrait** saves exactly that view. Surface twins are now framed
+> independently of dragging/zooming, so the friend stays in the image. Please send that portrait along
+> with the twin link, and tell us whether both worlds and their names read clearly on your phone.
+>
+> **Session 14 (Codex):** the live landing now frames the whole friend's planet/rings clear of the
+> controls, with more ground and brief name labels. The phone keeps a short sentence explaining who
+> is on the ground and who is in the sky. Please try
+> https://ramzyraz.github.io/agent-garage/builder/#w=Alex&with=Sam&land on your phone: can you see all of
+> Sam's rings above Alex's islands without dragging? Also try adding a friend after looking around;
+> the camera should settle on them. The postcard now shows more of the landscape above its caption.
+>
+> ### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
+> You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
+> the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:
+> - https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&land (a ringed giant, from its moon)
+> - your own name, then tap **🚀 Land on this world**. Drag to look around.
+>
+> This view is much heavier for the phone than the planet view (it draws a whole landscape per pixel).
+> We have only seen it in slow software rendering. Please tell us: does it run smoothly, stutter, or
+> look blurry/blocky (it lowers the resolution itself if the phone struggles)? Does the phone get hot?
+> Did the landscape look good? Does **Save postcard** from the surface give a good image?
+>
+> **Session 10 (Codex):** direct `&land` links now open correctly on the surface (startup previously
+> erased that flag). The view also reduces its resolution after four consistently slow frames instead
+> of waiting forty; large screens start with fewer pixels. Postcards still use the full 1080×1350 image.
+> Please test the normal links above, without `?hq`. Real phone speed is still unknown.
+>
+> **Session 13 (Claude Code):** landing is now an arrival: you fall from above the clouds onto the
+> landing site over five seconds, and the view levels out on the horizon (gas giants: the giant swings
+> into view). Left alone, the view then sways slowly. Planet and moon edges are smoothed, and fast
+> computers now get a sharper landscape. Please tell us whether the fall looks good or stutters on
+> your phone, and whether it felt too long. (Phones set to "reduce motion" skip it.)
+>
+> ### 11. Recheck the phone view after session 8 (1 minute)
+> Open https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer on the same Android phone.
+> The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
+> Please check portrait and landscape: can you see the whole ring without the card covering it?
+> Does dragging still feel smooth with the moons? On short screens, tap **World survey** to expand the facts.
+> Tell us if that makes anything overlap or if the world feels too small. This verifies the fix for your #10 report.
+>
+> **Session 12 (Codex):** phone orbit now starts with a folded survey and a close view of the globe and
+> rings. Distant moons can be outside the frame. Expanding **World survey · see all moons** pulls back
+> and fits the entire system. Please check both framings; paired worlds and long names should leave
+> Copy link / Save postcard visible without scrolling at ordinary portrait sizes.
+>
+> ### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
+> Live: https://ramzyraz.github.io/agent-garage/builder/ (try your own name first). Reply with links and any comments.
+>
+> **a) Show 2–3 people in person or in a chat.** This matters most. Ask them to type their own name. Tell us
+> what they said, and whether anyone saved a postcard or sent a link on.
+>
+> **b) Reddit r/InternetIsBeautiful** (check the sidebar rules first)
+> Title: `Type your name and a planet forms from it. Add a friend's name and their world rises in your sky.`
+> Body (if the sub allows text):
+> ```
+> https://ramzyraz.github.io/agent-garage/builder/
+>
+> Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land": you fall through the clouds to the surface and look up: rings arch across the sky and moons rise over the mountains. Add a second name (a friend, a partner) and their world hangs in your sky; the link carries both. You can save a postcard of your world.
+>
+> Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/agent-garage
+> ```
+>
+> **c) Hacker News, "Show HN"**
+> Title: `Show HN: Namesake – type a name, get a procedural planet you can land on (WebGL shaders)`
+> URL: `https://ramzyraz.github.io/agent-garage/builder/`
+> First comment:
+> ```
+> Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. You can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The orbit view is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/agent-garage
+> ```
+>
+> ### 4. Report usage after launch
+> After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/agent-garage/builder/` and the
+> counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9),
+> and `twin-named`, `twin-opened`, `twin-swapped` (new in session 11: a twin was typed, a twin link was opened, twins were swapped).
+> Say which were your own. (Names are never sent; Second Sense is under `/agent-garage/builder/second-sense/` now.)
+>
+> **Session 8 correction:** session 7's Namesake visit counter mistakenly used `/agent-garage/builder/second-sense/`.
+> New homepage visits now use `/agent-garage/builder/`. Earlier counts on the Second Sense path can include Namesake;
+> fixed event labels were already correct. We cannot separate those earlier visits.
+>
+> **Session 12 correction:** session 11's three twin events were accidentally rejected by the analytics
+> allowlist. They now count. Missing twin counts before session 12 cannot tell us whether people paired worlds.
 
-**Session 14 (Codex):** the live landing now frames the whole friend's planet/rings clear of the
-controls, with more ground and brief name labels. The phone keeps a short sentence explaining who
-is on the ground and who is in the sky. Please try
-https://ramzyraz.github.io/agent-garage/builder/#w=Alex&with=Sam&land on your phone: can you see all of
-Sam's rings above Alex's islands without dragging? Also try adding a friend after looking around;
-the camera should settle on them. The postcard now shows more of the landscape above its caption.
-
-### 12. NEW in session 9: tap "🚀 Land" on your phone (2 minutes, most important)
-You can now **land on any world** and stand on its surface: rings arch across the sky, moons hang over
-the horizon, and on gas giants you stand on a moon with the giant filling the sky. Try:
-- https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer&land (a ringed giant, from its moon)
-- your own name, then tap **🚀 Land on this world**. Drag to look around.
-
-This view is much heavier for the phone than the planet view (it draws a whole landscape per pixel).
-We have only seen it in slow software rendering. Please tell us: does it run smoothly, stutter, or
-look blurry/blocky (it lowers the resolution itself if the phone struggles)? Does the phone get hot?
-Did the landscape look good? Does **Save postcard** from the surface give a good image?
-
-**Session 10 (Codex):** direct `&land` links now open correctly on the surface (startup previously
-erased that flag). The view also reduces its resolution after four consistently slow frames instead
-of waiting forty; large screens start with fewer pixels. Postcards still use the full 1080×1350 image.
-Please test the normal links above, without `?hq`. Real phone speed is still unknown.
-
-**Session 13 (Claude Code):** landing is now an arrival: you fall from above the clouds onto the
-landing site over five seconds, and the view levels out on the horizon (gas giants: the giant swings
-into view). Left alone, the view then sways slowly. Planet and moon edges are smoothed, and fast
-computers now get a sharper landscape. Please tell us whether the fall looks good or stutters on
-your phone, and whether it felt too long. (Phones set to "reduce motion" skip it.)
-
-### 11. Recheck the phone view after session 8 (1 minute)
-Open https://ramzyraz.github.io/agent-garage/builder/#w=Dreadrilaer on the same Android phone.
-The camera now fits the planet, rings and up to three orbiting moons between the controls and info card.
-Please check portrait and landscape: can you see the whole ring without the card covering it?
-Does dragging still feel smooth with the moons? On short screens, tap **World survey** to expand the facts.
-Tell us if that makes anything overlap or if the world feels too small. This verifies the fix for your #10 report.
-
-**Session 12 (Codex):** phone orbit now starts with a folded survey and a close view of the globe and
-rings. Distant moons can be outside the frame. Expanding **World survey · see all moons** pulls back
-and fits the entire system. Please check both framings; paired worlds and long names should leave
-Copy link / Save postcard visible without scrolling at ordinary portrait sizes.
-
-### 9. Launch posts for Namesake (please post these; the Second Sense posts in Done are retired)
-Live: https://ramzyraz.github.io/agent-garage/builder/ (try your own name first). Reply with links and any comments.
-
-**a) Show 2–3 people in person or in a chat.** This matters most. Ask them to type their own name. Tell us
-what they said, and whether anyone saved a postcard or sent a link on.
-
-**b) Reddit r/InternetIsBeautiful** (check the sidebar rules first)
-Title: `Type your name and a planet forms from it. Add a friend's name and their world rises in your sky.`
-Body (if the sub allows text):
-```
-https://ramzyraz.github.io/agent-garage/builder/
-
-Every name is a seed: oceans, clouds, ice caps, lava, rings, gas giant storms and city lights on the night side, orbiting moons and eclipse shadows, all drawn live in your browser by a single shader. It reshapes as you type. Drag to spin. Then tap "Land": you fall through the clouds to the surface and look up: rings arch across the sky and moons rise over the mountains. Add a second name (a friend, a partner) and their world hangs in your sky; the link carries both. You can save a postcard of your world.
-
-Disclosure: it was built by two AI agents (Claude Code and Codex) taking turns, as a public experiment. Code and session logs: https://github.com/ramzyraz/agent-garage
-```
-
-**c) Hacker News, "Show HN"**
-Title: `Show HN: Namesake – type a name, get a procedural planet you can land on (WebGL shaders)`
-URL: `https://ramzyraz.github.io/agent-garage/builder/`
-First comment:
-```
-Two AI agents (Claude Code and Codex) build this repo in turns, with a human only posting things. You can land: a second shader raymarches the world's terrain from the ground and draws the real sky above it, so the rings appear as an arch computed from where you stand, and on gas giants you stand on a moon and look up at the planet. The orbit view is a single fragment shader with no meshes or textures: fbm terrain with finite-difference bump lighting, analytic ray-sphere and ring-plane intersections (rings and planet shadow each other), cloud layer, atmosphere halo, night-side city lights. The name is hashed in JS into ~30 parameters, so the same name gives the same world for everyone. Logs of every session, including the failures: https://github.com/ramzyraz/agent-garage
-```
-
-### 4. Report usage after launch
-After posting, please open https://ramzyraz.goatcounter.com and paste the visit count for `/agent-garage/builder/` and the
-counts for `world-named`, `world-surprise`, `chip-used`, `link-copied`, `postcard-saved`, `link-opened`, `landed` (new in session 9),
-and `twin-named`, `twin-opened`, `twin-swapped` (new in session 11: a twin was typed, a twin link was opened, twins were swapped).
-Say which were your own. (Names are never sent; Second Sense is under `/agent-garage/builder/second-sense/` now.)
-
-**Session 8 correction:** session 7's Namesake visit counter mistakenly used `/agent-garage/builder/second-sense/`.
-New homepage visits now use `/agent-garage/builder/`. Earlier counts on the Second Sense path can include Namesake;
-fixed event labels were already correct. We cannot separate those earlier visits.
-
-**Session 12 correction:** session 11's three twin events were accidentally rejected by the analytics
-allowlist. They now count. Missing twin counts before session 12 cannot tell us whether people paired worlds.
-
-## Done
 
 ### 10. Please open it on your phone (1 minute)
 Does the planet spin smoothly or stutter? Does typing feel live? Does "Save postcard" open the share sheet and
