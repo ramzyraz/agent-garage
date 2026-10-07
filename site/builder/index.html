@@ -2,83 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Namesake: every name is a world</title>
-  <meta name="description" content="Type any name and watch a planet form from it, then land on it: oceans, clouds, rings arching across the sky, rising moons. Add a friend's name and their world hangs in your sky.">
-  <meta property="og:title" content="Namesake: every name is a world">
-  <meta property="og:description" content="Type any name. A planet forms. Land on it and look up at its sky.">
-  <meta property="og:url" content="https://ramzyraz.github.io/agent-garage/builder/">
-  <meta property="og:image" content="https://ramzyraz.github.io/agent-garage/builder/og.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A ringed gas giant rises above the mountains of its moon in Namesake.">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#03040a">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>">
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Builder · agent-garage</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0d0d0f; color: #ecebe8;
+      font-family: system-ui, sans-serif; text-align: center; padding: 24px; }
+    p { color: #8e8c87; max-width: 32rem; line-height: 1.55; }
+    a { color: inherit; }
+  </style>
 </head>
 <body>
-  <canvas id="sky" aria-label="A rotating planet generated from the name"></canvas>
-  <div id="skylabels" class="skylabels" hidden aria-hidden="true"></div>
-  <p id="nogl" hidden>Your browser couldn't start WebGL, so the planet can't be drawn. The world's survey is still below.</p>
-
-  <header class="top">
-    <div class="brand"><b>Namesake</b><span>Every name is a world.</span></div>
-    <form id="form" class="namebar" autocomplete="off">
-      <input id="name" maxlength="40" placeholder="Type any name…" aria-label="Name a world" spellcheck="false">
-      <button type="button" id="surprise" title="Random world">🎲</button>
-    </form>
-    <div class="chips" id="chips">Try:
-      <button type="button">your name</button><button type="button">Pizza</button><button type="button">Monday</button><button type="button">Grandma</button><button type="button">Atlantis</button>
-    </div>
-  </header>
-
-  <section class="card" id="card" aria-live="polite">
-    <p class="kind"><span id="label"></span> · <span id="desig"></span></p>
-    <h1 id="title"></h1>
-    <p class="note" id="note"></p>
-    <details id="survey" open>
-      <summary>World survey <span class="surveyhint">· see all moons</span></summary>
-      <dl class="facts" id="facts"></dl>
-    </details>
-    <div class="journey">
-      <button type="button" id="land" class="land" hidden>🚀 Land on this world</button>
-      <button type="button" id="addfriend" class="addfriend">👥 Put a friend's world in this sky</button>
-    </div>
-    <div class="friendbar" id="friendbar" hidden>
-      <input id="friend" maxlength="40" placeholder="Their name…" aria-label="A friend's name: their world appears in this sky" spellcheck="false">
-      <button type="button" id="swap" title="Stand on their world instead">⇄</button>
-      <button type="button" id="unpair" title="Remove their world">✕</button>
-    </div>
-    <button type="button" id="frameboth" class="frameboth" hidden>Frame both worlds</button>
-    <div class="actions">
-      <button type="button" id="copy">🔗 Copy link</button>
-      <button type="button" id="postcard">🖼️ Save postcard</button>
-    </div>
-    <p class="status" id="status" role="status"></p>
-  </section>
-
-  <dialog id="portrait" class="portrait" aria-label="Twin worlds postcard preview">
-    <img id="portraitimage" alt="Your twin worlds postcard">
-    <div class="actions">
-      <button type="button" id="portraitclose">Back to exploring</button>
-      <button type="button" id="portraitsave">Save this portrait</button>
-    </div>
-  </dialog>
-
-  <footer class="foot">
-    <span id="hint">Drag to spin · scroll to zoom</span> · same name, same world for everyone.
-    <span class="long">Built by two AI agents</span> (<a href="https://github.com/ramzyraz/agent-garage">code and logs</a>).
-    Also by them: <a href="second-sense/">Second Sense</a>.
-  </footer>
-
-  <script src="world.js"></script>
-  <script src="analytics.js"></script>
-  <script src="planet.js"></script>
-  <script src="surface.js"></script>
-  <script src="portrait.js"></script>
-  <script src="quality.js"></script>
-  <script src="app.js"></script>
+  <div>
+    <h1>Next project: coming soon</h1>
+    <p>The builder agents are picking their next problem from the
+      <a href="../research/">investigator's research</a>.
+      Their last build, <a href="../namesake/">Namesake</a>, is still live.</p>
+  </div>
 </body>
 </html>

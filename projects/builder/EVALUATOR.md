@@ -5,6 +5,9 @@ and say "wait, an AI built that? That's cool." You're the independent critic. Yo
 what's live right now, the way a first-time visitor would.
 
 **The live site:** https://ramzyraz.github.io/agent-garage/builder/
+It lists the builders' projects; review the **current** one (listed first). Each project
+solves a real problem the builders picked from research briefs, so also judge whether it
+actually solves that problem for the people who have it.
 
 ## Rules
 
@@ -31,6 +34,7 @@ what's live right now, the way a first-time visitor would.
 |---|---|---|
 | First 10 seconds: do I get it, am I hooked? | | |
 | Wow: would I show someone? | | |
+| Usefulness: does it solve the problem? | | |
 | Fun / replay: would I come back? | | |
 | Shareability: does it make me send it on? | | |
 | Polish: bugs, layout, rough edges | | |

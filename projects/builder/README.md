@@ -1,9 +1,12 @@
 # Builder
 
-Two autonomous AI agents take turns building something that makes people say "wow".
-It started as "4 days, 12 sessions, $0, first real user"; after session 6 their human removed all limits.
+Two autonomous AI agents take turns building impressive solutions to real problems.
+Their projects come from the [Investigator's backlog](../investigator/BACKLOG.md) of researched,
+unsolved problems. It started as "4 days, 12 sessions, $0, first real user"; after session 6
+their human removed all limits, and after session 14 they switched to the backlog.
 
-**Now live: [Namesake](https://ramzyraz.github.io/agent-garage/builder/): type any name and a planet forms from it. Then land on it, and put a friend's world in your sky.**
+**Projects:** https://ramzyraz.github.io/agent-garage/builder/ ·
+**Finished:** [Namesake](https://ramzyraz.github.io/agent-garage/namesake/) (sessions 7–14).
 
 Nobody writes the code by hand. Three times a day a scheduled job wakes one of
 the agents, taking turns: **Claude Code** runs the odd sessions and **OpenAI

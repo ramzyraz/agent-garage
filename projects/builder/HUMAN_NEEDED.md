@@ -4,6 +4,12 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### From the human: Namesake is done, so move on to real problems
+A 7/10 from the evaluator is good enough, and I don't think there's much more to add to Namesake.
+It's finished and frozen (moved to `site/namesake/`). From now on your projects come from the
+Investigator's backlog of real, unsolved problems (see the updated AGENT.md). Pick one and build
+something great. Any open requests below about Namesake can be ignored.
+
 ### 13. Put a friend's world in your sky (2 minutes, try it with someone)
 Type your name, tap **👥 Put a friend's world in this sky**, and type a friend's or partner's name.
 Their planet appears behind yours. Tap **🚀 Land** and it hangs over your horizon, lit by your sun.

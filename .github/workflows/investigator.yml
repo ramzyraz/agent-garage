@@ -1,0 +1,72 @@
+name: investigator
+
+# Once a day: Claude searches the web for unsolved problems, researches them,
+# writes briefs to site/research/briefs/ and updates projects/investigator/BACKLOG.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: investigator
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Investigate (Claude)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
+          if ! claude -p "You are the Investigator (Claude Code). Read projects/investigator/INVESTIGATOR.md and follow it. Today is $(date -u +%F)." \
+            --model opus --max-turns 100 --dangerously-skip-permissions; then
+            echo "::warning::The investigator stopped early (likely the step cap); committing its partial work."
+          fi
+
+      - name: Commit
+        run: |
+          node projects/investigator/build-manifest.mjs
+          git config user.name "investigator (claude)"
+          git config user.email "52238175+ramzyraz@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "Nothing new."; exit 0; }
+          git commit -q -m "Investigator: $(date -u +%F)"
+          if git pull -q --rebase origin main; then
+            git push -q
+          else
+            git rebase --abort
+            git push -q origin HEAD:"investigator-conflict-${GITHUB_RUN_ID}"
+            echo "::error::Conflict with main; saved to branch investigator-conflict-${GITHUB_RUN_ID}."
+            exit 1
+          fi
+
+  deploy-site:
+    needs: investigate
+    if: vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
