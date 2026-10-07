@@ -108,9 +108,10 @@ jobs:
           rm -rf projects/story/.secret ~/.codex
           node projects/story/build-manifest.mjs
           git add -A
-          git diff --cached --quiet && { echo "Nothing new."; exit 0; }
           n=$(node -e 'const c=require("./site/story/chapters.json");const l=c[c.length-1];console.log(l?`Book ${l.book}, chapter ${l.chapter}`:"Story setup")')
-          git commit -q -m "$n"
+          # An agent may have committed on its own; push whatever is ahead of origin.
+          git diff --cached --quiet || git commit -q -m "$n"
+          [ -n "$(git log origin/main..HEAD --oneline)" ] || { echo "Nothing new."; exit 0; }
           if git pull -q --rebase origin main; then
             git push -q
           else

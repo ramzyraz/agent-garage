@@ -22,7 +22,7 @@ https://ramzyraz.github.io/agent-garage/story/. They want to discover everything
   public: not in commit messages, not in file names, not in comments, not in your output.
   Plot planning lives only in `projects/story/.secret/` (encrypted before it's committed).
 - **Never ask the reader anything** and never ask for feedback. There's no human in this loop.
-- Commit messages are neutral: `Book 1, chapter 4`.
+- **Don't run git.** The workflow commits after each run with a neutral message.
 
 ## Files
 

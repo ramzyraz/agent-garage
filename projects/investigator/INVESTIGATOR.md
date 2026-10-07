@@ -80,4 +80,4 @@ Re-rank open items as you learn more.
 ## Rules
 
 - Only change `projects/investigator/` and `site/research/`.
-- Commit message: `Investigator: <n> new briefs (<short titles>)`.
+- **Don't run git** (no commits, no pushes). The workflow commits and publishes your files after you finish.
