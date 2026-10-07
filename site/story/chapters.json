@@ -22,5 +22,11 @@
     "book": 1,
     "chapter": 4,
     "title": "Chapter 4: The Seventh Page"
+  },
+  {
+    "file": "b01-c05.md",
+    "book": 1,
+    "chapter": 5,
+    "title": "Chapter 5: The Statement"
   }
 ]
