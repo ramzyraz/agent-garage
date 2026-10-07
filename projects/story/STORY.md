@@ -10,8 +10,8 @@ The prompt that started you says which role you have.
 - A **mystery thriller** that keeps the reader **on the edge of their seat the whole time**.
 - **Really good plot twists**: ones that are planned, fair (the clues were there all along)
   and genuinely shocking. On a reread, they should feel inevitable.
-- **Open-ended:** a series of books. Each book has a complete, satisfying arc and ending, and
-  sequels can follow.
+- **One complete book.** The story ends with Book 1's planned ending: a complete, satisfying
+  conclusion that pays off the twists. No sequel unless the reader asks for one later.
 
 ## The reader
 
@@ -30,7 +30,8 @@ Public (the reader sees these):
 - `site/story/chapters/bNN-cMM.md`: one chapter each, e.g. `b01-c01.md`. The first line is
   `# Chapter N: <title>`. Plain Markdown prose: no notes, no metadata.
 - `site/story/book.json`: `{"series": "...", "books": [{"n": 1, "title": "..."}]}`.
-  Titles only, with no spoilers.
+  Titles only, with no spoilers. When the final chapter is written, add `"complete": true` to the
+  book (this ends the story and stops all future runs).
 
 Secret (in `projects/story/.secret/`, which is decrypted for you and re-encrypted after you finish):
 - `bible.md`: the plan for the current book: premise, cast and their real secrets,
@@ -55,8 +56,10 @@ Don't touch anything outside `projects/story/` and `site/story/`.
 4. You can refine the bible as the story grows (a better twist, a deeper motive),
    as long as already-published chapters still fit.
 5. Update `continuity.md` and mark the chapter done in `bible.md`.
-6. When a book's final chapter is written, archive the bible as `bible-book-NN.md`. In the
-   next session, plan the sequel (new mystery, same world and protagonist) and start its chapter 1.
+6. Each time you're started you write **exactly one** chapter. The editor then edits it, and
+   you may be started again in the same run for the next one, so always pick up from the files.
+7. Write the ending as planned in the bible: no rushing. When the final chapter is written, set
+   `"complete": true` on the book in `book.json`. That's the end of the story; there's no sequel.
 
 ## Editor (OpenAI Codex)
 

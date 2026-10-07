@@ -1,6 +1,7 @@
 name: story-chapter
 
-# One chapter per run: Claude writes it, Codex edits it.
+# Up to 3 chapters per run; each one written by Claude, then edited by Codex.
+# Stops for good once the author marks the book complete in site/story/book.json.
 # Plot planning lives in projects/story/vault.enc (encrypted); it's only decrypted inside this job.
 # Agent output is discarded so the public Actions logs can't spoil the story.
 on:
@@ -14,23 +15,37 @@ permissions:
 jobs:
   chapter:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 100
     concurrency:
       group: story-chapter
       cancel-in-progress: false
+    outputs:
+      done: ${{ steps.guard.outputs.done }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stop if the book is finished
+        id: guard
+        run: |
+          if node -e 'const b=require("./site/story/book.json");process.exit((b.books||[]).some(x=>x.complete)?0:1)'; then
+            echo "The book is complete. Nothing to write."; echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.done == 'false'
         with:
           node-version: 22
 
       - name: Configure git
+        if: steps.guard.outputs.done == 'false'
         run: |
           git config user.name "story-agents"
           git config user.email "52238175+ramzyraz@users.noreply.github.com"
 
       - name: Unlock the story plan
+        if: steps.guard.outputs.done == 'false'
         env:
           STORY_KEY: ${{ secrets.STORY_KEY }}
         run: |
@@ -40,19 +55,8 @@ jobs:
             openssl enc -d -aes-256-cbc -pbkdf2 -pass env:STORY_KEY -in projects/story/vault.enc | tar -xzf - -C projects/story/.secret
           fi
 
-      - name: Author (Claude)
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
-          if claude -p "You are the AUTHOR (Claude Code). Read projects/story/STORY.md and follow it. Write the next chapter." \
-              --model sonnet --max-turns 40 --dangerously-skip-permissions > /dev/null 2>&1; then
-            echo "Author finished."
-          else
-            echo "::error::Author run failed (output hidden to avoid spoilers)."; exit 1
-          fi
-
       - name: Restore Codex login
+        if: steps.guard.outputs.done == 'false'
         env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
         run: |
@@ -61,20 +65,33 @@ jobs:
           chmod 600 ~/.codex/auth.json
           sha256sum ~/.codex/auth.json | cut -d' ' -f1 > /tmp/auth.sha
 
-      - name: Editor (Codex)
+      - name: Write and edit up to 3 chapters
+        if: steps.guard.outputs.done == 'false'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          npm install -g @openai/codex > /dev/null 2>&1
-          if codex exec --dangerously-bypass-approvals-and-sandbox \
-              -m gpt-6-luna -c model_reasoning_effort=medium \
-              "You are the EDITOR (OpenAI Codex). Read projects/story/STORY.md and follow it. Edit the chapter the author just wrote." \
-              > /dev/null 2>&1; then
-            echo "Editor finished."
-          else
-            echo "::warning::Editor run failed; the chapter is published unedited."
-          fi
+          npm install -g @anthropic-ai/claude-code @openai/codex > /dev/null 2>&1
+          complete() { node -e 'const b=require("./site/story/book.json");process.exit((b.books||[]).some(x=>x.complete)?0:1)'; }
+          for i in 1 2 3; do
+            if ! claude -p "You are the AUTHOR (Claude Code). Read projects/story/STORY.md and follow it. Write the next chapter." \
+                --model sonnet --max-turns 40 --dangerously-skip-permissions > /dev/null 2>&1; then
+              if [ "$i" = 1 ]; then echo "::error::Author run failed (output hidden to avoid spoilers)."; exit 1; fi
+              echo "::warning::Author run $i failed; keeping the chapters written so far."; break
+            fi
+            echo "Chapter $i written."
+            if codex exec --dangerously-bypass-approvals-and-sandbox \
+                -m gpt-6-luna -c model_reasoning_effort=medium \
+                "You are the EDITOR (OpenAI Codex). Read projects/story/STORY.md and follow it. Edit the chapter the author just wrote." \
+                > /dev/null 2>&1; then
+              echo "Chapter $i edited."
+            else
+              echo "::warning::Editor failed on chapter $i; it's published unedited."
+            fi
+            if complete; then echo "The book is complete."; break; fi
+          done
 
       - name: Save refreshed Codex login
-        if: always()
+        if: always() && steps.guard.outputs.done == 'false'
         env:
           GH_TOKEN: ${{ secrets.SECRETS_PAT }}
         run: |
@@ -83,6 +100,7 @@ jobs:
           gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < ~/.codex/auth.json
 
       - name: Lock the plan, build the chapter list, commit
+        if: steps.guard.outputs.done == 'false'
         env:
           STORY_KEY: ${{ secrets.STORY_KEY }}
         run: |
@@ -104,7 +122,7 @@ jobs:
 
   deploy-site:
     needs: chapter
-    if: vars.PAGES_ENABLED == 'true'
+    if: vars.PAGES_ENABLED == 'true' && needs.chapter.outputs.done == 'false'
     runs-on: ubuntu-latest
     concurrency:
       group: pages

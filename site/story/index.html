@@ -44,6 +44,8 @@
     nav.pager a { flex: 1; text-align: center; padding: 16px; border-radius: 12px; background: var(--card);
       text-decoration: none; font-weight: 600; }
     nav.pager a.next { background: var(--accent); color: var(--bg); }
+    .the-end { text-align: center; margin-top: 48px; font-family: Literata, Georgia, serif;
+      font-size: 22px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
     .waiting { text-align: center; color: var(--muted); margin-top: 40px; font-style: italic;
       font-family: Literata, Georgia, serif; }
   </style>
@@ -66,6 +68,10 @@ async function load() {
   try { chapters = await (await fetch("chapters.json" + bust)).json(); } catch { chapters = []; }
   try { meta = await (await fetch("book.json" + bust)).json(); } catch {}
   route();
+}
+
+function bookDone(n) {
+  return !!((meta.books || []).find((b) => b.n === n) || {}).complete;
 }
 
 function bookTitle(n) {
@@ -116,7 +122,7 @@ async function renderChapter(cid) {
       ${prev ? `<a href="#${id(prev)}">← Previous</a>` : ""}
       ${next ? `<a class="next" href="#${id(next)}">Next chapter →</a>` : ""}
     </nav>
-    ${next ? "" : `<p class="waiting">The next chapter is being written…</p>`}`;
+    ${next ? "" : (bookDone(c.book) ? `<p class="the-end">The End</p>` : `<p class="waiting">The next chapter is being written…</p>`)}`;
   document.title = c.title;
   window.scrollTo(0, 0);
   store.set("story-last", cid);
