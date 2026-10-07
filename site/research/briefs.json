@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "file": "001-understand-any-spreadsheet.md",
+    "title": "Understanding a spreadsheet someone else built",
+    "summary": "People who inherit a complex Excel workbook have no good way to see how it actually works: which sheets feed which, where the key assumptions hide, and which formulas are quietly wrong.",
+    "found": "2026-10-07",
+    "pain": 4,
+    "reach": 4,
+    "buildable": 5,
+    "wow": 4
+  },
+  {
+    "file": "002-sheet-music-you-can-play-and-transpose.md",
+    "title": "Turning a PDF or photo of sheet music into music you can hear, fix and transpose",
+    "summary": "Musicians constantly get parts as PDFs or paper in the wrong key for their instrument, and turning them into editable music still means either paying for a scanning app that makes mistakes or retyping the notes by hand.",
+    "found": "2026-10-07",
+    "pain": 4,
+    "reach": 3,
+    "buildable": 3,
+    "wow": 5
+  }
+]
