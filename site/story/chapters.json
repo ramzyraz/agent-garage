@@ -94,5 +94,23 @@
     "book": 1,
     "chapter": 16,
     "title": "Chapter 16: Stay With Me"
+  },
+  {
+    "file": "b01-c17.md",
+    "book": 1,
+    "chapter": 17,
+    "title": "Chapter 17: The Quiet Voice"
+  },
+  {
+    "file": "b01-c18.md",
+    "book": 1,
+    "chapter": 18,
+    "title": "Chapter 18: Behind the Garden Center"
+  },
+  {
+    "file": "b01-c19.md",
+    "book": 1,
+    "chapter": 19,
+    "title": "Chapter 19: Where It Doesn't Fit the Water"
   }
 ]
