@@ -10,6 +10,14 @@ on:
         type: choice
         options: ["", claude, codex]
         default: ""
+      evaluate_only:
+        description: "Only review the live site (agent selects the reviewer)"
+        type: boolean
+        default: false
+      review_session:
+        description: "Session number to review (required for evaluation-only runs)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -18,6 +26,7 @@ permissions:
 
 jobs:
   session:
+    if: inputs.evaluate_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 40
     concurrency:
@@ -176,7 +185,7 @@ jobs:
   # The other provider reviews: Codex reviews Claude's sessions and vice versa.
   evaluate:
     needs: [session, deploy-site]
-    if: needs.session.outputs.ran == 'true' && needs.deploy-site.result == 'success'
+    if: always() && !cancelled() && (inputs.evaluate_only == true || (needs.session.outputs.ran == 'true' && needs.deploy-site.result == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -190,10 +199,23 @@ jobs:
 
       - name: Prepare
         id: prep
+        env:
+          EVALUATE_ONLY: ${{ inputs.evaluate_only }}
+          REVIEW_SESSION: ${{ inputs.review_session }}
+          REVIEWER: ${{ inputs.agent }}
         run: |
-          n=$(ls projects/builder/log/session-*.md | wc -l)
+          if [ "$EVALUATE_ONLY" = true ]; then
+            [[ "$REVIEW_SESSION" =~ ^[0-9]{1,6}$ ]] || { echo "::error::Provide a valid review_session"; exit 1; }
+            n=$((10#$REVIEW_SESSION))
+            [ -f "projects/builder/log/session-$(printf %02d "$n").md" ] || { echo "::error::Session log not found"; exit 1; }
+            [[ "$REVIEWER" = codex || "$REVIEWER" = claude ]] || { echo "::error::Select the evaluator using agent"; exit 1; }
+          else
+            n=$(ls projects/builder/log/session-*.md | wc -l)
+          fi
           echo "n=$(printf %02d "$n")" >> "$GITHUB_OUTPUT"
-          if [ "${{ needs.session.outputs.codex_only }}" = true ] || [ "${{ needs.session.outputs.agent }}" = claude ]; then
+          if [ "$EVALUATE_ONLY" = true ]; then
+            echo "reviewer=$REVIEWER"
+          elif [ "${{ needs.session.outputs.codex_only }}" = true ] || [ "${{ needs.session.outputs.agent }}" = claude ]; then
             echo "reviewer=codex"
           else
             echo "reviewer=claude"
