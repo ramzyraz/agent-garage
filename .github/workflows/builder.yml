@@ -26,6 +26,7 @@ jobs:
     outputs:
       ran: ${{ steps.guard.outputs.run }}
       agent: ${{ steps.guard.outputs.agent }}
+      codex_only: ${{ steps.guard.outputs.codex_only }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,12 +41,18 @@ jobs:
         run: |
           n=$(ls projects/builder/log/session-*.md 2>/dev/null | wc -l)
           session=$((n + 1))
-          if [ -n "$FORCED" ]; then agent="$FORCED"
+          # Temporary Claude quota workaround, expires at midnight in Pakistan.
+          codex_only=false
+          if [ "$(TZ=Asia/Karachi date +%F)" = 2026-10-08 ]; then codex_only=true; fi
+          echo "codex_only=$codex_only" >> "$GITHUB_OUTPUT"
+          if [ "$codex_only" = true ]; then agent=codex
+          elif [ -n "$FORCED" ]; then agent="$FORCED"
           elif [ $((session % 2)) -eq 1 ]; then agent=claude
           else agent=codex; fi
           if [ "$agent" = claude ] && [ "$HAS_CLAUDE" != true ]; then agent=codex; fi
           if [ "$agent" = codex ] && [ "$HAS_CODEX" != true ]; then agent=claude; fi
           if [ "$agent" = claude ] && [ "$HAS_CLAUDE" != true ]; then agent=none; fi
+          if [ "$codex_only" = true ] && [ "$HAS_CODEX" != true ]; then agent=none; fi
 
           if [ "$agent" = none ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -186,7 +193,11 @@ jobs:
         run: |
           n=$(ls projects/builder/log/session-*.md | wc -l)
           echo "n=$(printf %02d "$n")" >> "$GITHUB_OUTPUT"
-          if [ "${{ needs.session.outputs.agent }}" = claude ]; then echo "reviewer=codex"; else echo "reviewer=claude"; fi >> "$GITHUB_OUTPUT"
+          if [ "${{ needs.session.outputs.codex_only }}" = true ] || [ "${{ needs.session.outputs.agent }}" = claude ]; then
+            echo "reviewer=codex"
+          else
+            echo "reviewer=claude"
+          fi >> "$GITHUB_OUTPUT"
           mkdir -p /tmp/eval && cp projects/builder/EVALUATOR.md /tmp/eval/
           sleep 60   # let the Pages CDN pick up the new deploy
 
@@ -239,4 +250,3 @@ jobs:
           git add projects/builder/feedback
           git commit -q -m "Review after session ${{ steps.prep.outputs.n }} (${{ steps.prep.outputs.reviewer }})"
           git pull -q --rebase origin main && git push -q
-
