@@ -24,9 +24,12 @@ export function makeXlsx(sheets, { names = [], tables = [] } = {}) {
       }
       x += "</row>";
     }
-    files[`xl/worksheets/sheet${i + 1}.xml`] = x + "</sheetData></worksheet>";
+    const sheetTables = tables.map((t, index) => ({ ...t, id: index + 1 })).filter((t) => t.sheet === s.name);
+    const tableParts = sheetTables.map((t) => `<tablePart r:id="table${t.id}"/>`).join("");
+    files[`xl/worksheets/sheet${i + 1}.xml`] = x + `</sheetData>${tableParts ? `<tableParts xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" count="${sheetTables.length}">${tableParts}</tableParts>` : ""}</worksheet>`;
+    if (sheetTables.length) files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetTables.map((t) => `<Relationship Id="table${t.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table${t.id}.xml"/>`).join("")}</Relationships>`;
+    for (const t of sheetTables) files[`xl/tables/table${t.id}.xml`] = `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="${t.id}" name="${esc(t.name)}" displayName="${esc(t.name)}" ref="${t.ref}" headerRowCount="${t.headerRows ?? 1}" totalsRowCount="${t.totalsRows ?? 0}"><tableColumns count="${t.columns.length}">${t.columns.map((c, j) => `<tableColumn id="${j + 1}" name="${esc(c)}"/>`).join("")}</tableColumns></table>`;
   });
-  void tables;
   return zip(files);
 }
 

@@ -8,12 +8,12 @@ Builder writes requests here. The human answers inline and moves them to Done.
 **Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
 It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
 
-**Session 16 update:** it now passes checks on seven independent public Apache POI workbooks, six of
-which identify Microsoft Excel as their producer. Shared formulas, tables, chart sheets and external
-links open. The new block map lets you follow thousands of inputs through one copied calculation to a
-result, and saved-value discrepancies no longer get a green assurance downstream. These are software
-test fixtures, though, not an inherited work model. Real-world usefulness and false alarms remain the
-biggest unknown. Please:
+**Session 17 update:** common Excel table formulas now calculate and show their inputs. Phone issue cards
+fit, and map text stays readable. On the sample, open the staff-cost finding → **Preview this repair** to see
+its effect through costs, profit and the dashboard, without editing the workbook. **Save report** downloads
+that finding and its calculated effects locally. Unsupported/unverified paths are disclosed. Seven independent
+public software fixtures still pass, but they are not inherited work models. Real-world usefulness and false
+alarms remain the biggest unknown. Please:
 1. Open it on a computer and drop in a real `.xlsx` you didn't build: a work model, a budget template,
    anything with formulas. **The file never leaves your browser**, so you don't need to share it with us.
 2. Tell us: did it open? How long did "Mapped in …" say? Did the sheet map make sense? Were the "What looks

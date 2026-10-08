@@ -1,0 +1,319 @@
+{
+  "source": "Apache POI test-data/spreadsheet",
+  "revision": "ae62bb5116b9aee19ebd5834e3a82066132c9f7f",
+  "note": "Independent parser and navigation checks, not evidence of a production finance model or a full calculation audit.",
+  "reports": [
+    {
+      "file": "shared_formulas.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/shared_formulas.xlsx",
+      "sha256": "31612d513b5ea5aaa69764779f87ac52588687770f3ccbf4b420ec21bc70561f",
+      "producer": "Microsoft Excel",
+      "ms": 66,
+      "stats": {
+        "sheets": 1,
+        "hiddenSheets": 0,
+        "cells": 81,
+        "formulas": 40,
+        "blocks": 1,
+        "inputs": 40,
+        "outputs": 40,
+        "issues": 0,
+        "high": 0,
+        "names": 63,
+        "tables": 0,
+        "externals": 0,
+        "ms": 35
+      },
+      "verification": {
+        "attempted": 40,
+        "matched": 40,
+        "mismatched": 0,
+        "unsupported": 0,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "Label",
+          "groups": 2
+        }
+      ],
+      "issueTypes": {}
+    },
+    {
+      "file": "FormulaSheetRange.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/FormulaSheetRange.xlsx",
+      "sha256": "1943a81a9d439e3bb843b66fd2f9bcdcf37e31232c850ea31d47681b5d5efa12",
+      "producer": "Microsoft Excel",
+      "ms": 21,
+      "stats": {
+        "sheets": 5,
+        "hiddenSheets": 0,
+        "cells": 36,
+        "formulas": 2,
+        "blocks": 2,
+        "inputs": 0,
+        "outputs": 2,
+        "issues": 0,
+        "high": 0,
+        "names": 0,
+        "tables": 0,
+        "externals": 0,
+        "ms": 2
+      },
+      "verification": {
+        "attempted": 2,
+        "matched": 0,
+        "mismatched": 0,
+        "unsupported": 2,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "test",
+          "groups": 2
+        },
+        {
+          "sheet": "Sheet2",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet3",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet4",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet5",
+          "groups": 0
+        }
+      ],
+      "issueTypes": {}
+    },
+    {
+      "file": "evaluate_formula_with_structured_table_references.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/evaluate_formula_with_structured_table_references.xlsx",
+      "sha256": "f460fced2f6bac1f5b4b7d400fd7f2e3ff379af478c01d26388744cefd37a93a",
+      "producer": "Microsoft Excel",
+      "ms": 10,
+      "stats": {
+        "sheets": 1,
+        "hiddenSheets": 0,
+        "cells": 7,
+        "formulas": 1,
+        "blocks": 1,
+        "inputs": 4,
+        "outputs": 1,
+        "issues": 0,
+        "high": 0,
+        "names": 0,
+        "tables": 1,
+        "externals": 0,
+        "ms": 2
+      },
+      "verification": {
+        "attempted": 1,
+        "matched": 1,
+        "mismatched": 0,
+        "unsupported": 0,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "Tabelle1",
+          "groups": 3
+        }
+      ],
+      "issueTypes": {}
+    },
+    {
+      "file": "WithChartSheet.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/WithChartSheet.xlsx",
+      "sha256": "792b9f21afdb6b8b1f82345864ee15d55c17a1b54d71c250e82c87304385d362",
+      "producer": "Microsoft Excel",
+      "ms": 23,
+      "stats": {
+        "sheets": 7,
+        "hiddenSheets": 0,
+        "cells": 267,
+        "formulas": 0,
+        "blocks": 0,
+        "inputs": 0,
+        "outputs": 0,
+        "issues": 0,
+        "high": 0,
+        "names": 0,
+        "tables": 0,
+        "externals": 0,
+        "ms": 1
+      },
+      "verification": {
+        "attempted": 0,
+        "matched": 0,
+        "mismatched": 0,
+        "unsupported": 0,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "Sheet1",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet6",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet5",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet4",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet3",
+          "groups": 0
+        },
+        {
+          "sheet": "Sheet2",
+          "groups": 0
+        }
+      ],
+      "issueTypes": {}
+    },
+    {
+      "file": "link-external-workbook-b.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/link-external-workbook-b.xlsx",
+      "sha256": "6e0e5c2aa3bf870cfeba03cb2350c312c639f2875b6501029d0bc134916b2361",
+      "producer": "Apache POI",
+      "ms": 8,
+      "stats": {
+        "sheets": 1,
+        "hiddenSheets": 0,
+        "cells": 1,
+        "formulas": 1,
+        "blocks": 1,
+        "inputs": 0,
+        "outputs": 1,
+        "issues": 1,
+        "high": 0,
+        "names": 0,
+        "tables": 0,
+        "externals": 1,
+        "ms": 0
+      },
+      "verification": {
+        "attempted": 1,
+        "matched": 0,
+        "mismatched": 0,
+        "unsupported": 1,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "Sheet0",
+          "groups": 2
+        }
+      ],
+      "issueTypes": {
+        "external": 1
+      }
+    },
+    {
+      "file": "FormulaEvalTestData_Copy.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/FormulaEvalTestData_Copy.xlsx",
+      "sha256": "01b21647d53501e8ec10f4eb522945d41ea3c8d1fdd57f8b0142ec34884c33eb",
+      "producer": "Microsoft Excel",
+      "ms": 207,
+      "stats": {
+        "sheets": 4,
+        "hiddenSheets": 0,
+        "cells": 4177,
+        "formulas": 1295,
+        "blocks": 1210,
+        "inputs": 385,
+        "outputs": 1196,
+        "issues": 625,
+        "high": 282,
+        "names": 0,
+        "tables": 0,
+        "externals": 0,
+        "ms": 144
+      },
+      "verification": {
+        "attempted": 1295,
+        "matched": 486,
+        "mismatched": 184,
+        "unsupported": 573,
+        "errors": 52
+      },
+      "flows": [
+        {
+          "sheet": "EverythingTests",
+          "groups": 1261
+        },
+        {
+          "sheet": "FinanceLibTests",
+          "groups": 24
+        },
+        {
+          "sheet": "StatsLibTests",
+          "groups": 21
+        },
+        {
+          "sheet": "misc",
+          "groups": 20
+        }
+      ],
+      "issueTypes": {
+        "error": 259,
+        "short-range": 17,
+        "ref-error": 5,
+        "inconsistent": 1,
+        "empty-ref": 78,
+        "hardcoded": 66,
+        "saved-mismatch": 184,
+        "untraceable": 14,
+        "unused-input": 1
+      }
+    },
+    {
+      "file": "simple-table-named-range.xlsx",
+      "url": "https://raw.githubusercontent.com/apache/poi/ae62bb5116b9aee19ebd5834e3a82066132c9f7f/test-data/spreadsheet/simple-table-named-range.xlsx",
+      "sha256": "e0ee2fee568358edffac97ad935966b09664625283af2797e4fc4657479f0645",
+      "producer": "Microsoft Excel",
+      "ms": 13,
+      "stats": {
+        "sheets": 1,
+        "hiddenSheets": 0,
+        "cells": 10,
+        "formulas": 1,
+        "blocks": 1,
+        "inputs": 2,
+        "outputs": 1,
+        "issues": 0,
+        "high": 0,
+        "names": 1,
+        "tables": 1,
+        "externals": 0,
+        "ms": 3
+      },
+      "verification": {
+        "attempted": 1,
+        "matched": 1,
+        "mismatched": 0,
+        "unsupported": 0,
+        "errors": 0
+      },
+      "flows": [
+        {
+          "sheet": "Sheet1",
+          "groups": 2
+        }
+      ],
+      "issueTypes": {}
+    }
+  ]
+}

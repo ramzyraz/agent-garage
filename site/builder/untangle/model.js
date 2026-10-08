@@ -2,7 +2,8 @@
 // copies of each other (blocks), which numbers are the inputs, and what looks wrong.
 
 import { evaluate, sameValue, Unsupported } from "./evaluate.js";
-import { parse, walk, r1c1Key, shiftFormula, rangeText, addr, numToCol, MAX_ROW, MAX_COL } from "./formula.js";
+import { resolveTable } from "./tables.js";
+import { parse, print, walk, r1c1Key, shiftFormula, rangeText, addr, numToCol, MAX_ROW, MAX_COL } from "./formula.js";
 
 const AGG = new Set(["SUM", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA", "PRODUCT", "SUMPRODUCT", "MEDIAN", "STDEV", "STDEV.S", "AVERAGEA"]);
 const UNTRACEABLE = new Set(["INDIRECT", "OFFSET"]);
@@ -60,34 +61,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     return names.get(u + "@" + sheetIdx) || names.get(u);
   }
 
-  function tableRange(node, fc) {
-    const t = node.table ? wb.tables.find((x) => x.name.toLowerCase() === node.table.toLowerCase())
-      : wb.tables.find((x) => fc && x.sheet === sheets[fc.sheet].name && fc.c >= x.c1 && fc.c <= x.c2 && fc.r >= x.r1 && fc.r <= x.r2);
-    if (!t || t.c1 == null) return null;
-    const spec = node.spec.replace(/^\[|\]$/g, "");
-    const items = spec.match(/\[[^\]]*\]|[^,\[\]]+/g) || [];
-    const specials = items.map((x) => x.replace(/^\[|\]$/g, "").trim()).filter(Boolean);
-    let r1 = t.r1 + t.headerRows, r2 = t.r2 - t.totalsRows;
-    let cols = [];
-    const thisRow = /#This Row/i.test(spec) || spec.startsWith("@") || /\[@/.test(node.spec);
-    for (let sp of specials) {
-      sp = sp.replace(/^@/, "");
-      if (/^#All$/i.test(sp)) { r1 = t.r1; r2 = t.r2; }
-      else if (/^#Headers$/i.test(sp)) { r1 = r2 = t.r1; }
-      else if (/^#Totals$/i.test(sp)) { r1 = r2 = t.r2; }
-      else if (/^#Data$/i.test(sp) || /^#This Row$/i.test(sp)) { /* default */ }
-      else {
-        for (const part of sp.split(":")) {
-          const nm = part.replace(/^\[|\]$/g, "").replace(/'(.)/g, "$1").trim().toLowerCase();
-          const i = t.columns.findIndex((c) => c.toLowerCase() === nm);
-          if (i >= 0) cols.push(t.c1 + i);
-        }
-      }
-    }
-    if (thisRow && fc) { r1 = r2 = fc.r; }
-    const c1 = cols.length ? Math.min(...cols) : t.c1, c2 = cols.length ? Math.max(...cols) : t.c2;
-    return { sheet: sheetByName.get(t.sheet.toLowerCase()).index, range: { c1, c2, r1, r2 } };
-  }
+  function tableRange(node, fc) { return resolveTable(node, fc, wb); }
 
   function collectRefs(ast, out, sheetIdx, fc, fcC, fcR, letNames) {
     walk(ast, (n, parent) => {
@@ -114,10 +88,15 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
         if (fc) fc.names.push(n.name);
         const nm = lookupName(n.name, n.sheet ? sheetByName.get(n.sheet.toLowerCase())?.index : sheetIdx);
         if (nm) for (const r of nm.refs) out.push({ ...r, viaName: nm.name, node: n });
-        else if (fc) out.push({ unknownName: n.name, node: n });
+        else if (wb.tables.some((t) => t.name.toLowerCase() === n.name.toLowerCase()) && !n.sheet) {
+          const tr = tableRange({ table: n.name, spec: "[#Data]" }, fc);
+          if (!tr.reason) out.push({ ...tr, text: n.name, node: n, viaTable: true });
+          else out.push({ unresolvedTable: tr.reason, node: n });
+        } else if (fc) out.push({ unknownName: n.name, node: n });
       } else if (n.type === "table") {
         const tr = tableRange(n, fc);
-        if (tr) out.push({ ...tr, text: n.table + n.spec, node: n, viaTable: true });
+        if (!tr.reason) out.push({ ...tr, text: n.table + n.spec, node: n, viaTable: true });
+        else out.push({ unresolvedTable: tr.reason, text: n.table + n.spec, node: n });
       } else if (n.type === "num" && fc) {
         fc.consts.push({ value: n.value, parent, node: n });
       }
@@ -235,6 +214,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
       const fc = queue[i];
       for (const d of dependentsOf(fc.sheet, fc.c, fc.r)) if (!seen.has(d)) { seen.add(d); queue.push(d); }
     }
+    seen.truncated = queue.length > 0 && seen.size >= limit;
     return seen;
   }
   function upstream(fc, limit = 200000) {
@@ -429,9 +409,10 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
   inputs.sort((a, b) => b.direct - a.direct);
   const tReach = performance.now();
   for (const inp of inputs) {
-    if (performance.now() - tReach > budgetMs / 4) { impactExact = false; inp.reach = inp.direct; continue; }
+    if (performance.now() - tReach > budgetMs / 4) { impactExact = false; inp.reach = inp.direct; inp.reachLimited = true; continue; }
     const ds = downstream(inp.sheet, inp.c, inp.r, 50000);
     inp.reach = ds.size;
+    inp.reachLimited = ds.truncated;
     inp.reachSheets = new Set([...ds].map((f) => f.sheet));
     inp.reachOutputs = [...ds].filter((f) => f.cell.role === "output").length;
   }
@@ -559,11 +540,24 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
           flag("short-range", "high", { sheet: fc.sheet, c: fc.c, r: fc.r, block: b.id },
             `${n.name} range stops one ${isCol ? "row" : "column"} short in ${cellsTxt}`,
             `${n.name}(${arg.text}) leaves out ${sh.name}!${addr(nc, nr)}${nlbl ? ` (“${nlbl}”, ${fmtNum(nb.value)})` : ` (${fmtNum(nb.value)})`}, right ${end === "after" ? (isCol ? "below" : "beside") : (isCol ? "above" : "before")} it, which looks like part of the same list.`,
-            { missed: { sheet: ref.sheet, c: nc, r: nr } });
+            { missed: { sheet: ref.sheet, c: nc, r: nr }, expected: extendRange(fc.ast, arg, ref.sheet, { c1: Math.min(rg.c1, nc), c2: Math.max(rg.c2, nc), r1: Math.min(rg.r1, nr), r2: Math.max(rg.r2, nr) }) });
           return;
         }
       }
     });
+  }
+
+  function extendRange(ast, target, sheet, range) {
+    const copy = structuredClone(ast);
+    let index = 0, targetIndex = -1;
+    walk(ast, (n) => { if (n === target) targetIndex = index; index++; });
+    index = 0;
+    walk(copy, (n) => {
+      if (index++ !== targetIndex) return;
+      n.range = range;
+      n.text = (n.sheet ? "'" + sheets[sheet].name.replace(/'/g, "''") + "'!" : "") + rangeText(range);
+    });
+    return print(copy);
   }
 
   // 8f. references to empty cells (single cells only)
@@ -606,6 +600,9 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     }
     const ms = fc.refs.filter((r) => r.missingSheet);
     if (ms.length) flag("ref-error", "high", at, `Points to a sheet that doesn't exist: ${cellsTxt}`, `It reads ${ms[0].text}, but there's no sheet called “${ms[0].missingSheet}”.`);
+    const badTables = fc.refs.filter((r) => r.unresolvedTable);
+    if (badTables.length) flag("table-reference", "medium", at, `Table reference cannot be resolved: ${cellsTxt}`,
+      `${badTables[0].unresolvedTable}. Its links are missing from the map and its values cannot be verified.`);
     const unk = fc.refs.filter((r) => r.unknownName);
     if (unk.length) flag("unknown-name", "medium", at, `Unknown name “${unk[0].unknownName}” in ${cellsTxt}`, "This name isn't defined in the workbook, so Excel would show #NAME?, unless it comes from an add-in.");
   }
@@ -652,14 +649,14 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
   function blockText(i) { const b = blocks[i.block]; return b ? `${sheets[b.sheet].name}!${b.rangeText}` : where(i.sheet, i.c, i.r); }
 
   // ---- recompute formulas from saved values (for the in-between values in formula trees) ----
-  function ctxFor(sheetIdx, nameStack = new Set()) {
+  function ctxFor(sheetIdx, nameStack = new Set(), fc = null, readCell = (s, c, r) => sheets[s].cells.get(c + "," + r)?.value ?? null) {
     const ctx = {
       ref(n) {
         if (n.ext != null) throw new Unsupported("external file");
         const sh = n.sheet ? sheetByName.get(n.sheet.toLowerCase()) : sheets[sheetIdx];
         if (!sh || !sh.cells) throw new Unsupported("sheet");
         const rg = { ...n.range };
-        if (rg.c1 === rg.c2 && rg.r1 === rg.r2) return sh.cells.get(rg.c1 + "," + rg.r1)?.value ?? null;
+        if (rg.c1 === rg.c2 && rg.r1 === rg.r2 && !n.forceMatrix) return readCell(sh.index, rg.c1, rg.r1);
         if ((rg.r2 - rg.r1 + 1) * (rg.c2 - rg.c1 + 1) > 200000) {
           // Whole columns: clip to the used area.
           rg.r2 = Math.min(rg.r2, sh.maxR || 1); rg.c2 = Math.min(rg.c2, sh.maxC || 1);
@@ -668,21 +665,32 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
         const out = [];
         for (let r = rg.r1; r <= rg.r2; r++) {
           const row = [];
-          for (let c = rg.c1; c <= rg.c2; c++) row.push(sh.cells.get(c + "," + r)?.value ?? null);
+          for (let c = rg.c1; c <= rg.c2; c++) row.push(readCell(sh.index, c, r));
           out.push(row);
         }
         return out;
       },
+      table(n) {
+        const tr = tableRange(n, fc);
+        if (tr.reason) throw new Unsupported(tr.reason);
+        if (tr.range.r2 < tr.range.r1) return [];
+        return ctx.ref({ sheet: sheets[tr.sheet].name, range: tr.range, forceMatrix: !tr.thisRow });
+      },
       name(n) {
+        if (!n.sheet && !lookupName(n.name, sheetIdx) && wb.tables.some((t) => t.name.toLowerCase() === n.name.toLowerCase()))
+          return ctx.table({ table: n.name, spec: "[#Data]" });
         if (n.ext != null) throw new Unsupported("external file");
         const scope = n.sheet ? sheetByName.get(n.sheet.toLowerCase())?.index : sheetIdx;
         const nm = lookupName(n.name, scope);
         if (!nm || !nm.ast) throw new Unsupported("name");
         if (nameStack.has(nm)) throw new Unsupported("circular defined name");
-        return evaluate(nm.ast, ctxFor(nm.scope != null ? nm.scope : scope, new Set([...nameStack, nm]))).value;
+        return evaluate(nm.ast, ctxFor(nm.scope != null ? nm.scope : scope, new Set([...nameStack, nm]), fc, readCell)).value;
       },
     };
     return ctx;
+  }
+  function evaluateWith(ast, fc, readCell) {
+    return evaluate(ast, ctxFor(fc.sheet, new Set(), fc, readCell)).value;
   }
   // Local checks use saved precedents. A match alone never verifies an upstream chain.
   const localCache = new Map();
@@ -693,7 +701,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     else if (fc.cell.value == null) out = { ok: false, status: "unsupported", reason: "Excel did not save a result for this formula; no value can be verified." };
     else if (fc.cell.array || fc.cell.dataTable) out = { ok: false, status: "unsupported", reason: "Array formulas and data tables aren't recomputed yet." };
     else try {
-      const { value, trace } = evaluate(fc.ast, ctxFor(fc.sheet));
+      const { value, trace } = evaluate(fc.ast, ctxFor(fc.sheet, new Set(), fc));
       const error = value && typeof value === "object" && "error" in value;
       const match = Boolean(sameValue(value, fc.cell.value));
       out = { ok: match && !error, status: !match ? "mismatch" : error ? "error" : "match", value,
@@ -718,7 +726,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     const deadline = performance.now() + 250;
     for (let j = 0; j < queue.length; j++) {
       const f = queue[j];
-      if (f.refs.some((r) => r.ext != null || r.threeD || r.missingSheet || r.unknownName) || [...f.funcs].some((n) => UNTRACEABLE.has(n)))
+      if (f.refs.some((r) => r.ext != null || r.threeD || r.missingSheet || r.unknownName || r.unresolvedTable) || [...f.funcs].some((n) => UNTRACEABLE.has(n)))
         return { ok: false, reason: `The dependency chain includes unavailable or dynamic references at ${where(f.sheet, f.c, f.r)}. Only saved values are shown.` };
       if (graphTruncated) return { ok: false, reason: "Some dependency links were skipped in this large workbook, so the full chain cannot be verified." };
       for (const p of precedentCells(f)) {
@@ -756,12 +764,12 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     { sheet: fc.sheet, c: fc.c, r: fc.r }, `${n > 1 ? n + " saved results differ" : "Saved result differs"} from recalculation: ${where(fc.sheet, fc.c, fc.r)}`,
     rc.reason + (n > 1 ? ` ${n} cells in ${fc.block.rangeText} have this discrepancy.` : ""));
   notes.push(`Saved-value check: ${fmtNum(verification.matched)} of ${fmtNum(formulas.length)} formulas matched using saved inputs; ${fmtNum(verification.mismatched)} differed, ${fmtNum(verification.unsupported)} unsupported, ${fmtNum(verification.errors)} returned errors, ${fmtNum(formulas.length - verification.attempted)} not checked. A match is not a full workbook audit.`);
-  function evalText(text, sheetIdx) {
-    try { return evaluate(parse(text), ctxFor(sheetIdx)).value; } catch (e) { return undefined; }
+  function evalText(text, sheetIdx, c = 1, r = 1) {
+    try { return evaluate(parse(text), ctxFor(sheetIdx, new Set(), { sheet: sheetIdx, c, r })).value; } catch (e) { return undefined; }
   }
   for (const i of issues) {
     if (i.type !== "override") continue;
-    const v = evalText(i.expected, i.sheet);
+    const v = evalText(i.expected, i.sheet, i.c, i.r);
     const typed = sheets[i.sheet].cells.get(i.c + "," + i.r).value;
     if (typeof v === "number" && Math.abs(v - typed) > 1e-9 * Math.max(1, Math.abs(v))) {
       i.expectedValue = v;
@@ -816,9 +824,19 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
   if (threeDCount) notes.push(`${threeDCount} formulas use 3D sheet ranges (such as Sheet1:Sheet3!A1). These links are not traced yet; their inputs are missing from the map.`);
   if (wb.hasMacros) notes.push("This workbook contains macros (VBA). Untangle doesn't run or read them; anything they change is not on the map.");
 
+  const dependencyGaps = [];
+  if (unparsed.length) dependencyGaps.push("unreadable formulas");
+  if (formulas.some((f) => [...f.funcs].some((n) => UNTRACEABLE.has(n)))) dependencyGaps.push("INDIRECT/OFFSET");
+  if (threeDCount) dependencyGaps.push("3D sheet ranges");
+  if (formulas.some((f) => f.refs.some((r) => r.ext != null))) dependencyGaps.push("external files");
+  if (formulas.some((f) => f.refs.some((r) => r.missingSheet || r.unknownName || r.unresolvedTable))) dependencyGaps.push("unresolved references");
+  if (formulas.some((f) => f.cell.array || f.cell.dataTable || /(?:^|[^A-Za-z_])(?:FILTER|SEQUENCE|UNIQUE|SORT)\(/i.test(f.f))) dependencyGaps.push("array formulas or spills");
+  if (graphTruncated) dependencyGaps.push("skipped large-range links");
+  if (wb.hasMacros) dependencyGaps.push("macros");
+
   return {
-    wb, sheets, formulas, blocks, inputs, issues, notes, stats, names, sheetLinks, cycles, verification,
-    recompute, evalText, dependentsOf, precedentCells, downstream, upstream, labelOf, labelText, cellsIn, where,
+    wb, sheets, formulas, blocks, inputs, issues, notes, stats, names, sheetLinks, cycles, verification, dependencyGaps,
+    recompute, localCheck, evaluateWith, evalText, dependentsOf, precedentCells, downstream, upstream, labelOf, labelText, cellsIn, where,
     cell: (s, c, r) => sheets[s]?.cells?.get(c + "," + r) || null,
   };
 }

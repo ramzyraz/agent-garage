@@ -2,6 +2,7 @@ import { readWorkbook } from "./xlsx.js";
 import { buildModel, fmtValue, fmtNum, addr, numToCol, rangeText } from "./model.js";
 import { print, parseA1 } from "./formula.js";
 import { sheetFlow, flowLayers } from "./blocks.js";
+import { previewRepair } from "./preview.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -316,7 +317,7 @@ function renderMap() {
   }
   const width = vertical ? 48 + maxPer * W + (maxPer - 1) * GX + 60 : hWidth;
   const height = vertical ? 48 + layerKeys.length * H + (layerKeys.length - 1) * GY : 48 + maxPer * H + (maxPer - 1) * GY;
-  const scale = Math.min(1, avail / width);
+  const scale = 1;
   const maxN = Math.max(1, ...m.sheetLinks.map((l) => l.n));
 
   let edges = "";
@@ -372,7 +373,7 @@ function renderMap() {
     <div class="map-wrap">
       <div class="map-head">
         <h2>How the sheets feed each other</h2>
-        <p>Numbers flow ${vertical ? "down" : "left to right"} along the arrows; thicker means more references. Click a sheet to open it.</p>
+        <p>Numbers flow ${vertical ? "down" : "left to right"} along the arrows; thicker means more references. Click a sheet to open it. Scroll the map to see every sheet.</p>
       </div>
       <div class="map-scroll"><svg class="map" viewBox="0 0 ${width} ${height + 50}" width="${Math.round(width * scale)}" height="${Math.round((height + 50) * scale)}" role="img" aria-label="Sheet dependency map">
         <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
@@ -411,7 +412,7 @@ function renderMap() {
 function inputRow(i) {
   const m = S.model;
   const lbl = i.label || m.labelText(i.sheet, i.c, i.r) || "unlabelled";
-  return `<li><button class="row-btn" data-cell="${i.sheet},${i.c},${i.r}"><span class="lbl">${esc(lbl)}</span><span class="val">${esc(fmtValue(i.cell))}</span><span class="where">${esc(m.sheets[i.sheet].name)}!${addr(i.c, i.r)} · drives ${fmtNum(i.reach)} cell${i.reach === 1 ? "" : "s"}</span></button></li>`;
+  return `<li><button class="row-btn" data-cell="${i.sheet},${i.c},${i.r}"><span class="lbl">${esc(lbl)}</span><span class="val">${esc(fmtValue(i.cell))}</span><span class="where">${esc(m.sheets[i.sheet].name)}!${addr(i.c, i.r)} · ${i.reachLimited ? "at least " : ""}${fmtNum(i.reach)} known dependent cell${i.reach === 1 ? "" : "s"}</span></button></li>`;
 }
 
 function topBy(arr) {
@@ -424,8 +425,9 @@ function topBy(arr) {
 
 function bindRowButtons(root) {
   root.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open],[data-range],[data-inputs-for]");
+    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open],[data-range],[data-inputs-for],[data-preview]");
     if (!b || !root.contains(b)) return;
+    if (b.dataset.preview != null) { showRepairPreview(+b.dataset.preview, b); return; }
     if (b.dataset.inputsFor) { const [s,c,r] = b.dataset.inputsFor.split(',').map(Number); S.inputFilter = S.model.upstream(S.model.cell(s,c,r).fc).inputs; setView('inputs'); return; }
     if (b.dataset.range) { const [sheet,c1,c2,r1,r2] = b.dataset.range.split(',').map(Number); openRange(sheet,{c1,c2,r1,r2}); return; }
     if (b.dataset.goto) { setView(b.dataset.goto); window.scrollTo({ top: $("#app").offsetTop - 8, behavior: "smooth" }); return; }
@@ -446,7 +448,7 @@ function bindRowButtons(root) {
 const ISSUE_INFO = {
   override: "Typed over a formula", inconsistent: "Breaks the pattern", "short-range": "Range stops short", "ref-error": "Broken reference",
   error: "Error value", circular: "Circular reference", hardcoded: "Number inside a formula", "unused-input": "Unused assumption",
-  "empty-ref": "Reads an empty cell", untraceable: "Hidden data source", external: "Link to another file", "saved-mismatch": "Saved result differs", "unknown-name": "Unknown name", hidden: "Hidden sheet",
+  "empty-ref": "Reads an empty cell", untraceable: "Hidden data source", external: "Link to another file", "saved-mismatch": "Saved result differs", "unknown-name": "Unknown name", "table-reference": "Unresolved table reference", hidden: "Hidden sheet",
 };
 
 function renderIssues() {
@@ -486,7 +488,8 @@ function renderInputs(page = 0, query = "") {
   const shownInputs = filtered.slice(page * 100, (page + 1) * 100);
   $("#stage").innerHTML = `<div class="list-wrap">
     <h2>The numbers this workbook rests on</h2>
-    <p class="list-sub">Every typed value that a formula uses, ranked by how many cells it ends up driving. Change one of the top ones and much of the workbook moves.</p>
+    <p class="list-sub">Typed values with known formula references, ranked by the number of dependent cells we traced. A dependent formula may keep the same result when an input changes.</p>
+    ${dependencyWarning(m)}
     ${S.inputFilter ? `<p class="range-note">Showing ${fmtNum(S.inputFilter.length)} inputs upstream of the selected formula. <button class="linkish" id="allInputs">Show every input</button></p>` : ''}
     <form id="inputSearch" class="input-search"><label>Find an input <input name="query" value="${esc(query)}" placeholder="Label, sheet or address"></label><button class="ghost">Search</button></form>
     <p class="muted">${filtered.length ? `${fmtNum(page*100+1)}–${fmtNum(Math.min((page+1)*100,filtered.length))} of ${fmtNum(filtered.length)} inputs` : 'No inputs match.'}</p>
@@ -497,7 +500,7 @@ function renderInputs(page = 0, query = "") {
         <span class="val">${esc(fmtValue(i.cell))}</span>
         <span class="where">${esc(m.sheets[i.sheet].name)}!${addr(i.c, i.r)}</span>
         <span class="reach"><i style="width:${Math.max(2, pct)}%"></i></span>
-        <span class="reach-txt">drives ${fmtNum(i.reach)} cell${i.reach === 1 ? "" : "s"}${i.reachSheets ? ` on ${i.reachSheets.size} sheet${i.reachSheets.size === 1 ? "" : "s"}` : ""}</span>
+        <span class="reach-txt">${i.reachLimited ? "at least " : ""}${fmtNum(i.reach)} known dependent cell${i.reach === 1 ? "" : "s"}${i.reachSheets ? ` on ${i.reachSheets.size} sheet${i.reachSheets.size === 1 ? "" : "s"}` : ""}</span>
       </button></li>`;
     }).join("")}</ol>
   </div>`;
@@ -676,7 +679,7 @@ function renderInspector(issue) {
     <div class="insp-value ${cell && cell.value && cell.value.error ? "is-err" : ""}">${cell ? esc(fmtValue(cell)) : "<span class=muted>empty</span>"}</div>
     <div class="insp-role">${roleText(cell)}</div>
   </div>`;
-  for (const i of issues) html += `<div class="insp-issue ${i.severity}"><b>${esc(i.title)}</b><p>${esc(i.detail)}</p></div>`;
+  for (const i of issues) html += `<div class="insp-issue ${i.severity}"><b>${esc(i.title)}</b><p>${esc(i.detail)}</p>${i.expected ? `<button class="ghost small preview-button" data-preview="${i.id}">Preview this repair</button><div class="repair-slot" aria-live="polite"></div>` : ""}</div>`;
 
   if (cell && cell.fc) {
     const fc = cell.fc;
@@ -704,14 +707,14 @@ function renderInspector(issue) {
       const sheetsHit = new Set([...down].map((f) => f.sheet));
       const outs = [...down].filter((f) => f.cell.role === "output");
       html += `<section class="insp-sec"><h4>If you change this</h4>
-        <p class="impact"><b>${fmtNum(down.size)}</b> cell${down.size === 1 ? "" : "s"} on <b>${sheetsHit.size}</b> sheet${sheetsHit.size === 1 ? "" : "s"} would change${outs.length ? `, including ${outs.length} final result${outs.length > 1 ? "s" : ""}` : ""}.</p>
+        <p class="impact">${down.truncated ? "At least " : ""}<b>${fmtNum(down.size)}</b> known dependent cell${down.size === 1 ? "" : "s"} on <b>${sheetsHit.size}</b> sheet${sheetsHit.size === 1 ? "" : "s"} may be affected${outs.length ? `, including ${outs.length} final result${outs.length > 1 ? "s" : ""}` : ""}.</p>${dependencyWarning(m)}
         <ol class="mini">${deps.slice(0, 8).map((d) => cellRow(d.sheet, d.c, d.r, "uses it directly")).join("")}</ol>
         ${deps.length > 8 ? `<p class="muted">…and ${deps.length - 8} more that use it directly.</p>` : ""}
         ${outs.length && outs.length !== deps.length ? `<p class="sub-h">Final results it reaches</p><ol class="mini">${outs.slice(0, 6).map((d) => cellRow(d.sheet, d.c, d.r)).join("")}</ol>` : ""}
         <button class="ghost small" id="showDown">Highlight everything downstream on this sheet</button>
       </section>`;
-    } else if (cell.fc) html += `<section class="insp-sec"><h4>If you change this</h4><p class="muted">Nothing else in the workbook uses this cell. It's a final result (or left over).</p></section>`;
-    else if (typeof cell.value === "number") html += `<section class="insp-sec"><h4>If you change this</h4><p class="muted">No formula reads this number, so changing it changes nothing else.</p></section>`;
+    } else if (cell.fc) html += `<section class="insp-sec"><h4>If you change this</h4><p class="muted">No known formula references use this cell. It may be a final result (or left over).</p>${dependencyWarning(m)}</section>`;
+    else if (!cell.fc) html += `<section class="insp-sec"><h4>If you change this</h4><p class="muted">No known formula references read this value.</p>${dependencyWarning(m)}</section>`;
   }
   el.innerHTML = html;
   const sd = $("#showDown", el);
@@ -724,10 +727,53 @@ function renderInspector(issue) {
   bindOnce(el);
 }
 
+function showRepairPreview(id, button) {
+  const m = S.model, issue = m.issues[id];
+  let slot = button.nextElementSibling;
+  const result = previewRepair(m, issue);
+  if (!result.ok) { slot.innerHTML = `<p class="coverage-warning">${esc(result.reason)}</p>`; return; }
+  $('#repairDialog')?.remove();
+  const dialog = document.createElement('dialog'); dialog.id = 'repairDialog'; dialog.className = 'repair-dialog';
+  dialog.setAttribute('aria-label', 'Proposed repair preview');
+  dialog.innerHTML = `<div class="repair-dialog-head"><span>${esc(S.fileName)} · local preview</span><div class="repair-actions"><button class="ghost download-repair">Save report</button><button class="ghost close-repair" autofocus>Close preview</button></div></div><div class="repair-slot"></div>`;
+  document.body.append(dialog); slot = $('.repair-slot', dialog);
+  $('.close-repair', dialog).onclick = () => dialog.close();
+  dialog.addEventListener('close', () => { dialog.remove(); button.focus(); });
+  bindRowButtons(dialog);
+  dialog.addEventListener('click', (e) => { if (e.target.closest('[data-cell]')) dialog.close(); });
+  const changed = [...result.changed].sort((a, b) => Number(b.target || false) - Number(a.target || false) || m.sheets[a.sheet].layer - m.sheets[b.sheet].layer || a.sheet - b.sheet || a.r - b.r || a.c - b.c);
+  const format = (row, field) => fmtValue(m.cell(row.sheet, row.c, row.r), row[field]);
+  const difference = (row) => typeof row.before === "number" && typeof row.after === "number" ? fmtValue(m.cell(row.sheet,row.c,row.r),row.after-row.before) : "Value changed";
+  const changeRow = (row) => `<li class="repair-step"><button class="linkish" data-cell="${row.sheet},${row.c},${row.r}">${esc(m.labelText(row.sheet, row.c, row.r) || m.where(row.sheet, row.c, row.r))}</button><small>${esc(m.where(row.sheet, row.c, row.r))}${row.target ? ' · proposed repair' : m.cell(row.sheet,row.c,row.r).role === 'output' ? ' · final result' : ''}</small><div class="repair-values"><span>${esc(format(row,'before'))}</span><span aria-label="becomes">→</span><b>${esc(format(row,'after'))}</b></div><small>Difference: ${esc(difference(row))}</small></li>`;
+  const results = changed.filter((r) => !r.target).sort((a,b) => m.sheets[b.sheet].layer - m.sheets[a.sheet].layer || a.r - b.r || a.c - b.c).slice(0,3);
+  const limits = `${result.skipped.length} unsupported or unverified; ${result.unchecked} not checked${result.truncated ? '; downstream search capped' : ''}.`;
+  slot.innerHTML = `<section class="repair-preview"><h4>What this repair could change</h4><code class="ftext">=${esc(result.formula.replace(/^=/,''))}</code>
+    <p>Temporary calculation using saved inputs. Your file is unchanged. This proposed formula follows a pattern; confirm it matches the intended business logic in Excel.</p>
+    <p><b>${changed.length} calculated changes</b> on ${new Set(changed.map((r) => r.sheet)).size} sheets. ${result.unchanged} known dependents keep the same value.</p>
+    ${dependencyWarning(m)}${result.complete ? '<p class="recalc">All known affected cells were checked in this preview. Untangle’s calculations may differ from Excel.</p>' : `<p class="coverage-warning">Partial preview: ${esc(limits)} Only calculated paths appear below. Recalculate in Excel before relying on these values.</p>`}
+    ${results.length ? `<div class="repair-outcomes">${results.map((r) => `<div class="repair-outcome"><span>${esc(m.labelText(r.sheet,r.c,r.r) || m.where(r.sheet,r.c,r.r))}</span><small>${esc(m.where(r.sheet,r.c,r.r))}</small><div class="repair-values"><span>${esc(format(r,'before'))}</span><span>→</span><b>${esc(format(r,'after'))}</b></div><small>Difference: ${esc(difference(r))}</small></div>`).join('')}</div>` : ''}
+    <h4>Follow the changes through the workbook</h4><ol class="repair-path">${changed.slice(0,50).map(changeRow).join('')}</ol>
+    ${changed.length > 50 ? `<p>Showing the first 50 of ${changed.length} changes. The downloaded report includes them all.</p>` : ''}
+    ${result.skipped.length ? `<details><summary>${result.skipped.length} paths we could not calculate</summary><ol>${result.skipped.slice(0,20).map((r) => `<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ol>${result.skipped.length > 20 ? '<p>More paths are listed in the downloaded report.</p>' : ''}</details>` : ''}
+    <button class="ghost small download-repair">Save this preview report</button><p class="small">The report contains workbook names, formulas and values. It is saved locally; share it only with people you choose.</p></section>`;
+  dialog.showModal();
+  for (const save of dialog.querySelectorAll('.download-repair')) save.onclick = () => {
+    const reportRows = changed.map((row) => `<tr><td>${esc(m.where(row.sheet,row.c,row.r))}</td><td>${esc(m.labelText(row.sheet,row.c,row.r) || '')}</td><td>${esc(format(row,'before'))}</td><td>${esc(format(row,'after'))}</td><td>${esc(difference(row))}</td></tr>`).join('');
+    const report = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Untangle repair preview</title><style>body{font:16px system-ui;max-width:1100px;margin:30px auto;padding:20px;color:#182230}table{border-collapse:collapse;display:block;overflow:auto}th,td{padding:10px;border:1px solid #ddd;text-align:left}code,p,li{overflow-wrap:anywhere}h1{font-size:26px}</style><h1>Untangle · proposed repair</h1><p>Workbook: ${esc(S.fileName)}</p><p>${esc(issue.title)}</p><p>${esc(issue.detail)}</p><p>Proposed formula at ${esc(m.where(issue.sheet,issue.c,issue.r))}: <code>=${esc(result.formula.replace(/^=/,''))}</code></p><p>Temporary calculation using saved inputs. The workbook was not edited. A pattern is not proof of intended business logic. Untangle's calculations may differ from Excel. Recalculate in Excel before relying on these values.</p>${dependencyWarning(m)}<p>${result.complete ? 'All known affected cells were checked.' : 'Partial preview: '+esc(limits)} ${result.unchanged} dependents keep the same value.</p><table><thead><tr><th>Cell</th><th>Nearby label</th><th>Saved value</th><th>Preview value</th><th>Difference</th></tr></thead><tbody>${reportRows}</tbody></table><h2>Paths we could not calculate (${result.skipped.length})</h2><ul>${result.skipped.map((r) => `<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ul><p>Created locally with Untangle. Contains private workbook information; share deliberately.</p>`;
+    const url = URL.createObjectURL(new Blob([report], { type: 'text/html;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'untangle-repair-preview.html'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+}
+
 function bindOnce(el) {
   if (el.dataset.bound) return;
   el.dataset.bound = "1";
   bindRowButtons(el);
+}
+
+function dependencyWarning(m) {
+  return m.dependencyGaps.length ? `<p class="coverage-warning">Incomplete dependency map: ${esc(m.dependencyGaps.join(', '))} can hide links. Counts and highlights include only known dependencies; other cells may also be affected.</p>` : '';
 }
 
 function roleText(cell) {
@@ -735,7 +781,7 @@ function roleText(cell) {
   return {
     input: "Input: a typed value that formulas use",
     calc: "Calculation: used by other formulas",
-    output: "Result: nothing else uses it",
+    output: "Result: no known formula references use it",
     label: "Text",
     data: cell.fc ? "" : typeof cell.value === "number" ? "Typed number that no formula uses" : "",
   }[cell.role] || "";
@@ -791,11 +837,12 @@ function treeNode(n, fc, trace, root = false) {
   const val = v !== undefined && !(Array.isArray(v) && v.length * (v[0] || []).length > 1) ? `<span class="tv">${esc(valTxt(v))}</span>` : "";
   const kids = (list) => `<ul>${list.map((k) => `<li>${treeNode(k, fc, trace)}</li>`).join("")}</ul>`;
   switch (n.type) {
-    case "ref": {
+    case "ref": case "table": {
       const info = refInfo(n, fc);
-      if (!info) return `<span class="tn ref ext">${esc(n.text)}</span> <span class="muted">${n.ext != null ? "in another file" : ""}</span>`;
-      const shownVal = info.single ? `<span class="tv">${esc(info.cell ? fmtValue(info.cell) : "blank")}</span>` : `<span class="tv muted">${info.n ? info.n + " cells" : "whole " + (n.range.wholeCol ? "column" : "row")}</span>`;
-      return `<button class="tn ref" ${info.single ? `data-cell="${info.sheet},${info.c},${info.r}"` : `data-range="${info.sheet},${info.range.c1},${info.range.c2},${info.range.r1},${info.range.r2}"`}><span class="ta">${esc(info.where)}</span>${info.label ? `<span class="tl">${esc(info.label)}</span>` : ""}</button>${shownVal}`;
+      if (info && info.range && info.range.r2 < info.range.r1) return `<span class="tn ref">${esc(n.table + n.spec)}</span><span class="tv">empty table</span>`;
+      if (!info) return `<span class="tn ref ext">${esc(n.text || n.table + n.spec)}</span> <span class="muted">${n.ext != null ? "in another file" : ""}</span>`;
+      const shownVal = info.single ? `<span class="tv">${esc(info.cell ? fmtValue(info.cell) : "blank")}</span>` : `<span class="tv muted">${info.n ? info.n + " cells" : "whole " + (n.range?.wholeCol ? "column" : "row")}</span>`;
+      return `<button class="tn ref" ${info.single ? `data-cell="${info.sheet},${info.c},${info.r}"` : `data-range="${info.sheet},${info.range.c1},${info.range.c2},${info.range.r1},${info.range.r2}"`}><span class="ta">${esc(n.type === "table" ? n.table + n.spec : info.where)}</span>${n.type === "table" ? `<span class="tl">${esc(info.where)}</span>` : ""}${info.label ? `<span class="tl">${esc(info.label)}</span>` : ""}</button>${shownVal}`;
     }
     case "name": {
       const nm = [...m.names.values()].find((x) => x.name.toUpperCase() === n.name.toUpperCase());
@@ -814,7 +861,6 @@ function treeNode(n, fc, trace, root = false) {
     case "bool": return `<span class="tn lit">${n.value ? "TRUE" : "FALSE"}</span>`;
     case "err": return `<span class="tn err">${esc(n.value)}</span>`;
     case "missing": return `<span class="muted">(left empty)</span>`;
-    case "table": return `<span class="tn ref">${esc(n.table + n.spec)}</span> <span class="muted">table column</span>`;
     case "func": return `<span class="tn fn">${esc(n.name)}</span>${val}${n.args.length ? kids(n.args) : ""}`;
     case "bin": {
       // Flatten chains of the same operator: a + b + c reads better as one node.
@@ -838,7 +884,7 @@ function explain(ast, fc) {
     if (depth > 4) { complex = true; return ""; }
     switch (n.type) {
       case "paren": return `(${words(n.expr, depth + 1)})`;
-      case "ref": {
+      case "ref": case "table": {
         const i = refInfo(n, fc);
         if (!i) { complex = true; return ""; }
         if (!i.label) return `<span class="pw">${esc(i.where)}</span>`;

@@ -6,8 +6,78 @@ import { evaluate } from "../../../site/builder/untangle/evaluate.js";
 import { readWorkbook } from "../../../site/builder/untangle/xlsx.js";
 import { buildModel } from "../../../site/builder/untangle/model.js";
 import { makeXlsx } from "./xlsx-fixture.js";
+import { previewRepair } from "../../../site/builder/untangle/preview.js";
 
 const SAMPLE = new URL("../../../site/builder/untangle/samples/northwind-plan.xlsx", import.meta.url);
+
+test("table references calculate and trace rows, columns, sections and escaped headers", async () => {
+  const m = buildModel(await readWorkbook(makeXlsx([
+    { name: 'Sales', rows: {
+      A1: 'Units', B1: 'Price', C1: 'Revenue', D1: '#Rate', E1: 'Odd]name',
+      A2: 2, B2: 5, C2: ['=[@Units]*[@Price]', 10], D2: 1, E2: 9,
+      A3: 3, B3: 7, C3: ['=SalesTable[[#This Row],[Units]]*[@[Price]]', 21], D3: 2, E3: 8,
+      C4: ['=SUM(SalesTable[Revenue])', 31],
+    } },
+    { name: 'Summary', rows: {
+      A1: ['=SUM(SalesTable[Revenue])', 31], A2: ['=SUM(SalesTable[[#Totals],[Revenue]])', 31],
+      A3: ['=SUM(SalesTable[[Units]:[Price]])', 17], A4: ['=COUNTA(SalesTable[#Headers])', 5],
+      A5: ['=SUM(SalesTable[[#Headers],[#Data],[Revenue]])', 31],
+      A6: ["=SUM(SalesTable['#Rate])", 3], A7: ["=SUM(SalesTable[Odd']name])", 17],
+      A8: ['=SUM(SalesTable)', 68], A9: ['=SUM(SalesTable[[#All],[Revenue]])', 62],
+    } },
+  ], { tables: [{ name: 'SalesTable', sheet: 'Sales', ref: 'A1:E4', totalsRows: 1, columns: ['Units','Price','Revenue','#Rate','Odd]name'] }] })));
+  for (const fc of m.formulas) assert.ok(m.recompute(fc).ok, `${m.where(fc.sheet,fc.c,fc.r)}: ${m.recompute(fc).reason}`);
+  assert.equal(m.verification.unsupported, 0);
+  assert.equal(m.verification.mismatched, 0);
+  assert.equal(m.cell(0,3,2).fc.refs[0].range.r1, 2);
+  assert.equal(m.cell(0,3,3).fc.refs[0].range.r1, 3);
+  assert.ok([...m.downstream(0,1,3)].some((fc) => fc.sheet === 1));
+  assert.deepEqual(m.upstream(m.cell(1,1,1).fc).inputs.map((p) => [p.c,p.r]).sort(), [[1,2],[1,3],[2,2],[2,3]].sort());
+});
+
+test("unknown table columns and noncontiguous selectors do not silently read the whole table", async () => {
+  const m = buildModel(await readWorkbook(makeXlsx([{ name:'Sales', rows: {
+    A1:'Units', B1:'Price', C1:'Other', A2:2, B2:5, C2:7,
+    D2:['=SUM(T[Missing])',14], D3:['=SUM(T[[Units],[Other]])',9], D4:['=SUM(T[[#Headers],[#Totals],[Units]])',2],
+  }}], { tables: [{ name:'T',sheet:'Sales',ref:'A1:C2',columns:['Units','Price','Other'] }] })));
+  assert.equal(m.dependentsOf(0,1,2).size,0);
+  assert.equal(m.issues.filter((i)=>i.type==='table-reference').length,3);
+  assert.ok(m.dependencyGaps.includes('unresolved references'));
+  for (const fc of m.formulas) assert.equal(m.recompute(fc).ok,false);
+  const single = buildModel(await readWorkbook(makeXlsx([{name:'Sales',rows:{A1:'Text',A2:'123',B1:['=SUM(T[Text])',0]}}],{tables:[{name:'T',sheet:'Sales',ref:'A1:A2',columns:['Text']}]})));
+  assert.equal(single.recompute(single.formulas[0]).ok,true,'a one-cell table column remains a range; numeric text is ignored by SUM');
+});
+
+test("repair previews propagate both sample repairs without modifying saved workbook values", async () => {
+  const m = buildModel(await readWorkbook(readFileSync(SAMPLE)));
+  const before = m.sheets.map((s) => [...s.cells.values()].map((c) => [c.f,c.value]));
+  const repair = previewRepair(m,m.issues.find((i)=>i.type==='override'));
+  assert.equal(repair.ok,true); assert.equal(repair.complete,true);
+  assert.equal(repair.changed[0].after,2736000);
+  const dashboard = repair.changed.find((c)=>m.where(c.sheet,c.c,c.r)==='Dashboard!B4');
+  assert.ok(Math.abs(dashboard.after - (-1713542.484384001))<1e-6);
+  assert.equal(repair.skipped.length,0, 'the text status is supported even when it keeps the same value');
+  const total = previewRepair(m,m.issues.find((i)=>i.type==='short-range'));
+  assert.equal(total.formula,'SUM(C8:G8)'); assert.equal(total.complete,true);
+  assert.ok(Math.abs(total.changed[0].after - (-1189320.86343255))<1e-6);
+  assert.deepEqual(m.sheets.map((s)=>[...s.cells.values()].map((c)=>[c.f,c.value])),before);
+});
+
+test("repair previews disclose stale, unsupported, circular and bounded downstream paths", async () => {
+  const m = buildModel(await readWorkbook(makeXlsx([{name:'S',rows:{
+    A1:1, A2:2, B1:['=A1*2',2], B2:['=A2*2',99], C1:['=B1+B2',101],
+    D1:['=INDIRECT("B1")',2], E1:['=B1+E1',10], F1:['=B1+1',3],
+  }}])));
+  const issue={sheet:0,c:2,r:1,expected:'A1*3'};
+  const result=previewRepair(m,issue);
+  assert.equal(result.ok,true); assert.equal(result.complete,false);
+  assert.equal(result.skipped.length,2,'stale upstream and circular paths are withheld; dynamic paths are absent and covered by the global gap warning');
+  assert.ok(result.gaps.includes('INDIRECT/OFFSET'));
+  assert.ok(!result.changed.some((r)=>r.c===3 || r.c===5));
+  assert.equal(result.changed.find((r)=>r.c===6).after,4);
+  assert.equal(previewRepair(m,issue,{limit:1}).ok,false);
+  assert.equal(previewRepair(m,{...issue,expected:'INDIRECT("A1")'}).ok,false);
+});
 
 test("parses the formula shapes real workbooks use", () => {
   const cases = {

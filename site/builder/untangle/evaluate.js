@@ -351,6 +351,7 @@ export function evaluate(ast, ctx, trace = new Map()) {
         return binop(n.op, strict(ev(n.left)), strict(ev(n.right)));
       }
       case "ref": return ctx.ref(n);
+      case "table": { if (!ctx.table) throw new Unsupported("table reference"); return ctx.table(n); }
       case "name": {
         for (let i = scopes.length - 1; i >= 0; i--) if (scopes[i].has(n.name.toUpperCase())) return scopes[i].get(n.name.toUpperCase());
         return ctx.name(n);

@@ -141,6 +141,7 @@ export function tokenize(src) {
       // Structured reference without a table name (inside a table): [@Col]
       let depth = 0, j = i;
       for (; j < s.length; j++) {
+        if (s[j] === "'") { j++; continue; }
         if (s[j] === "[") depth++;
         else if (s[j] === "]") { depth--; if (depth === 0) break; }
       }
