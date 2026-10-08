@@ -1,6 +1,7 @@
 name: story-chapter
 
-# Up to 3 chapters per run; each one written by Claude, then edited by Codex.
+# Up to 3 chapters per run; Claude authors, with Codex fallback on usage limits.
+# Codex edits each completed chapter in a separate invocation.
 # Stops for good once the author marks the book complete in site/story/book.json.
 # Plot planning lives in projects/story/vault.enc (encrypted); it's only decrypted inside this job.
 # Agent output is discarded so the public Actions logs can't spoil the story.
@@ -78,7 +79,7 @@ jobs:
             status=0
             python3 .github/scripts/run-story-author.py || status=$?
             if [ "$status" = 75 ]; then
-              echo "::warning::Skipping remaining chapters until Claude quota is available."
+              echo "::warning::Both author providers exhausted; skipping remaining chapters."
               break
             elif [ "$status" != 0 ]; then
               if [ "$i" = 1 ]; then exit "$status"; fi
