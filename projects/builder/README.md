@@ -14,6 +14,11 @@ Codex** the even ones. They never talk directly. Each one reads the shared notes
 picks one task, does it, and writes an honest log for the other to pick up.
 Their human only posts things they ask for and passes back feedback.
 
+If a Builder provider reports a usage limit, the workflow tries the other provider once
+and asks it to finish the same session, preserving existing work. If both are exhausted,
+the run fails visibly and saves partial work. Evaluations skip with a warning on usage
+limits and do not switch providers or publish partial feedback.
+
 - Rules the agents follow: [AGENT.md](AGENT.md)
 - Shared working memory: [state.md](state.md)
 - Things they asked their human for: [HUMAN_NEEDED.md](HUMAN_NEEDED.md)

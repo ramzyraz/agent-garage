@@ -34,7 +34,7 @@ jobs:
       cancel-in-progress: false
     outputs:
       ran: ${{ steps.guard.outputs.run }}
-      agent: ${{ steps.guard.outputs.agent }}
+      agent: ${{ steps.run.outputs.agent }}
       codex_only: ${{ steps.guard.outputs.codex_only }}
     steps:
       - uses: actions/checkout@v4
@@ -83,44 +83,18 @@ jobs:
           git config user.name "builder-agent (${{ steps.guard.outputs.agent }})"
           git config user.email "52238175+ramzyraz@users.noreply.github.com"
 
-      - name: Run Claude
-        if: steps.guard.outputs.agent == 'claude'
+      - name: Run Builder with quota fallback
+        id: run
+        if: steps.guard.outputs.run == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          npm install -g @anthropic-ai/claude-code
-          # Hitting the step cap shouldn't throw the session's work away: commit what's there.
-          if ! claude -p "You are Claude Code. Read projects/builder/AGENT.md and follow it. Run this session." \
-            --model opus \
-            --max-turns 80 \
-            --dangerously-skip-permissions; then
-            echo "::warning::Claude stopped early (likely the step cap); committing its partial work."
-          fi
-
-      # Codex uses the ChatGPT login from auth.json. Codex may refresh the
-      # tokens during the run, so the file is saved back to the secret after.
-      - name: Restore Codex login
-        if: steps.guard.outputs.agent == 'codex'
-        env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
-        run: |
-          mkdir -p ~/.codex && chmod 700 ~/.codex
-          printf '%s' "$CODEX_AUTH_JSON" > ~/.codex/auth.json
-          chmod 600 ~/.codex/auth.json
-          sha256sum ~/.codex/auth.json | cut -d' ' -f1 > /tmp/auth.sha
-
-      - name: Run Codex
-        if: steps.guard.outputs.agent == 'codex'
-        run: |
-          npm install -g @openai/codex
-          codex exec --dangerously-bypass-approvals-and-sandbox \
-            -m gpt-6.1-sol -c model_reasoning_effort=high \
-            "You are OpenAI Codex. Read projects/builder/AGENT.md and follow it. Run this session."
+        run: python3 .github/scripts/run-builder-agent.py --task session --agent "${{ steps.guard.outputs.agent }}"
 
       # Needs a fine-grained token (this repo only, Secrets: read/write) stored
       # as SECRETS_PAT. Without it this is skipped and the original login is reused.
       - name: Save refreshed Codex login
-        if: always() && steps.guard.outputs.agent == 'codex'
+        if: always() && steps.guard.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ secrets.SECRETS_PAT }}
         run: |
@@ -136,9 +110,10 @@ jobs:
           echo "Saved refreshed login."
 
       - name: Commit and push
-        if: steps.guard.outputs.run == 'true'
+        if: always() && !cancelled() && steps.run.outcome != 'skipped' && steps.guard.outputs.run == 'true'
         run: |
           rm -rf ~/.codex
+          git config user.name "builder-agent (${{ steps.run.outputs.agent }})"
           git add -A
           git diff --cached --quiet || git commit -m "Session wrap-up (auto)"
           # The human may have pushed during the session. Rebase onto that; if it
@@ -223,37 +198,16 @@ jobs:
           mkdir -p /tmp/eval && cp projects/builder/EVALUATOR.md /tmp/eval/
           sleep 60   # let the Pages CDN pick up the new deploy
 
-      - name: Review (Claude)
-        if: steps.prep.outputs.reviewer == 'claude'
+      - name: Review (skip on usage limit)
+        id: review
         working-directory: /tmp/eval
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          npm install -g @anthropic-ai/claude-code > /dev/null 2>&1
-          claude -p "You are Claude Code, the evaluator. Read EVALUATOR.md and follow it. This is the review after session ${{ steps.prep.outputs.n }}." \
-            --model sonnet --max-turns 30 --dangerously-skip-permissions
-
-      - name: Restore Codex login
-        if: steps.prep.outputs.reviewer == 'codex'
-        env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
-        run: |
-          mkdir -p ~/.codex && chmod 700 ~/.codex
-          printf '%s' "$CODEX_AUTH_JSON" > ~/.codex/auth.json
-          chmod 600 ~/.codex/auth.json
-          sha256sum ~/.codex/auth.json | cut -d' ' -f1 > /tmp/auth.sha
-
-      - name: Review (Codex)
-        if: steps.prep.outputs.reviewer == 'codex'
-        working-directory: /tmp/eval
-        run: |
-          npm install -g @openai/codex > /dev/null 2>&1
-          codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox \
-            -m gpt-6.1-sol -c model_reasoning_effort=medium \
-            "You are OpenAI Codex, the evaluator. Read EVALUATOR.md and follow it. This is the review after session ${{ steps.prep.outputs.n }}."
+        run: python3 "$GITHUB_WORKSPACE/.github/scripts/run-builder-agent.py" --task evaluate --agent "${{ steps.prep.outputs.reviewer }}" --session "${{ steps.prep.outputs.n }}"
 
       - name: Save refreshed Codex login
-        if: always() && steps.prep.outputs.reviewer == 'codex'
+        if: always() && steps.prep.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.SECRETS_PAT }}
         run: |
@@ -262,13 +216,14 @@ jobs:
           gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < ~/.codex/auth.json
 
       - name: Commit the review
+        if: steps.review.outputs.completed == 'true'
         run: |
           rm -rf ~/.codex
           [ -f /tmp/eval/feedback.md ] || { echo "::error::The evaluator wrote no feedback.md"; exit 1; }
           mkdir -p projects/builder/feedback
           cp /tmp/eval/feedback.md "projects/builder/feedback/after-session-${{ steps.prep.outputs.n }}.md"
-          git config user.name "evaluator (${{ steps.prep.outputs.reviewer }})"
+          git config user.name "evaluator (${{ steps.review.outputs.agent }})"
           git config user.email "52238175+ramzyraz@users.noreply.github.com"
           git add projects/builder/feedback
-          git commit -q -m "Review after session ${{ steps.prep.outputs.n }} (${{ steps.prep.outputs.reviewer }})"
+          git commit -q -m "Review after session ${{ steps.prep.outputs.n }} (${{ steps.review.outputs.agent }})"
           git pull -q --rebase origin main && git push -q
