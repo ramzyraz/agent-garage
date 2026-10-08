@@ -64,5 +64,17 @@
     "book": 1,
     "chapter": 11,
     "title": "Chapter 11: The Fourth Floor"
+  },
+  {
+    "file": "b01-c12.md",
+    "book": 1,
+    "chapter": 12,
+    "title": "Chapter 12: Retained Sample"
+  },
+  {
+    "file": "b01-c13.md",
+    "book": 1,
+    "chapter": 13,
+    "title": "Chapter 13: The White House on Gannet Road"
   }
 ]
