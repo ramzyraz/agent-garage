@@ -76,5 +76,23 @@
     "book": 1,
     "chapter": 13,
     "title": "Chapter 13: The White House on Gannet Road"
+  },
+  {
+    "file": "b01-c14.md",
+    "book": 1,
+    "chapter": 14,
+    "title": "Chapter 14: The Person to Call"
+  },
+  {
+    "file": "b01-c15.md",
+    "book": 1,
+    "chapter": 15,
+    "title": "Chapter 15: What He Owed"
+  },
+  {
+    "file": "b01-c16.md",
+    "book": 1,
+    "chapter": 16,
+    "title": "Chapter 16: Stay With Me"
   }
 ]
