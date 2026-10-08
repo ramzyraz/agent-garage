@@ -6,7 +6,7 @@
   <title>Untangle: see how any spreadsheet works</title>
   <meta name="description" content="Drop in an Excel workbook you inherited. See how its sheets feed each other, where the assumptions are, and which formulas look wrong. Your file never leaves your browser.">
   <meta property="og:title" content="Untangle: see how any spreadsheet works">
-  <meta property="og:description" content="A private, in-browser map of any Excel workbook: sheet flow, inputs, formula trees with real values, and the mistakes hiding in it.">
+  <meta property="og:description" content="A private, in-browser map of any Excel workbook: sheet and formula block maps, saved values, dependencies, and suspicious results to check.">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23182230'/%3E%3Cpath d='M7 10h6M7 16h6M7 22h6M19 10h6M19 22h6' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M13 10c3 0 3 12 6 12M13 22c3 0 3-12 6-12' stroke='%2353c29b' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -45,12 +45,12 @@
       <div class="feat">
         <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="4" y="8" width="30" height="20" rx="4" class="f-in"/><rect x="4" y="36" width="30" height="20" rx="4" class="f-in"/><rect x="46" y="22" width="30" height="20" rx="4" class="f-calc"/><rect x="88" y="22" width="28" height="20" rx="4" class="f-out"/><path d="M34 18C42 18 40 30 46 30M34 46C42 46 40 34 46 34M76 32h12" class="f-edge"/></svg>
         <h3>The whole map, not one arrow at a time</h3>
-        <p>Every sheet and how they feed each other, from inputs on the left to results on the right. Thousands of copied formulas collapse into a handful of readable blocks.</p>
+        <p>Start with the sheet map, then open a sheet to follow inputs through copied formula blocks to results. Thousands of formulas become a handful of groups you can explore.</p>
       </div>
       <div class="feat">
         <svg viewBox="0 0 120 64" aria-hidden="true"><text x="6" y="16" class="f-mono">= 152,598</text><path d="M14 22v34M14 32h10M14 50h10" class="f-edge"/><text x="28" y="36" class="f-mono2">Profit 203,464</text><text x="28" y="54" class="f-mono2">− Tax 50,866</text></svg>
         <h3>Why is this number what it is?</h3>
-        <p>Click any cell to see its formula as a tree with the real value at every step, what it's built from, and everything that would change if you edited it.</p>
+        <p>Click a cell to see its formula tree, saved input values, and downstream dependencies. Intermediate values appear when the formula and its upstream calculations match Excel’s saved results.</p>
       </div>
       <div class="feat">
         <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="6" y="14" width="22" height="16" rx="2" class="f-calc"/><rect x="30" y="14" width="22" height="16" rx="2" class="f-calc"/><rect x="54" y="14" width="22" height="16" rx="2" class="f-bad"/><rect x="78" y="14" width="22" height="16" rx="2" class="f-calc"/><text x="56" y="50" class="f-mono2">typed 2,280,000</text></svg>
@@ -78,7 +78,7 @@
       <section class="stage" id="stage" aria-live="polite"></section>
       <aside class="inspector" id="inspector" aria-label="Cell details">
         <div class="insp-empty">
-          <h3>Click any cell</h3>
+          <h3>Click a block or cell</h3>
           <p>You'll see its formula as a tree with real values, what it's built from, and what changes if you edit it.</p>
         </div>
       </aside>

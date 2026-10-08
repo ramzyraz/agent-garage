@@ -112,3 +112,63 @@ test("large workbook: 60,000 formulas map in reasonable time", async () => {
   assert.ok(m.issues.some((i) => i.type === "override" && i.r === 9000));
   assert.ok(ms < 30000, `took ${ms} ms`);
 });
+
+test("verification checks the upstream chain and flags saved-value discrepancies", async () => {
+  const m = buildModel(await readWorkbook(makeXlsx([{ name: 'Stale', rows: {
+    A2: 10, B2: ['=A2*2', 99], C2: ['=B2+1', 100],
+    D2: ['=A2*3', 30], E2: ['=D2+1', 31], F2: ['=1/0', 0],
+    G2: ['=IFERROR(F2,0)', 0], H2: ['=INDIRECT("A2")', 10], I2: ['=H2+1', 11],
+  }}])));
+  const c = m.recompute(m.cell(0, 3, 2).fc);
+  assert.equal(c.ok, false);
+  assert.match(c.reason, /Upstream Stale!B2.*doesn't match/);
+  assert.deepEqual(c.problem, { sheet: 0, c: 2, r: 2 });
+  assert.ok(m.issues.some((i) => i.type === 'saved-mismatch' && i.c === 2));
+  assert.equal(m.verification.mismatched, 2, "both the stale B2 and calculated error at F2 differ from their saved results");
+  assert.equal(m.recompute(m.cell(0, 5, 2).fc).checked, 2);
+  assert.equal(m.recompute(m.cell(0, 6, 2).fc).ok, false, 'an error is not verified');
+  assert.equal(m.recompute(m.cell(0, 7, 2).fc).ok, false, 'IFERROR does not bless a broken upstream chain');
+  assert.equal(m.recompute(m.cell(0, 9, 2).fc).ok, false, 'unsupported upstream formulas are not blessed');
+});
+
+test("external references keep file identity instead of inventing missing sheets", async () => {
+  for (const [f, ext, sheet] of [
+    ["='[missing.xlsx]Sheet1'!A1", 'missing.xlsx', 'Sheet1'],
+    ["='C:\\Models\\[budget.xlsx]My Sheet'!$A$1", 'C:\\Models\\budget.xlsx', 'My Sheet'],
+    ['=[1]Rates!B2', 1, 'Rates'],
+    ["='[2]My Sheet'!A1", 2, 'My Sheet'],
+  ]) {
+    const ast = parse(f);
+    assert.equal(ast.ext, ext); assert.equal(ast.sheet, sheet);
+    const m = buildModel(await readWorkbook(makeXlsx([{ name: 'Results', rows: { A1: [f, 42] } }])));
+    assert.ok(m.issues.some((i) => i.type === 'external'), f);
+    assert.ok(!m.issues.some((i) => /doesn't exist/.test(i.title)), f);
+    assert.equal(m.recompute(m.formulas[0]).ok, false);
+    assert.match(m.recompute(m.formulas[0]).reason, /external file/);
+  }
+  const internal = buildModel(await readWorkbook(makeXlsx([{ name: 'Results', rows: { A1: ['=Missing!A1', 42] } }])));
+  assert.ok(internal.issues.some((i) => i.type === 'ref-error'), 'missing internal sheets remain errors');
+});
+
+test("block map compresses 10,000 inputs and formulas while retaining cross-sheet flow", async () => {
+  const { sheetFlow, flowLayers } = await import('../../../site/builder/untangle/blocks.js');
+  const rows = { A1: 'Units', B1: 'Double' };
+  for (let r = 2; r <= 10001; r++) { rows['A'+r] = r; rows['B'+r] = ['=A'+r+'*2', r*2]; }
+  const m = buildModel(await readWorkbook(makeXlsx([
+    { name: 'Data', rows }, { name: 'Summary', rows: { A1: ['=SUM(Data!B2:B10001)', 100030000] } }
+  ])));
+  const flow = sheetFlow(m, 0);
+  assert.equal(flow.nodes.length, 3, 'one input run, one formula block, one destination sheet');
+  assert.equal(flow.edges.length, 2);
+  const input = flow.nodes.find((n) => n.kind === 'input');
+  const calc = flow.nodes.find((n) => n.kind === 'formula');
+  const dest = flow.nodes.find((n) => n.kind === 'sheet');
+  assert.equal(input.n, 10000); assert.equal(input.rangeText, 'A2:A10001');
+  assert.equal(calc.n, 10000); assert.equal(calc.rangeText, 'B2:B10001');
+  const layers = flowLayers(flow);
+  assert.ok(layers.get(input.id) < layers.get(calc.id));
+  assert.ok(layers.get(calc.id) < layers.get(dest.id));
+  const summary = sheetFlow(m, 1);
+  assert.equal(summary.nodes.filter((n) => n.kind === 'formula').length, 2);
+  assert.equal(summary.edges.length, 1);
+});

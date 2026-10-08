@@ -47,6 +47,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Click a calc cell in the grid: formula tree recomputes and matches
   await p.click("#sheetTabs button:nth-child(4)"); // P&L
+  await p.waitForSelector(".block-map");
+  await p.click("[data-sheet-mode=grid]");
   await p.waitForSelector(".cell[data-c='7'][data-r='8']");
   await p.click(".cell[data-c='7'][data-r='8']");
   await wait(200);

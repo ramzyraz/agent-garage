@@ -1,12 +1,13 @@
 import { readWorkbook } from "./xlsx.js";
 import { buildModel, fmtValue, fmtNum, addr, numToCol, rangeText } from "./model.js";
-import { print } from "./formula.js";
+import { print, parseA1 } from "./formula.js";
+import { sheetFlow, flowLayers } from "./blocks.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const track = (e) => { try { window.UTAnalytics && window.UTAnalytics.track(e); } catch (_) { /* never break the app */ } };
 
-const S = { model: null, view: "map", sheet: null, sel: null, hi: null, fileName: "" };
+const S = { model: null, view: "map", sheet: null, sel: null, hi: null, fileName: "", sheetMode: "blocks", flows: new Map(), flowRange: null, flowFocus: null };
 window.__untangle = S; // for tests
 
 // ---------------- loading ----------------
@@ -70,7 +71,7 @@ async function load(buf, name) {
   await new Promise((r) => setTimeout(r, 20));
   const model = buildModel(wb);
   model.stats.totalMs = Math.round(performance.now() - t0);
-  S.model = model; S.fileName = name; S.sel = null; S.hi = null; S.sheet = null;
+  S.model = model; S.fileName = name; S.sel = null; S.hi = null; S.sheet = null; S.grid = null; S.flows = new Map(); S.inputFilter = null; S.flowRange = null; S.flowFocus = null;
   $("#loadProgress").hidden = true;
   $("#landing").hidden = true;
   $("#app").hidden = false;
@@ -102,9 +103,9 @@ function renderSummary() {
     <div class="stat"><b>${fmtNum(stats.formulas)}</b><span>formulas</span></div>
     <div class="stat"><b>${fmtNum(stats.blocks)}</b><span>distinct formula blocks${ratio > 1 ? ` <em>(÷${ratio})</em>` : ""}</span></div>
     <div class="stat"><b>${fmtNum(stats.inputs)}</b><span>inputs feed them</span></div>
-    <div class="stat ${stats.high ? "bad" : stats.issues ? "warn" : "ok"}"><b>${stats.issues}</b><span>${stats.high ? `things look wrong <em>(${stats.high} likely mistakes)</em>` : stats.issues ? "things to check" : "no problems found"}</span></div>
+    <div class="stat ${stats.high ? "bad" : stats.issues ? "warn" : "ok"}"><b>${stats.issues}</b><span>${stats.high ? `things look wrong <em>(${stats.high} likely mistakes)</em>` : stats.issues ? "things to check" : "no issues flagged"}</span></div>
     <div class="stat time"><span>Mapped in ${stats.totalMs < 1000 ? stats.totalMs + " ms" : (stats.totalMs / 1000).toFixed(1) + " s"}, on your device</span></div>
-    ${notes.length ? `<div class="notes">${notes.map((n) => `<p>ⓘ ${esc(n)}</p>`).join("")}</div>` : ""}
+    ${notes.length ? `<div class="notes">${notes.map((n) => `<p>${esc(n)}</p>`).join("")}</div>` : ""}
     ${visible === 0 ? "" : ""}`;
   $("#issueCount").textContent = stats.issues || "";
   $("#inputCount").textContent = stats.inputs || "";
@@ -122,12 +123,13 @@ document.querySelector(".tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-view]");
   if (!b) return;
   if (b.dataset.view === "sheet") openSheet(+b.dataset.sheet);
-  else setView(b.dataset.view);
+  else { S.inputFilter = null; setView(b.dataset.view); }
 });
 
 function setView(v, sheet = null) {
   S.view = v;
   if (v === "sheet") S.sheet = sheet;
+  else S.grid = null;
   for (const b of document.querySelectorAll(".tabs button[data-view]")) {
     const on = b.dataset.view === v && (v !== "sheet" || +b.dataset.sheet === sheet);
     b.setAttribute("aria-selected", on ? "true" : "false");
@@ -135,10 +137,151 @@ function setView(v, sheet = null) {
   if (v === "map") renderMap();
   else if (v === "issues") renderIssues();
   else if (v === "inputs") renderInputs();
-  else if (v === "sheet") renderSheet(sheet);
+  else if (v === "sheet") { if (S.sheetMode === "blocks") renderBlocks(sheet); else renderSheet(sheet); }
 }
 
-function openSheet(i) { setView("sheet", i); }
+function openSheet(i) {
+  S.sheetMode = "blocks"; S.flowRange = null; S.flowFocus = null; S.grid = null;
+  S.sel = null; S.hi = null;
+  setView("sheet", i);
+  renderInspector();
+}
+
+function sheetTools(idx) {
+  return `<div class="sheet-tools"><div class="mode-switch" aria-label="Sheet view">
+    <button data-sheet-mode="blocks" aria-pressed="${S.sheetMode === 'blocks'}">Block map</button>
+    <button data-sheet-mode="grid" aria-pressed="${S.sheetMode === 'grid'}">Cell grid</button></div>
+    <form class="cell-jump" data-jump-sheet="${idx}"><label>Go to cell <input name="address" placeholder="B10000 or Sheet!B2" aria-label="Cell address" required></label><button class="ghost" type="submit">Go</button><span class="jump-error" role="status"></span></form></div>`;
+}
+
+$('#stage').addEventListener('click', (e) => {
+  const mode = e.target.closest('[data-sheet-mode]');
+  if (mode) { S.sheetMode = mode.dataset.sheetMode; setView('sheet', S.sheet); return; }
+  const node = e.target.closest('[data-flow-node]');
+  if (node) showFlowNode(node.dataset.flowNode);
+});
+$('#stage').addEventListener('keydown', (e) => {
+  const node = e.target.closest('[data-flow-node]');
+  if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showFlowNode(node.dataset.flowNode); }
+});
+$('#stage').addEventListener('submit', (e) => {
+  const form = e.target.closest('[data-jump-sheet]');
+  if (!form) return;
+  e.preventDefault();
+  const text = form.elements.address.value.trim();
+  const match = /^(?:(.+)!)?(\$?[A-Za-z]{1,3}\$?[1-9]\d*)$/.exec(text);
+  const pos = match && parseA1(match[2]);
+  const name = match?.[1]?.replace(/^'|'$/g, '').replace(/''/g, "'");
+  const sh = name ? S.model.sheets.find((x) => x.name.toLowerCase() === name.toLowerCase()) : S.model.sheets[+form.dataset.jumpSheet];
+  if (!pos || !sh || pos.c > 16384 || pos.r > 1048576) { $('.jump-error', form).textContent = 'Use an address such as B2 or Summary!B2.'; return; }
+  selectCell(sh.index, pos.c, pos.r);
+});
+
+function flowFor(idx) {
+  if (!S.flows.has(idx)) S.flows.set(idx, sheetFlow(S.model, idx));
+  return S.flows.get(idx);
+}
+
+function openRange(sheet, range) {
+  S.sel = null;
+  S.sheetMode = 'blocks'; S.flowRange = { sheet, ...range }; S.flowFocus = null; S.grid = null;
+  setView('sheet', sheet);
+  const flow = flowFor(sheet);
+  const hits = flow.nodes.filter((n) => n.sheet === sheet && n.c1 <= range.c2 && n.c2 >= range.c1 && n.r1 <= range.r2 && n.r2 >= range.r1);
+  $('#inspector').innerHTML = `<div class="insp-head"><div class="addr">${esc(S.model.sheets[sheet].name)}!${esc(rangeText(range))}</div><h3>A range, not one cell</h3></div>
+    <p>${hits.length} input or formula block${hits.length === 1 ? '' : 's'} overlap this range. Click one in the map to see how it works.</p>
+    <button class="ghost" data-cell="${sheet},${range.c1},${range.r1}">Open first cell</button>
+    <button class="ghost" data-cell="${sheet},${Math.min(range.c2, S.model.sheets[sheet].maxC)},${Math.min(range.r2, S.model.sheets[sheet].maxR)}">Open last used cell</button>`;
+  bindOnce($('#inspector'));
+}
+
+function renderBlocks(idx) {
+  S.grid = null;
+  const m = S.model, sh = m.sheets[idx], full = flowFor(idx);
+  let flow = full;
+  if (S.flowRange || S.flowFocus) {
+    const rg = S.flowRange;
+    const ids = new Set(full.nodes.filter((n) => rg ? n.sheet === idx && n.c1 <= rg.c2 && n.c2 >= rg.c1 && n.r1 <= rg.r2 && n.r2 >= rg.r1 : n.id === S.flowFocus).map((n) => n.id));
+    const related = new Set(ids);
+    for (const e of full.edges) if (ids.has(e.from) || ids.has(e.to)) { related.add(e.from); related.add(e.to); }
+    flow = { nodes: full.nodes.filter((n) => related.has(n.id)), edges: full.edges.filter((e) => related.has(e.from) && related.has(e.to)) };
+  }
+  const totalGroups = flow.nodes.length;
+  if (totalGroups > 80) {
+    const visible = new Set(flow.nodes.slice(0, 80).map((n) => n.id));
+    flow = { nodes: flow.nodes.slice(0, 80), edges: flow.edges.filter((e) => visible.has(e.from) && visible.has(e.to)) };
+  }
+  const layers = flowLayers(flow), grouped = new Map();
+  for (const n of flow.nodes) { const l = layers.get(n.id); if (!grouped.has(l)) grouped.set(l, []); grouped.get(l).push(n); }
+  const keys = [...grouped.keys()].sort((a, b) => a - b);
+  const W = 246, H = 108, GX = 36, GY = 26;
+  const available = Math.max(280, $('#stage').clientWidth - 38);
+  const vertical = keys.length * (W + GX) > available + GX;
+  const count = Math.max(1, ...[...grouped.values()].map((x) => x.length));
+  const pos = new Map();
+  keys.forEach((l, j) => grouped.get(l).forEach((n, i) => pos.set(n.id, vertical
+    ? { x: 20 + i * (W + GX), y: 20 + j * (H + 60) }
+    : { x: 20 + j * (W + GX), y: 20 + i * (H + GY) })));
+  const width = 40 + (vertical ? count : keys.length) * (W + GX) - GX;
+  const height = 40 + (vertical ? keys.length * (H + 60) - 60 : count * (H + GY) - GY);
+  let svg = '';
+  for (const e of flow.edges) {
+    const a = pos.get(e.from), b = pos.get(e.to);
+    if (!a || !b) continue;
+    const x1 = a.x + (vertical ? W / 2 : W), y1 = a.y + (vertical ? H : H / 2);
+    const x2 = b.x + (vertical ? W / 2 : 0), y2 = b.y + (vertical ? 0 : H / 2);
+    const d = e.from === e.to ? `M${a.x + W},${a.y + 32} C${a.x + W + 28},${a.y + 5} ${a.x + W + 28},${a.y + 95} ${a.x + W},${a.y + 78}`
+      : vertical ? `M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}` : `M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`;
+    svg += `<path class="flow-edge" d="${d}" marker-end="url(#flowArrow)"><title>${e.n} formula reference${e.n === 1 ? '' : 's'}</title></path>`;
+  }
+  for (const n of flow.nodes) {
+    const p = pos.get(n.id), here = n.sheet === idx;
+    const issues = m.issues.filter((i) => i.severity !== 'info' && i.sheet === n.sheet && (i.block === n.block && n.block != null || i.c >= n.c1 && i.c <= n.c2 && i.r >= n.r1 && i.r <= n.r2));
+    const output = n.kind === 'sheet' || n.sample?.cell.role === 'output';
+    const role = n.kind === 'input' ? 'typed inputs' : n.kind === 'sheet' ? 'used on another sheet' : n.kind === 'external' ? 'external source' : here ? output ? 'results' : 'copied calculation' : 'from another sheet';
+    const formula = n.kind === 'formula' ? '=' + n.sample.f.replace(/^=/, '') : n.kind === 'input' ? `${fmtNum(n.n)} typed value${n.n === 1 ? '' : 's'}` : '';
+    svg += `<g class="flow-node ${n.kind === 'input' ? 'flow-input' : output ? 'flow-output' : ''} ${here ? '' : 'flow-other'}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" data-flow-node="${esc(n.id)}" aria-label="${esc(n.label + ', ' + n.rangeText)}">
+      <rect width="${W}" height="${H}" rx="12"/><text x="14" y="21" class="flow-role">${role}</text>
+      <text x="14" y="44" class="flow-title">${esc(trim(n.label, 27))}</text>
+      <text x="14" y="65" class="flow-address">${esc(trim((n.sheet != null && !here && n.kind !== "sheet" ? m.sheets[n.sheet].name + '!' : '') + n.rangeText, 29))}${n.kind === 'formula' ? ` · ${fmtNum(n.n)}×` : ''}</text>
+      <text x="14" y="89" class="flow-formula">${esc(trim(formula, 29))}</text>
+      ${issues.length ? `<circle cx="${W-15}" cy="16" r="8" class="b-${issues.some((i) => i.severity === 'high') ? 'high' : 'med'}"><title>${issues.length} findings</title></circle>` : ''}
+      <title>${esc(n.label)} · ${esc(n.rangeText)}${formula ? '\n' + esc(formula) : ''}</title></g>`;
+  }
+  const blocks = m.blocks.filter((b) => b.sheet === idx);
+  $('#stage').innerHTML = `<div class="sheet-wrap"><div class="sheet-head"><h2>${esc(sh.name)} · block map</h2>
+    <p>${fmtNum(sh.formulaCount || 0)} formulas become ${blocks.length} block${blocks.length === 1 ? "" : "s"}. Follow the arrows, then click a block to inspect its sources or open its cells.</p></div>${sheetTools(idx)}
+    <label class="block-filter">Explore <select id="blockFocus"><option value="">All blocks</option>${blocks.map((b) => `<option value="b${b.id}" ${S.flowFocus === 'b'+b.id ? 'selected' : ''}>${esc(b.label || 'Calculation')} · ${esc(b.rangeText)} (${fmtNum(b.n)} copies)</option>`).join('')}</select></label>
+    ${S.flowRange ? `<p class="range-note">Showing blocks that overlap <b>${esc(rangeText(S.flowRange))}</b> and their sources. <button class="linkish" data-sheet-open="${idx}">Show whole sheet</button></p>` : ''}
+    ${totalGroups > 80 ? `<p class="range-note">Showing 80 of ${fmtNum(totalGroups)} groups. Choose a block in Explore to see its sources and destinations together.</p>` : ''}
+    <div class="flow-scroll"><svg class="block-map" width="${Math.max(280, width)}" height="${Math.max(100, height)}" viewBox="0 0 ${Math.max(280,width)} ${Math.max(100,height)}" role="img" aria-label="Formula block dependencies"><defs><marker id="flowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>${svg}</svg></div>
+    ${!flow.nodes.length ? '<p class="empty">No formula blocks or referenced inputs on this sheet. Use Cell grid to browse its data.</p>' : ''}
+    <p class="flow-hint">${vertical ? 'Numbers flow down the arrows. ' : 'Numbers flow left to right. '}Blue = typed inputs · green = results · dashed = another sheet or file. Scroll the map to explore wide groups.</p>
+    </div>`;
+  $('#blockFocus').addEventListener('change', (e) => { S.flowRange = null; S.flowFocus = e.target.value || null; renderBlocks(idx); if (S.flowFocus) showFlowNode(S.flowFocus); });
+}
+
+function showFlowNode(id) {
+  const m = S.model, flow = flowFor(S.sheet), n = flow.nodes.find((x) => x.id === id);
+  if (!n) return;
+  if (n.kind === 'sheet') { openSheet(n.sheet); return; }
+  const describe = (x) => `<li><button class="row-btn" data-flow-inspect="${esc(x.id)}"><span class="lbl">${esc(x.label)}</span><span class="where">${esc(x.sheet != null && x.kind !== 'sheet' ? m.sheets[x.sheet].name + '!' : '')}${esc(x.rangeText)}${x.n ? ' · '+fmtNum(x.n)+' cells' : ''}</span></button></li>`;
+  const sources = flow.edges.filter((e) => e.to === id).map((e) => flow.nodes.find((x) => x.id === e.from));
+  const uses = flow.edges.filter((e) => e.from === id).map((e) => flow.nodes.find((x) => x.id === e.to));
+  const issues = m.issues.filter((i) => i.sheet === n.sheet && (n.block != null && i.block === n.block || i.c >= n.c1 && i.c <= n.c2 && i.r >= n.r1 && i.r <= n.r2));
+  const el = $('#inspector');
+  el.innerHTML = `<div class="insp-head"><div class="addr">${esc(n.sheet != null ? m.sheets[n.sheet].name + '!' : '')}${esc(n.rangeText)}</div><h3>${esc(n.label)}</h3></div>
+    <p>${n.kind === 'formula' ? `<b>${fmtNum(n.n)}</b> copies of one formula. The representative cell is ${addr(n.c1,n.r1)}.` : n.kind === 'input' ? `<b>${fmtNum(n.n)}</b> typed values feed formulas.` : 'Values from this workbook are unavailable here.'}</p>
+    ${n.sample ? `<code class="ftext">=${esc(n.sample.f.replace(/^=/,''))}</code>` : ''}
+    ${n.c1 != null ? `<p><button class="ghost" data-cell="${n.sheet},${n.c1},${n.r1}">Open ${addr(n.c1,n.r1)}</button> ${n.n > 1 ? `<button class="ghost" data-cell="${n.sheet},${n.c2},${n.r2}">Last cell ${addr(n.c2,n.r2)}</button>` : ''}</p>` : ''}
+    ${issues.map((i) => `<button class="block-issue" data-issue="${i.id}">${esc(i.title)}</button>`).join('')}
+    ${sources.length ? `<section class="insp-sec"><h4>Built from ${sources.length} group${sources.length === 1 ? '' : 's'}</h4><ol class="mini">${sources.map(describe).join('')}</ol></section>` : ''}
+    ${uses.length ? `<section class="insp-sec"><h4>Feeds ${uses.length} group${uses.length === 1 ? '' : 's'}</h4><ol class="mini">${uses.map(describe).join('')}</ol></section>` : ''}`;
+  bindOnce(el);
+  el.onclick = (e) => { const b = e.target.closest('[data-flow-inspect]'); if (b) showFlowNode(b.dataset.flowInspect); };
+  for (const node of document.querySelectorAll('[data-flow-node]')) node.classList.toggle('active', node.dataset.flowNode === id);
+  if (window.innerWidth < 900) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 // ---------------- map ----------------
 
@@ -281,10 +424,12 @@ function topBy(arr) {
 
 function bindRowButtons(root) {
   root.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open]");
+    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open],[data-range],[data-inputs-for]");
     if (!b || !root.contains(b)) return;
+    if (b.dataset.inputsFor) { const [s,c,r] = b.dataset.inputsFor.split(',').map(Number); S.inputFilter = S.model.upstream(S.model.cell(s,c,r).fc).inputs; setView('inputs'); return; }
+    if (b.dataset.range) { const [sheet,c1,c2,r1,r2] = b.dataset.range.split(',').map(Number); openRange(sheet,{c1,c2,r1,r2}); return; }
     if (b.dataset.goto) { setView(b.dataset.goto); window.scrollTo({ top: $("#app").offsetTop - 8, behavior: "smooth" }); return; }
-    if (b.dataset.sheetOpen) { openSheet(+b.dataset.sheetOpen); return; }
+    if (b.dataset.sheetOpen != null) { openSheet(+b.dataset.sheetOpen); return; }
     if (b.dataset.issue) {
       const i = S.model.issues[+b.dataset.issue];
       track("issue-opened");
@@ -301,12 +446,12 @@ function bindRowButtons(root) {
 const ISSUE_INFO = {
   override: "Typed over a formula", inconsistent: "Breaks the pattern", "short-range": "Range stops short", "ref-error": "Broken reference",
   error: "Error value", circular: "Circular reference", hardcoded: "Number inside a formula", "unused-input": "Unused assumption",
-  "empty-ref": "Reads an empty cell", untraceable: "Hidden data source", external: "Link to another file", "unknown-name": "Unknown name", hidden: "Hidden sheet",
+  "empty-ref": "Reads an empty cell", untraceable: "Hidden data source", external: "Link to another file", "saved-mismatch": "Saved result differs", "unknown-name": "Unknown name", hidden: "Hidden sheet",
 };
 
 function renderIssues() {
   const m = S.model;
-  const groups = [["high", "Likely mistakes", "These usually mean a number is wrong."], ["medium", "Worth checking", "Risky habits that make the next mistake likely."], ["info", "For your information", ""]];
+  const groups = [["high", "Likely mistakes", "These usually mean a number is wrong."], ["medium", "Worth checking", "Results and dependencies to verify before trusting this workbook."], ["info", "For your information", ""]];
   $("#stage").innerHTML = `<div class="list-wrap">
     <h2>What looks wrong</h2>
     <p class="list-sub">Untangle checks every formula for the patterns behind most real spreadsheet errors. Each finding points to exact cells. Click one to see it in place.</p>
@@ -334,12 +479,18 @@ function renderIssues() {
   </div>`;
 }
 
-function renderInputs() {
+function renderInputs(page = 0, query = "") {
   const m = S.model;
+  const filterKeys = S.inputFilter && new Set(S.inputFilter.map((p) => `${p.sheet},${p.c},${p.r}`));
+  const filtered = (filterKeys ? m.inputs.filter((i) => filterKeys.has(`${i.sheet},${i.c},${i.r}`)) : m.inputs).filter((i) => !query || `${i.label || ''} ${m.sheets[i.sheet].name}!${addr(i.c,i.r)}`.toLowerCase().includes(query.toLowerCase()));
+  const shownInputs = filtered.slice(page * 100, (page + 1) * 100);
   $("#stage").innerHTML = `<div class="list-wrap">
     <h2>The numbers this workbook rests on</h2>
     <p class="list-sub">Every typed value that a formula uses, ranked by how many cells it ends up driving. Change one of the top ones and much of the workbook moves.</p>
-    <ol class="inputs-list">${m.inputs.map((i) => {
+    ${S.inputFilter ? `<p class="range-note">Showing ${fmtNum(S.inputFilter.length)} inputs upstream of the selected formula. <button class="linkish" id="allInputs">Show every input</button></p>` : ''}
+    <form id="inputSearch" class="input-search"><label>Find an input <input name="query" value="${esc(query)}" placeholder="Label, sheet or address"></label><button class="ghost">Search</button></form>
+    <p class="muted">${filtered.length ? `${fmtNum(page*100+1)}–${fmtNum(Math.min((page+1)*100,filtered.length))} of ${fmtNum(filtered.length)} inputs` : 'No inputs match.'}</p>
+    <ol class="inputs-list">${shownInputs.map((i) => {
       const pct = m.formulas.length ? Math.round((i.reach / m.formulas.length) * 100) : 0;
       return `<li><button class="row-btn" data-cell="${i.sheet},${i.c},${i.r}">
         <span class="lbl">${esc(i.label || "unlabelled")}</span>
@@ -350,6 +501,16 @@ function renderInputs() {
       </button></li>`;
     }).join("")}</ol>
   </div>`;
+  const form = $('#inputSearch');
+  form.addEventListener('submit', (e) => { e.preventDefault(); renderInputs(0, form.elements.query.value.trim()); });
+  if (filtered.length > 100) {
+    const nav = document.createElement('div'); nav.className = 'input-pages';
+    nav.innerHTML = `<button class="ghost" id="prevInputs" ${page === 0 ? 'disabled' : ''}>Previous 100</button><button class="ghost" id="nextInputs" ${(page+1)*100 >= filtered.length ? 'disabled' : ''}>Next 100</button>`;
+    $('.inputs-list').after(nav);
+    $('#prevInputs').onclick = () => renderInputs(page-1,query);
+    $('#nextInputs').onclick = () => renderInputs(page+1,query);
+  }
+  const all = $("#allInputs"); if (all) all.onclick = () => { S.inputFilter = null; renderInputs(); };
 }
 
 // ---------------- sheet grid ----------------
@@ -358,11 +519,15 @@ const RH = 26;
 function renderSheet(idx) {
   const m = S.model;
   const sh = m.sheets[idx];
-  const maxC = Math.min(Math.max(sh.maxC || 1, 1), 200);
-  const maxR = Math.max(sh.maxR || 1, 1);
+  const selected = S.sel?.sheet === idx ? S.sel : null;
+  // A direct jump may target a cell beyond the usual 200-column viewport.
+  const firstC = selected && selected.c > 200 ? Math.max(1, selected.c - 20) : 1;
+  const maxC = Math.min(Math.max(sh.maxC || 1, selected?.c || 1, firstC), firstC + 199);
+  const maxR = Math.max(sh.maxR || 1, selected?.r || 1);
   // Column widths from content.
   const widths = [];
   for (let c = 1; c <= maxC; c++) {
+    if (c < firstC) { widths.push(0); continue; }
     let w = 0;
     for (let r = 1; r <= Math.min(maxR, 300); r++) {
       const cell = sh.cells.get(c + "," + r);
@@ -386,20 +551,21 @@ function renderSheet(idx) {
   $("#stage").innerHTML = `<div class="sheet-wrap">
     <div class="sheet-head">
       <h2>${esc(sh.name)}${sh.state !== "visible" ? ` <span class="tag">${sh.state === "veryHidden" ? "very hidden" : "hidden"}</span>` : ""}</h2>
-      <p>${sh.formulaCount ? `${fmtNum(sh.formulaCount)} formulas in ${m.blocks.filter((b) => b.sheet === idx).length} blocks` : "No formulas"}${sh.counts && sh.counts.input ? ` · ${sh.counts.input} inputs` : ""}${iss.length ? ` · <button class="linkish" data-goto="issues">${iss.length} issue${iss.length > 1 ? "s" : ""}</button>` : ""}${sh.maxC > 200 ? " · showing the first 200 columns" : ""}</p>
+      <p>${sh.formulaCount ? `${fmtNum(sh.formulaCount)} formulas in ${m.blocks.filter((b) => b.sheet === idx).length} blocks` : "No formulas"}${sh.counts && sh.counts.input ? ` · ${sh.counts.input} inputs` : ""}${iss.length ? ` · <button class="linkish" data-goto="issues">${iss.length} issue${iss.length > 1 ? "s" : ""}</button>` : ""}${sh.maxC > 200 ? ` · columns ${numToCol(firstC)}–${numToCol(maxC)} (jump to reach another column)` : ""}</p>
+      ${sheetTools(idx)}
       <div class="legend small"><span><i class="k-input"></i>input</span><span><i class="k-calc"></i>calculation</span><span><i class="k-output"></i>result</span><span><i class="k-issue"></i>issue</span><span><i class="k-prec"></i>feeds the selected cell</span><span><i class="k-dep"></i>uses it</span>${S.hi && S.hi.missed && S.hi.missed.size ? `<span><i class="k-missed"></i>left out of the range</span>` : ""}</div>
     </div>
     <div class="grid-scroll" id="gridScroll">
       <div class="grid" style="width:${total}px;height:${(maxR + 1) * RH}px">
-        <div class="colhead" style="width:${total}px"><div class="corner"></div>${widths.map((w, i) => `<div class="ch" style="left:${left[i]}px;width:${w}px">${numToCol(i + 1)}</div>`).join("")}</div>
+        <div class="colhead" style="width:${total}px"><div class="corner"></div>${widths.map((w, i) => w ? `<div class="ch" style="left:${left[i]}px;width:${w}px">${numToCol(i + 1)}</div>` : "").join("")}</div>
         <div class="rows"></div>
-        <div class="blocks">${blocks.map((b) => b.c1 <= maxC ? `<div class="blk" title="${esc(`${b.n} copies of one formula${b.label ? `: ${b.label}` : ""}`)}" style="left:${left[b.c1 - 1]}px;top:${b.r1 * RH}px;width:${left[Math.min(b.c2, maxC) - 1] + widths[Math.min(b.c2, maxC) - 1] - left[b.c1 - 1]}px;height:${(b.r2 - b.r1 + 1) * RH}px"></div>` : "").join("")}</div>
+        <div class="blocks">${blocks.map((b) => b.c1 >= firstC && b.c1 <= maxC ? `<div class="blk" title="${esc(`${b.n} copies of one formula${b.label ? `: ${b.label}` : ""}`)}" style="left:${left[b.c1 - 1]}px;top:${b.r1 * RH}px;width:${left[Math.min(b.c2, maxC) - 1] + widths[Math.min(b.c2, maxC) - 1] - left[b.c1 - 1]}px;height:${(b.r2 - b.r1 + 1) * RH}px"></div>` : "").join("")}</div>
       </div>
     </div>
   </div>`;
   const scroll = $("#gridScroll");
   const rowsEl = scroll.querySelector(".rows");
-  const grid = { idx, sh, maxC, maxR, widths, left, issueCells, scroll, rowsEl };
+  const grid = { idx, sh, maxC, maxR, firstC, widths, left, issueCells, scroll, rowsEl };
   S.grid = grid;
   let raf = 0;
   const draw = () => { raf = 0; drawRows(grid); };
@@ -425,7 +591,7 @@ function drawRows(g) {
   let html = "";
   for (let r = r1; r <= r2; r++) {
     html += `<div class="row" style="top:${r * RH}px;width:${g.left[g.left.length - 1] + g.widths[g.widths.length - 1]}px"><div class="rh">${r}</div>`;
-    for (let c = 1; c <= g.maxC; c++) {
+    for (let c = g.firstC; c <= g.maxC; c++) {
       const cell = g.sh.cells.get(c + "," + r);
       const k = c + "," + r;
       const sel = S.sel && S.sel.sheet === g.idx && S.sel.c === c && S.sel.r === r;
@@ -479,7 +645,9 @@ function selectCell(sheet, c, r, opts = {}) {
   const missed = new Set();
   if (opts.issue && opts.issue.missed && opts.issue.missed.sheet === sheet) missed.add(opts.issue.missed.c + "," + opts.issue.missed.r);
   S.hi = { sheet, prec, dep, missed, down: null };
-  if (S.view !== "sheet" || S.sheet !== sheet) setView("sheet", sheet);
+  const wasGrid = S.view === "sheet" && S.sheet === sheet && S.sheetMode === "grid";
+  S.sheetMode = "grid";
+  if (!wasGrid || c < S.grid.firstC || c > S.grid.maxC || r > S.grid.maxR) setView("sheet", sheet);
   else drawRows(S.grid);
   scrollToCell(c, r);
   if (S.grid) drawRows(S.grid);
@@ -491,8 +659,9 @@ function selectCell(sheet, c, r, opts = {}) {
 function renderInspector(issue) {
   const m = S.model;
   const el = $("#inspector");
+  el.onclick = null;
   if (!S.sel) {
-    el.innerHTML = `<div class="insp-empty"><h3>Click any cell</h3><p>You'll see its formula as a tree with the real value at every step, what it's built from, and what changes if you edit it.</p>${m && m.issues.length ? `<p>Or start with <button class="linkish" data-goto="issues">what looks wrong</button>.</p>` : ""}</div>`;
+    el.innerHTML = `<div class="insp-empty"><h3>Click a block or cell</h3><p>A block shows its sources and destinations. Open a cell to see its formula as a tree with the real value at every step, what it's built from, and what changes if you edit it.</p>${m && m.issues.length ? `<p>Or start with <button class="linkish" data-goto="issues">what looks wrong</button>.</p>` : ""}</div>`;
     bindOnce(el);
     return;
   }
@@ -517,7 +686,7 @@ function renderInspector(issue) {
     if (plain) html += `<p class="plain">${plain}</p>`;
     if (fc.ast) {
       html += `<div class="tree">${treeNode(fc.ast, fc, rc.ok ? rc.trace : null, true)}</div>`;
-      html += `<p class="recalc ${rc.ok ? "ok" : ""}">${rc.ok ? "✓ Untangle recalculated this formula and got the same answer Excel saved, so the in-between values are trustworthy." : esc(rc.reason || "")}</p>`;
+      html += `<p class="recalc ${rc.ok ? "ok" : ""}">${rc.ok ? `✓ This formula and its ${rc.checked - 1} upstream formulas match Excel’s saved values using saved inputs. The tree shows those values; this is not an audit of the workbook.` : esc(rc.reason || "")}</p>${rc.problem ? `<button class="ghost small" data-cell="${rc.problem.sheet},${rc.problem.c},${rc.problem.r}">Inspect upstream discrepancy</button>` : ""}`;
     } else html += `<p class="recalc">${esc(fc.parseError || "")}</p>`;
     if (fc.block && fc.block.n > 1) html += `<p class="copies">One of <b>${fc.block.n}</b> copies of this formula in ${esc(m.sheets[sheet].name)}!${fc.block.rangeText}${fc.block.label ? ` (“${esc(fc.block.label)}”${fc.block.span ? `, ${esc(fc.block.span)}` : ""})` : ""}.</p>`;
     html += `</section>`;
@@ -525,7 +694,7 @@ function renderInspector(issue) {
     const ins = up.inputs.filter((p) => p.cell && p.cell.role === "input");
     if (ins.length) {
       const shown = ins.slice(0, 12);
-      html += `<section class="insp-sec"><h4>Built from ${ins.length} input${ins.length > 1 ? "s" : ""}${up.formulas.size ? ` through ${up.formulas.size} formula${up.formulas.size > 1 ? "s" : ""}` : ""}</h4><ol class="mini">${shown.map((p) => cellRow(p.sheet, p.c, p.r)).join("")}</ol>${ins.length > shown.length ? `<p class="muted">…and ${ins.length - shown.length} more.</p>` : ""}</section>`;
+      html += `<section class="insp-sec"><h4>Built from ${ins.length} input${ins.length > 1 ? "s" : ""}${up.formulas.size ? ` through ${up.formulas.size} formula${up.formulas.size > 1 ? "s" : ""}` : ""}</h4><ol class="mini">${shown.map((p) => cellRow(p.sheet, p.c, p.r)).join("")}</ol>${ins.length > shown.length ? `<p class="muted">…and ${fmtNum(ins.length - shown.length)} more. <button class="linkish" data-inputs-for="${sheet},${c},${r}">Browse all these inputs</button></p>` : ""}</section>`;
     }
   }
   if (cell) {
@@ -549,7 +718,7 @@ function renderInspector(issue) {
   if (sd) sd.addEventListener("click", () => {
     const down = m.downstream(sheet, c, r);
     S.hi.down = new Set([...down].filter((f) => f.sheet === sheet).map((f) => f.c + "," + f.r));
-    if (S.grid) drawRows(S.grid);
+    if (S.view === "sheet" && S.grid) drawRows(S.grid);
     sd.textContent = `${S.hi.down.size} highlighted on this sheet${down.size > S.hi.down.size ? `, ${down.size - S.hi.down.size} more elsewhere` : ""}`;
   });
   bindOnce(el);
@@ -603,7 +772,7 @@ function refInfo(node, fc) {
   if (label && span) label += `, ${span}`;
   else if (!label) label = span;
   const n = rg.wholeCol || rg.wholeRow ? null : (rg.r2 - rg.r1 + 1) * (rg.c2 - rg.c1 + 1);
-  return { single, sheet: ref.sheet, c: rg.c1, r: rg.r1, label, n, where: `${ref.sheet !== fc.sheet ? sheetName + "!" : ""}${rangeText(rg)}` };
+  return { single, range: rg, sheet: ref.sheet, c: rg.c1, r: rg.r1, label, n, where: `${ref.sheet !== fc.sheet ? sheetName + "!" : ""}${rangeText(rg)}` };
 }
 
 function valTxt(v) {
@@ -626,7 +795,7 @@ function treeNode(n, fc, trace, root = false) {
       const info = refInfo(n, fc);
       if (!info) return `<span class="tn ref ext">${esc(n.text)}</span> <span class="muted">${n.ext != null ? "in another file" : ""}</span>`;
       const shownVal = info.single ? `<span class="tv">${esc(info.cell ? fmtValue(info.cell) : "blank")}</span>` : `<span class="tv muted">${info.n ? info.n + " cells" : "whole " + (n.range.wholeCol ? "column" : "row")}</span>`;
-      return `<button class="tn ref" data-cell="${info.sheet},${info.c},${info.r}"><span class="ta">${esc(info.where)}</span>${info.label ? `<span class="tl">${esc(info.label)}</span>` : ""}</button>${shownVal}`;
+      return `<button class="tn ref" ${info.single ? `data-cell="${info.sheet},${info.c},${info.r}"` : `data-range="${info.sheet},${info.range.c1},${info.range.c2},${info.range.r1},${info.range.r2}"`}><span class="ta">${esc(info.where)}</span>${info.label ? `<span class="tl">${esc(info.label)}</span>` : ""}</button>${shownVal}`;
     }
     case "name": {
       const nm = [...m.names.values()].find((x) => x.name.toUpperCase() === n.name.toUpperCase());

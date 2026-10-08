@@ -275,5 +275,40 @@ ol.mini { list-style: none; margin: 0; padding: 0; }
   .stat { flex-direction: column; gap: 0; }
   .stat.bad { grid-column: 1 / -1; flex-direction: row; gap: 7px; }
   .stat.time { grid-column: 1 / -1; padding: 0 4px; }
+  .summary .notes { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Sheet → formula blocks → individual cells. */
+.sheet-tools { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin: 14px 0; }
+.mode-switch { display: flex; padding: 3px; background: var(--calc-bg); border-radius: 9px; }
+.mode-switch button { border: 0; background: transparent; padding: 6px 10px; border-radius: 7px; font-size: 13px; }
+.mode-switch button[aria-pressed=true] { background: var(--ink); color: white; }
+.cell-jump { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.cell-jump input { width: 165px; border: 1px solid var(--line); border-radius: 7px; padding: 7px; font: 12px var(--mono); margin-left: 5px; }
+.jump-error { color: var(--high); flex-basis: 100%; }
+.block-filter { display: flex; gap: 10px; align-items: center; margin: 12px 0; font-size: 14px; }
+.block-filter select { min-width: 0; max-width: 100%; flex: 1; font: inherit; padding: 7px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.flow-scroll { overflow: auto; max-height: 680px; border: 1px solid var(--line); border-radius: 12px; background: #fafbf9; overscroll-behavior: contain; }
+.block-map { display: block; }
+.flow-edge { fill: none; stroke: #9aa9a3; stroke-width: 1.8; }
+.flow-node { cursor: pointer; }
+.flow-node rect { fill: white; stroke: #c7cecb; stroke-width: 1.5; }
+.flow-node:hover rect, .flow-node:focus rect, .flow-node.active rect { stroke: var(--ink); stroke-width: 2.5; }
+.flow-node:focus { outline: none; }
+.flow-input rect { fill: #eef4ff; stroke: #9bb8ef; }
+.flow-output rect { fill: #e8f7ee; stroke: #89cdb0; }
+.flow-other rect { stroke-dasharray: 5 3; }
+.flow-role { font: 10px system-ui, sans-serif; text-transform: uppercase; letter-spacing: .07em; fill: var(--ink2); }
+.flow-title { font: 650 15px system-ui, sans-serif; fill: var(--ink); }
+.flow-address { font: 12px var(--mono); fill: var(--ink2); }
+.flow-formula { font: 12px var(--mono); fill: var(--ink); }
+.flow-hint { color: var(--ink2); font-size: 12.5px; margin: 12px 0 0; }
+.range-note { font-size: 13.5px; background: #fff5dc; padding: 10px; border-radius: 8px; }
+.block-issue { display: block; width: 100%; text-align: left; padding: 10px; margin-top: 8px; border: 1px solid #edca87; background: var(--med-bg); border-radius: 8px; }
+@media (max-width: 560px) { .cell-jump { width: 100%; } .cell-jump label { flex: 1; } .cell-jump input { width: 150px; } .flow-scroll { max-height: 60vh; } }
+.input-search { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+.input-search label { display: flex; flex: 1; min-width: 200px; gap: 8px; align-items: center; font-size: 13px; }
+.input-search input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 7px; padding: 7px; font: inherit; }
+.input-pages { display: flex; justify-content: space-between; margin-top: 14px; }
+button:disabled { opacity: .45; cursor: default; }

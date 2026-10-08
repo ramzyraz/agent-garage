@@ -109,6 +109,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
         }
         out.push({ sheet: sIdx, range: n.range, text: n.text, node: n });
       } else if (n.type === "name") {
+        if (n.ext != null) { out.push({ ext: n.ext, text: `[${n.ext}]${n.sheet}!${n.name}`, node: n }); return; }
         if (letNames.has(n.name.toUpperCase()) || /^_xlpm\./i.test(n.name)) return;
         if (fc) fc.names.push(n.name);
         const nm = lookupName(n.name, n.sheet ? sheetByName.get(n.sheet.toLowerCase())?.index : sheetIdx);
@@ -599,9 +600,9 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
       `${un.join("/")} builds its reference while Excel calculates, so nobody (including Untangle) can see from the formula which cells it really reads. The map may be missing links here.`);
     const ext = fc.refs.filter((r) => r.ext != null);
     if (ext.length) {
-      const e = wb.externals[ext[0].ext - 1];
+      const e = typeof ext[0].ext === "number" ? wb.externals[ext[0].ext - 1] : { file: ext[0].ext };
       flag("external", "medium", at, `Pulls numbers from another file: ${cellsTxt}`,
-        `It reads ${ext[0].text}${e ? ` in “${e.file}”` : ""}. If that file moves or changes, this value goes stale or breaks, and you won't see it here.`, { file: e ? e.file : null });
+        `It reads ${ext[0].text}${e ? ` in “${e.file}”` : ""}. That workbook is not open here, so its dependencies and values cannot be verified. Excel’s saved result is shown.`, { file: e ? e.file : null });
     }
     const ms = fc.refs.filter((r) => r.missingSheet);
     if (ms.length) flag("ref-error", "high", at, `Points to a sheet that doesn't exist: ${cellsTxt}`, `It reads ${ms[0].text}, but there's no sheet called “${ms[0].missingSheet}”.`);
@@ -651,7 +652,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
   function blockText(i) { const b = blocks[i.block]; return b ? `${sheets[b.sheet].name}!${b.rangeText}` : where(i.sheet, i.c, i.r); }
 
   // ---- recompute formulas from saved values (for the in-between values in formula trees) ----
-  function ctxFor(sheetIdx) {
+  function ctxFor(sheetIdx, nameStack = new Set()) {
     const ctx = {
       ref(n) {
         if (n.ext != null) throw new Unsupported("external file");
@@ -663,6 +664,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
           // Whole columns: clip to the used area.
           rg.r2 = Math.min(rg.r2, sh.maxR || 1); rg.c2 = Math.min(rg.c2, sh.maxC || 1);
         }
+        if ((rg.r2 - rg.r1 + 1) * (rg.c2 - rg.c1 + 1) > 200000) throw new Unsupported("ranges larger than 200,000 cells");
         const out = [];
         for (let r = rg.r1; r <= rg.r2; r++) {
           const row = [];
@@ -672,24 +674,88 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
         return out;
       },
       name(n) {
-        const nm = lookupName(n.name, sheetIdx);
+        if (n.ext != null) throw new Unsupported("external file");
+        const scope = n.sheet ? sheetByName.get(n.sheet.toLowerCase())?.index : sheetIdx;
+        const nm = lookupName(n.name, scope);
         if (!nm || !nm.ast) throw new Unsupported("name");
-        return evaluate(nm.ast, ctxFor(nm.scope != null ? nm.scope : sheetIdx)).value;
+        if (nameStack.has(nm)) throw new Unsupported("circular defined name");
+        return evaluate(nm.ast, ctxFor(nm.scope != null ? nm.scope : scope, new Set([...nameStack, nm]))).value;
       },
     };
     return ctx;
   }
-  function recompute(fc) {
-    if (!fc.ast) return { ok: false, reason: "Untangle couldn't read this formula." };
-    if (fc.cell.array || fc.cell.dataTable) return { ok: false, reason: "Array formulas aren't recomputed yet." };
-    try {
+  // Local checks use saved precedents. A match alone never verifies an upstream chain.
+  const localCache = new Map();
+  function localCheck(fc, withTrace = false) {
+    if (!withTrace && localCache.has(fc)) return localCache.get(fc);
+    let out;
+    if (!fc.ast) out = { ok: false, status: "unsupported", reason: "Untangle couldn't read this formula." };
+    else if (fc.cell.value == null) out = { ok: false, status: "unsupported", reason: "Excel did not save a result for this formula; no value can be verified." };
+    else if (fc.cell.array || fc.cell.dataTable) out = { ok: false, status: "unsupported", reason: "Array formulas and data tables aren't recomputed yet." };
+    else try {
       const { value, trace } = evaluate(fc.ast, ctxFor(fc.sheet));
-      return { ok: sameValue(value, fc.cell.value), value, trace, reason: sameValue(value, fc.cell.value) ? null : "Untangle's recalculation didn't match Excel's saved value, so only Excel's own values are shown." };
+      const error = value && typeof value === "object" && "error" in value;
+      const match = Boolean(sameValue(value, fc.cell.value));
+      out = { ok: match && !error, status: !match ? "mismatch" : error ? "error" : "match", value,
+        ...(withTrace ? { trace } : {}),
+        reason: error && match ? `This formula returns ${value.error}; matching an error does not verify a working result.`
+          : match ? null : `Using Excel's saved inputs, Untangle gets ${fmtValue(fc.cell, value)} instead of ${fmtValue(fc.cell)}. This may be a stale saved result or a calculation difference; recalculate in Excel to check.` };
     } catch (e) {
-      if (e instanceof Unsupported) return { ok: false, reason: `Untangle can't recalculate ${/^[A-Z.]+$/.test(e.message) ? e.message + "()" : e.message} yet, so only Excel's saved values are shown.` };
-      throw e;
+      if (!(e instanceof Unsupported)) throw e;
+      out = { ok: false, status: "unsupported", reason: `Untangle can't recalculate ${/^[A-Z.]+$/.test(e.message) ? e.message + "()" : e.message} yet, so only Excel's saved values are shown.` };
     }
+    // Traces can contain large range matrices; retain only the small outcome between selections.
+    const { trace, ...small } = out;
+    localCache.set(fc, small);
+    return out;
   }
+  const cyclic = new Set(cycles.flat());
+  function recompute(fc) {
+    const own = localCheck(fc, true);
+    if (!own.ok) return own;
+    if (cyclic.has(fc)) return { ok: false, reason: "This formula belongs to a circular reference; its result cannot be verified." };
+    const seen = new Set([fc]), queue = [fc];
+    const deadline = performance.now() + 250;
+    for (let j = 0; j < queue.length; j++) {
+      const f = queue[j];
+      if (f.refs.some((r) => r.ext != null || r.threeD || r.missingSheet || r.unknownName) || [...f.funcs].some((n) => UNTRACEABLE.has(n)))
+        return { ok: false, reason: `The dependency chain includes unavailable or dynamic references at ${where(f.sheet, f.c, f.r)}. Only saved values are shown.` };
+      if (graphTruncated) return { ok: false, reason: "Some dependency links were skipped in this large workbook, so the full chain cannot be verified." };
+      for (const p of precedentCells(f)) {
+        const dep = p.cell?.fc;
+        if (!dep || seen.has(dep)) continue;
+        if (seen.size >= 20000 || performance.now() > deadline)
+          return { ok: false, reason: "The upstream chain is too large to verify here; only saved values are shown." };
+        seen.add(dep); queue.push(dep);
+        const rc = localCheck(dep);
+        if (!rc.ok || cyclic.has(dep)) return { ok: false, problem: { sheet: dep.sheet, c: dep.c, r: dep.r },
+          reason: `Upstream ${where(dep.sheet, dep.c, dep.r)} ${rc.status === "mismatch" ? "doesn't match its saved result" : "cannot be verified"}. ${rc.reason || "It has a circular reference."} Only saved values are shown for this formula.` };
+      }
+    }
+    return { ...own, checked: seen.size };
+  }
+
+  // A bounded scan surfaces stale caches without suggesting an audit of unsupported functions.
+  const verification = { attempted: 0, matched: 0, mismatched: 0, unsupported: 0, errors: 0 };
+  const mismatches = new Map();
+  const checkDeadline = performance.now() + Math.min(500, budgetMs / 4);
+  for (const fc of formulas) {
+    if (performance.now() > checkDeadline) break;
+    const rc = localCheck(fc);
+    verification.attempted++;
+    if (rc.status === "match") verification.matched++;
+    else if (rc.status === "mismatch") {
+      verification.mismatched++;
+      const group = mismatches.get(fc.block.id);
+      if (group) group.n++;
+      else mismatches.set(fc.block.id, { fc, rc, n: 1 });
+    } else if (rc.status === "error") verification.errors++;
+    else verification.unsupported++;
+  }
+  for (const { fc, rc, n } of mismatches.values()) flag("saved-mismatch", "medium",
+    { sheet: fc.sheet, c: fc.c, r: fc.r }, `${n > 1 ? n + " saved results differ" : "Saved result differs"} from recalculation: ${where(fc.sheet, fc.c, fc.r)}`,
+    rc.reason + (n > 1 ? ` ${n} cells in ${fc.block.rangeText} have this discrepancy.` : ""));
+  notes.push(`Saved-value check: ${fmtNum(verification.matched)} of ${fmtNum(formulas.length)} formulas matched using saved inputs; ${fmtNum(verification.mismatched)} differed, ${fmtNum(verification.unsupported)} unsupported, ${fmtNum(verification.errors)} returned errors, ${fmtNum(formulas.length - verification.attempted)} not checked. A match is not a full workbook audit.`);
   function evalText(text, sheetIdx) {
     try { return evaluate(parse(text), ctxFor(sheetIdx)).value; } catch (e) { return undefined; }
   }
@@ -699,7 +765,7 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     const typed = sheets[i.sheet].cells.get(i.c + "," + i.r).value;
     if (typeof v === "number" && Math.abs(v - typed) > 1e-9 * Math.max(1, Math.abs(v))) {
       i.expectedValue = v;
-      i.detail += ` With the formula it would be ${fmtNum(v)}, not ${fmtNum(typed)} (off by ${fmtNum(Math.abs(v - typed))}).`;
+      i.detail += ` Using saved input values, the formula would give ${fmtNum(v)}, not ${fmtNum(typed)} (off by ${fmtNum(Math.abs(v - typed))}).`;
     } else if (typeof v === "number") i.detail += " Right now the typed value happens to match what the formula would give.";
   }
   for (const i of issues) {
@@ -746,10 +812,12 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
   };
   if (graphTruncated) notes.push("This workbook has an enormous number of range references; some links between cells beyond the first few million were skipped.");
   if (!impactExact) notes.push("Ranked the first inputs by full reach; the rest by direct use, to keep this fast.");
+  const threeDCount = formulas.filter((f) => f.refs.some((r) => r.threeD)).length;
+  if (threeDCount) notes.push(`${threeDCount} formulas use 3D sheet ranges (such as Sheet1:Sheet3!A1). These links are not traced yet; their inputs are missing from the map.`);
   if (wb.hasMacros) notes.push("This workbook contains macros (VBA). Untangle doesn't run or read them; anything they change is not on the map.");
 
   return {
-    wb, sheets, formulas, blocks, inputs, issues, notes, stats, names, sheetLinks, cycles,
+    wb, sheets, formulas, blocks, inputs, issues, notes, stats, names, sheetLinks, cycles, verification,
     recompute, evalText, dependentsOf, precedentCells, downstream, upstream, labelOf, labelText, cellsIn, where,
     cell: (s, c, r) => sheets[s]?.cells?.get(c + "," + r) || null,
   };

@@ -166,8 +166,8 @@ function cleanSheet(prefix) {
   let p = prefix.slice(0, -1);
   let ext = null;
   if (p.startsWith("'")) p = p.slice(1, -1).replace(/''/g, "'");
-  const em = /^\[(\d+)\](.*)$/.exec(p);
-  if (em) { ext = +em[1]; p = em[2]; }
+  const em = /^(.*?)\[([^\]]+)\](.*)$/.exec(p);
+  if (em) { ext = /^\d+$/.test(em[2]) ? +em[2] : em[1] + em[2]; p = em[3]; }
   return { name: p, ext };
 }
 

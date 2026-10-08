@@ -1,90 +1,100 @@
 # State
 
-_Last updated: session 15 (Claude Code), day 5._
+_Last updated: session 16 (OpenAI Codex), day 6._
 
 ## Mission now
 
-The human froze Namesake (7/10, `site/namesake/`) and asked us to build from the Investigator's backlog
-(`projects/investigator/BACKLOG.md`, briefs in `site/research/briefs/`). Earlier products are frozen: don't touch them.
-`site/builder/index.html` lists projects (current first). Backlog #1 is `in progress (Builder)`; #2 (sheet music OMR) is open.
+Build useful, impressive solutions from the Investigator's backlog. Namesake, Second Sense and Tabby are
+finished and frozen. Only edit our areas; `site/builder/index.html` lists the current project first.
+Backlog #1 remains `in progress (Builder)`; #2 (sheet music OMR) is open.
+No new human reply this session. HUMAN_NEEDED #14 still asks for an inherited work model / outside user.
 
 ## Product: Untangle (backlog #1, brief 001)
 
 **See how any spreadsheet really works.** https://ramzyraz.github.io/agent-garage/builder/untangle/
-Drop in an .xlsx/.xlsm; everything runs in the tab (no server, no upload, no libraries). `#sample` opens the demo.
+Drop in .xlsx/.xlsm; workbook data stays in the tab. No server or runtime libraries. `#sample` opens the demo.
 
-- **Map:** sheets as cards in dependency layers (inputs → results), edges weighted by reference count,
-  role bar (input/calc/output/data), issue badge, dashed = hidden sheet. Goes top-to-bottom when the
-  left-to-right layout would need >25% shrinking (most desktops with 5+ layers too). Click → sheet.
-  Below: "Where are the inputs?" (ranked by reach), "What looks wrong?", "Where does it end?" (outputs).
-- **Sheet grid:** virtualised rows (26px), ≤200 columns, cells coloured by role, issue outlines,
-  copied-formula blocks outlined. Selecting a cell highlights precedents (cyan) / dependents (violet);
-  a short-range issue marks the left-out cell red dashed.
-- **Inspector:** human label ("Staff · 2030" from row label + column header/year row), value, issues,
-  formula text, plain-English line for simple formulas, formula **tree with values at each node** (only
-  when our recalculation matches Excel's saved value, else saved values for refs only and the reason),
-  "one of N copies", upstream inputs ("Built from 12 inputs through 17 formulas"), downstream impact
-  ("14 cells on 3 sheets would change, including 6 final results") + highlight button.
-- **Issues:** override (typed number amid copies, with the value the formula would give), inconsistent
-  formula, short range (SUM etc. stops one before a sibling; shows corrected total), #REF!/errors,
-  hard-coded constants (per block; ignores 0/1/years/units/positional args), unused assumption, empty-cell
-  refs, INDIRECT/OFFSET, external links, missing sheet, unknown name, circular refs, hidden sheets.
-- **Inputs tab:** every typed value a formula uses, ranked by transitive reach.
-- Errors: .xls/encrypted (OLE magic) and non-zip files get plain messages. Macros noted, never run.
-- Analytics: fixed events only (`sample-opened`, `file-opened`, `issue-opened`), path `/agent-garage/builder/untangle/`.
+- **Workbook map:** sheet dependency layers, weighted arrows, input/calc/output bars, hidden sheets and issues.
+  Overview answers where inputs live, what looks wrong, and where results end up.
+- **NEW sheet block map (default when opening a sheet):** contiguous typed-input runs → copied formula blocks
+  → destination sheets. Shows ranges, copy counts, representative formulas and finding badges. Click a group
+  for sources/destinations, first/last cell buttons and findings. Explore selector focuses one block plus its
+  neighbors. Horizontal assumptions with the same row label merge too. Map scrolls within its container;
+  >80 groups are explicitly capped, and Explore accesses every local block.
+- **Cell grid:** virtual rows, role/issue colors, block outlines, precedents/dependents and downstream highlight.
+  Block map / Cell grid switch. Address jump accepts B10000 or 'My Sheet'!B2. Jumps beyond column 200 open a
+  200-column window around the target; jumps to empty cells beyond used bounds work too.
+- **Inspector:** inferred human label, saved value, formula text/tree, simple explanation, upstream inputs and
+  downstream impact. Formula-tree range buttons open the matching block overview, not just its first cell.
+  More than 12 upstream inputs now has **Browse all these inputs**; Inputs supports search and pages of 100.
+- **Trust fixes:** green tree verification requires the formula AND every traced upstream formula to match
+  Excel's saved inputs/results. Errors, unsupported formulas, dynamic/external/missing links, cycles,
+  truncated graphs or a timed-out chain do not get green. An upstream discrepancy has a direct inspect button.
+  This checks saved-value consistency, not correctness of the business logic; the UI says so.
+- A bounded local saved-value scan (≤500ms, excluding one individual evaluation) flags discrepancies as
+  **Worth checking**, not proven Excel mistakes. Reports matched/different/unsupported/error/unchecked counts.
+  Only small outcomes are cached; large intermediate trace matrices are released after selection.
+- Other checks: typed-over formulas, inconsistent copies, short totals, hard-coded constants, unused inputs,
+  empty refs, #REF!/saved errors, INDIRECT/OFFSET, unknown names, hidden sheets and circular references.
+- External references support [1], '[missing.xlsx]Sheet1' and quoted paths; diagnosed as unavailable external
+  data rather than nonexistent internal sheets. No attempt to fetch another workbook. Explicit warning when
+  3D sheet ranges are not traced. Macros never run. Old .xls/encrypted and garbage get helpful messages.
+- Analytics sends fixed event labels only; workbook contents never enter requests.
 
 ## Files
 
-- `site/builder/untangle/zip.js` zip reader (DecompressionStream deflate-raw, zip64). `xlsx.js` streaming XML
-  scanner + workbook reader: shared strings, inline strings, **shared formulas expanded** via `shiftFormula`,
-  array/dataTable flags, defined names, tables, external links, styles → `fmt` (pct/date/money).
-- `formula.js` tokenizer (refs incl. quoted/3D/external sheets, structured refs, errors, intersection),
-  Pratt parser → AST, `print`, `walk`, `r1c1Key` (copy detection), `shiftFormula`.
-- `evaluate.js` ~90 Excel functions incl. lookups, SUMIFS, LET; lazy IF/IFERROR/CHOOSE; throws `Unsupported`.
-- `model.js` `buildModel(wb)`: refs (names/tables resolved), graph with shared **range nodes** (edge budget 4M,
-  then truncates with a note), memoised `dependentsOf`, Tarjan cycles, labels (binary search over heading rows),
-  blocks (vertical runs merged sideways), roles, input reach (time-boxed to budget/4), issues, sheet layers,
-  `recompute(fc)`, `evalText`. `app.js` UI; `style.css`; `samples/northwind-plan.xlsx`.
-- `projects/builder/tools/make-sample.mjs` regenerates the sample (values computed by our evaluator).
-  Planted: Costs!F6 typed 2,280,000 (formula gives 2,736,000), P&L!H8 =SUM(C8:F8) misses 2031, marketing
-  =…*0.04 while the 5% assumption is unused, hidden Scratch sheet feeds Dashboard, Scratch!B6 #REF!.
+- `site/builder/untangle/zip.js`, `xlsx.js`: zip/XML reader; shared/inline strings, shared formulas, arrays/data
+  tables, styles, defined names, tables, external links, chart sheets.
+- `formula.js`: tokenizer/Pratt AST, printing, copy keys and shared-formula shifting. `evaluate.js`: ~90 Excel
+  functions, lazy IF/IFERROR/CHOOSE and LET; throws Unsupported for the rest.
+- `model.js`: refs, shared range-node dependency graph (4M-edge budget), cycles, labels, formula blocks, input
+  reach, issues. `recompute(fc)` verifies the upstream chain (≤20k formulas / 250ms); `verification` stores
+  scan coverage. `evalText` uses saved inputs for proposed override formulas, not recursive recalculation.
+- NEW `blocks.js`: `sheetFlow(model, sheet)` builds input/formula/destination groups and real links;
+  `flowLayers` uses Kahn's algorithm. App caches flows per sheet for the current workbook.
+- `app.js`, `style.css`, `index.html`: UI. `samples/northwind-plan.xlsx`: five planted mistakes, generated by
+  `projects/builder/tools/make-sample.mjs`. Original planted discrepancies remain unchanged.
+- NEW `tools/check-public-workbooks.mjs`: optional download/check against seven pinned Apache POI fixtures,
+  with SHA-256 checks, producer metadata and JSON report. Downloads stay in /tmp, not in the repo.
 
-## Verification (session 15)
+## Verification (session 16)
 
-- `node --test projects/builder/tests/*.test.js`: 8 pass (parser shapes, shared formula shift, evaluator,
-  all planted sample issues + no column-pattern noise, every sample formula recomputes, tracing, cycles/
-  inconsistent/empty/INDIRECT fixture, .xls/garbage rejection, 60k-formula workbook). `tests/xlsx-fixture.js`
-  writes small test workbooks.
-- `node projects/builder/tests/untangle-browser.cjs` (serve `site/` on :8765; puppeteer-core in /tmp/pt; Chrome
-  /usr/bin/google-chrome): sample via hash, map, issue list, override click, tree recompute, precedent jump,
-  inputs, phone (390px) no overflow on all views, real upload, bad file message, no console errors, no external requests.
-- Performance (Node): 60k formulas with quadratic running SUMs: read 0.25 s + model 3.6 s (hits edge budget).
-  The sample maps in ~60 ms. Main thread blocks while mapping (spinner freezes).
-- **Never tested on a real Excel-made file.** Only our own generated workbooks. HUMAN_NEEDED #14 asks.
+- `node --test projects/builder/tests/*.test.js`: **11 pass**. Added stale upstream / error / unsupported-chain
+  regressions, named/path/numeric external refs versus missing internal sheets, and a 10,000-input block flow.
+  Extreme 60k-formula running-SUM fixture maps in ~4.7s in Node (was ~3.6s before the extra saved-value scan).
+- Serve `site/` on :8765; puppeteer-core installed in /tmp/pt; Chrome /usr/bin/google-chrome.
+  `node projects/builder/tests/untangle-browser.cjs /tmp/shots`: original sample/upload/bad-file/phone checks.
+- NEW `UNTANGLE_PUBLIC_FIXTURES=/tmp/untangle-public node projects/builder/tests/untangle-review-browser.cjs
+  /tmp/shots`: all three review reproductions, no green #REF!, block drilldown and last-cell navigation,
+  range browsing, all 10k inputs/search/paging, GV2 jump, touch phone without document overflow, and all seven
+  public workbooks including large-map cap/focus. Both browser suites pass; no JS errors or external requests.
+- Public corpus checks pass. Six fixtures identify **Microsoft Excel** as producer, one Apache POI. Shared
+  formula workbook: 40/40 saved matches, one formula block, no findings. Tables yield dependencies and honest
+  unsupported calculation messages; chart sheets open; 3D ranges warn; external links stay external.
+- The evaluator stress workbook is **not clean validation**: 1,295 formulas, 486 matches, 184 differences,
+  573 unsupported, 52 errors. It contains intentional test cases; our evaluator also differs on Excel behavior.
+  Do not present these differences as proven stale Excel caches. Full provenance/results in
+  `log/assets/session-16-public-workbooks.json`. Screenshots in the session log were visually inspected.
+- Still no real inherited production workbook, outside user, real-phone performance test or deployment check.
 
 ## Next 3 tasks
 
-1. Robustness on real files: build fixtures that mimic Excel/LibreOffice/Google output (styles-heavy, shared
-   strings with rich text, tables + structured refs, dynamic arrays/spill, data tables, chart sheets, external
-   links, defined names with sheet scope, 3D refs). Find public sample workbooks (e.g. Enron corpus, which the
-   brief suggests) if reachable, and check false positives on them.
-2. Move parsing/modelling into a Web Worker with progress, so big files don't freeze the page; show sheet-level
-   progress. Consider a block-level view in the grid for huge sheets (canvas minimap).
-3. "What if": edit an input in the inspector and recalculate downstream with our evaluator (only where every
-   formula on the path recomputes), showing which results move. Then launch posts (Show HN, r/excel) in HUMAN_NEEDED.
+1. Move parsing/modeling into a Web Worker with progress and cancellation. Large workbooks still freeze the
+   page, and the added consistency check raises the extreme-case time. Keep file contents local and preserve
+   the regression suites. Decide how to expose model queries without duplicating the expensive graph.
+2. Improve reference/calculation coverage using independent fixtures: 3D sheet ranges (currently untraced),
+   structured table recalculation, scoped/nested defined names and arrays/spills. Examine the public stress
+   workbook's differences to reduce evaluator false alarms. Do not relax the saved-chain verification guard.
+3. Add a private downloadable handover report, then bounded “what if” for fully supported paths. Read the
+   next review and #14 real-user reply before preparing launch posts or marking the backlog item built.
 
-## Open problems
+## Open problems / what we know about users
 
-- Labels are heuristics (nearest text left / heading above / year rows). Generic headings (Value, Amount…) are dropped.
-- Pattern-break checks require the neighbours to be a block along that direction (avoids row-model noise);
-  they may miss breaks at the edges of a block.
-- Unsupported in recalculation: array formulas, dynamic arrays, OFFSET/INDIRECT, many date/text/finance functions.
-  The tree still shows saved values; it just doesn't show in-between values.
-- The map on desktop often uses the vertical layout (6 layers don't fit side by side); fine but tall.
-- No per-file sharing (files never leave the browser, by design). The shareable demo is `#sample`.
-
-## Users
-
-- No outside user yet. The human's guidance: build real, impressive solutions from the backlog; Namesake was
-  "good enough" at 7/10 from the evaluator. The brief's audience: people who inherit workbooks (finance, ops,
-  research, government) and care about privacy.
+- Labels are nearby-heading heuristics; unnamed or repeated headings can group unrelated inputs. Block maps
+  can have crossing arrows; the focus selector helps, but large sheets expose only 80 groups at once.
+- Graph, reach and verification are bounded, and messages disclose incomplete coverage. Unsupported named
+  definitions and dynamic references can still mean missing map links. No recursive fresh recalculation.
+- No per-file sharing/upload, by design. A report export would let a user share a discovery deliberately.
+- No outside user yet. The brief targets finance/ops/research inheritors who care about privacy. The critic's
+  useful feedback is concrete: a saved result isn't proof of its inputs, ranges deserve their own view, and
+  compression must be something users can navigate rather than just a number in the header.
