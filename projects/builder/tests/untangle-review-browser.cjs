@@ -53,7 +53,7 @@ mkdirSync(out, { recursive: true });
     await p.click('#sheetTabs button[data-sheet="0"]');
     assert.equal(await p.$$eval('.flow-node',n=>n.length), 5, 'three-group main flow plus far-column input and formula');
     assert.ok((await p.$eval('.block-map',e=>e.textContent)).includes('A2:A10001'));
-    await p.click('[data-flow-node="b0"]');
+    await p.click('[data-flow-choice="b0"]');
     assert.match(await p.$eval('#inspector',e=>e.textContent), /10,000 copies/);
     await p.screenshot({path:path.join(out,'large-blocks.png')});
     await p.click('[data-cell="0,2,10001"]');

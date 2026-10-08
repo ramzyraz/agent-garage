@@ -6,7 +6,7 @@ import { evaluate } from "../../../site/builder/untangle/evaluate.js";
 import { readWorkbook } from "../../../site/builder/untangle/xlsx.js";
 import { buildModel } from "../../../site/builder/untangle/model.js";
 import { makeXlsx } from "./xlsx-fixture.js";
-import { previewRepair } from "../../../site/builder/untangle/preview.js";
+import { previewRepair, previewInput, parseInputValue } from "../../../site/builder/untangle/preview.js";
 
 const SAMPLE = new URL("../../../site/builder/untangle/samples/northwind-plan.xlsx", import.meta.url);
 
@@ -241,4 +241,55 @@ test("block map compresses 10,000 inputs and formulas while retaining cross-shee
   const summary = sheetFlow(m, 1);
   assert.equal(summary.nodes.filter((n) => n.kind === 'formula').length, 2);
   assert.equal(summary.edges.length, 1);
+});
+
+test('input scenarios propagate salary, preserve planted formulas and start independently', async () => {
+  const m=buildModel(await readWorkbook(readFileSync(SAMPLE)));
+  const before=m.sheets.map((s)=>[...s.cells.values()].map((c)=>[c.f,c.value]));
+  const result=previewInput(m,{sheet:0,c:2,r:11},42000);
+  assert.equal(result.complete,true);
+  assert.equal(result.changed.length-1,33);
+  assert.equal(result.unchanged,5);
+  const db=result.changed.find((c)=>c.sheet===4&&c.r===4);
+  assert.ok(Math.abs(db.after-db.before-(-456000))<1e-6);
+  assert.equal(m.cell(2,6,6).value,2280000,'typed-over staff cost is not repaired by a salary scenario');
+  assert.ok(!result.changed.some((c)=>c.sheet===2&&c.c===6&&c.r===6));
+  const reset=previewInput(m,{sheet:0,c:2,r:11},38000);
+  assert.equal(reset.changed.length,1);
+  assert.equal(reset.unchanged,38);
+  assert.equal(previewInput(m,{sheet:1,c:3,r:4},5).ok,false,'formulas are not editable inputs');
+  assert.equal(previewInput(m,{sheet:0,c:2,r:11},Infinity).ok,false);
+  assert.deepEqual(m.sheets.map((s)=>[...s.cells.values()].map((c)=>[c.f,c.value])),before);
+});
+
+test('text lookup and boolean input scenarios keep scalar types and withhold stale branches', async () => {
+  const m=buildModel(await readWorkbook(makeXlsx([
+    {name:'Sales Data',rows:{A1:'Item',B1:'Price',A2:'Coffee',B2:3,A3:'Tea',B3:2}},
+    {name:'Summary',rows:{A1:'Tea',B1:['=VLOOKUP(A1,\'Sales Data\'!A2:B3,2,FALSE)',2],A2:true,B2:['=IF(A2,1,0)',1],A3:1,B3:['=A3*2',99],C3:['=IF(A3>0,B3,0)',99],D3:['=A3+1',2]}},
+  ])));
+  assert.equal(m.labelText(0,1,3),'Item','Tea takes the actual header, not Coffee');
+  const result=previewInput(m,{sheet:1,c:1,r:1},'Coffee');
+  assert.equal(result.changed.find((c)=>c.c===2).after,3);
+  const bool=previewInput(m,{sheet:1,c:1,r:2},false);
+  assert.equal(bool.changed[0].after,false);
+  assert.equal(bool.changed[1].after,0);
+  const stale=previewInput(m,{sheet:1,c:1,r:3},-1);
+  assert.equal(stale.complete,false);
+  assert.ok(stale.skipped.some((c)=>c.c===3),'new IF branch cannot conceal old stale B3');
+  assert.ok(stale.changed.some((c)=>c.c===4&&c.after===0));
+  const bounded=previewInput(m,{sheet:1,c:1,r:3},2,{limit:1});
+  assert.equal(bounded.complete,false);
+  const standalone=buildModel(await readWorkbook(makeXlsx([{name:'S',rows:{A1:'Coffee',A2:'Tea'}}])));
+  assert.equal(standalone.labelText(0,1,2),null,'ambiguous text column uses the address');
+});
+
+test('scenario value entry is explicit and strict, including percentages and literal text', () => {
+  assert.equal(parseInputValue('42000','number'),42000);
+  assert.equal(parseInputValue('30%','number'),.3);
+  assert.equal(parseInputValue('1e2','number'),100);
+  assert.equal(parseInputValue('FALSE','boolean'),false);
+  assert.equal(parseInputValue('=B1+1','text'),'=B1+1');
+  assert.equal(parseInputValue('','text'),'');
+  for (const text of ['', '1,000','$4','Infinity','1e400','nonsense']) assert.throws(()=>parseInputValue(text,'number'));
+  assert.throws(()=>parseInputValue('0','boolean'));
 });

@@ -285,7 +285,10 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     rows = [];
     for (const r of colIndex[s].get(c) || []) {
       const v = sheets[s].cells.get(c + "," + r).value;
-      if ((typeof v === "string" && v.trim()) || isYearLike(v)) rows.push(r);
+      const above = sheets[s].cells.get(c + ',' + (r - 1));
+      // A list of text entries is data, not a succession of column headings.
+      // Keep only the start of a contiguous text run as a possible heading.
+      if ((typeof v === "string" && v.trim() && !(typeof above?.value === 'string' && above.value.trim())) || isYearLike(v)) rows.push(r);
     }
     headCache.set(k, rows);
     return rows;
@@ -294,16 +297,25 @@ export function buildModel(wb, { budgetMs = 4000 } = {}) {
     const k = key(s, c, r);
     if (labelCache.has(k)) return labelCache.get(k);
     const sh = sheets[s];
+    const current = sh.cells.get(c + ',' + r);
     let row = null, col = null;
     for (let cc = c - 1; cc >= 1 && cc >= c - 30; cc--) { const t = textAt(sh, cc, r); if (t) { row = t; break; } }
+    // Use an explicit Excel table header whenever available.
+    const table = wb.tables.find((t) => t.sheet === sh.name && c >= t.c1 && c <= t.c2 && r > t.r1 && r <= t.r2 && t.headerRows !== 0);
+    if (table) col = table.columns[c - table.c1];
     const heads = headerRows(s, c);
     let lo = 0, hi = heads.length;
     while (lo < hi) { const mid = (lo + hi) >> 1; if (heads[mid] < r) lo = mid + 1; else hi = mid; }
-    for (let hix = lo - 1; hix >= 0 && hix >= lo - 60; hix--) {
+    for (let hix = lo - 1; !col && hix >= 0 && hix >= lo - 60; hix--) {
       const rr = heads[hix];
       const cell = sh.cells.get(c + "," + rr);
       // Formulas that produce text are usually results, not headers (unless they copy one, =B$3).
-      if (typeof cell.value === "string" && cell.value.trim() && (!cell.f || /^\$?[A-Z]{1,3}\$\d+$/.test(cell.f.replace(/^=/, "")))) { col = cell.value.trim(); break; }
+      if (typeof cell.value === "string" && cell.value.trim() && (!cell.f || /^\$?[A-Z]{1,3}\$\d+$/.test(cell.f.replace(/^=/, "")))) {
+        // Text-valued cells need stronger evidence: another text header beside
+        // this one. Never describe Tea using the previous row's Coffee.
+        const beside = [textAt(sh,c-1,rr), textAt(sh,c+1,rr)];
+        if (typeof current?.value !== 'string' || beside.some(Boolean)) { col = cell.value.trim(); break; }
+      }
       if (isYearLike(cell.value)) {
         // A header row of years (possibly formulas like =C3+1): needs a year beside it.
         const side = [sh.cells.get((c - 1) + "," + rr), sh.cells.get((c + 1) + "," + rr)];

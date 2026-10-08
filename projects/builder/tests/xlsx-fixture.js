@@ -20,6 +20,7 @@ export function makeXlsx(sheets, { names = [], tables = [] } = {}) {
         if (typeof v === "string" && v.startsWith("=")) x += `<c r="${a}"><f>${esc(v.slice(1))}</f><v>0</v></c>`;
         else if (Array.isArray(v)) x += `<c r="${a}"><f>${esc(v[0].slice(1))}</f><v>${v[1]}</v></c>`;
         else if (typeof v === "string") x += `<c r="${a}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`;
+        else if (typeof v === 'boolean') x += `<c r="${a}" t="b"><v>${+v}</v></c>`;
         else x += `<c r="${a}"><v>${v}</v></c>`;
       }
       x += "</row>";

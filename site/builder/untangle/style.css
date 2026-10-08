@@ -347,3 +347,59 @@ button:disabled { opacity: .45; cursor: default; }
 .repair-dialog > .repair-slot { min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .repair-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 @media (max-width: 560px) { .repair-dialog-head { align-items: flex-start; } .repair-dialog-head span { max-width: 120px; } .repair-actions { max-width: 170px; } }
+
+/* Readable summaries beside a fit/zoom diagram. */
+.notes summary { cursor: pointer; font-weight: 600; padding: 3px 0; }
+.map-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; }
+.map-controls [aria-pressed=true] { background: var(--ink); color: white; }
+.map-scale { font: 12px var(--mono); min-width: 36px; text-align: center; }
+.diagram-viewport { max-height: 60vh; overflow: auto; }
+.compact-lane { border-left: 2px solid #bacfc5; padding: 0 0 14px 12px; }
+.compact-lane h3 { font-size: 12px; color: var(--ink2); margin: 0 0 8px; }
+.compact-lane > div { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 8px; }
+.compact-node { min-width: 0; text-align: left; border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; background: white; overflow-wrap: anywhere; }
+.compact-node b { display: block; font-size: 14px; }
+.compact-node small { display: block; color: var(--ink2); font-size: 12px; margin-top: 3px; }
+.compact-input { background: var(--input-bg); border-color: #9bb8ef; }
+.compact-output { background: var(--output-bg); border-color: #89cdb0; }
+.compact-node.active, .compact-node:hover { border-color: var(--ink); }
+.sample-scenario { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.sample-scenario span { font-size: 12px; color: var(--ink2); }
+.scenario-editor { display: grid; grid-template-columns: 150px minmax(120px,1fr) auto; align-items: end; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.scenario-editor > div, .scenario-editor > p { grid-column: 1 / -1; margin: 0; }
+.scenario-editor > div > small { display: block; color: var(--ink2); margin-top: 2px; }
+.scenario-editor label { display: grid; gap: 4px; font-size: 12px; min-width: 0; }
+.scenario-editor input, .scenario-editor select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 7px; padding: 8px; font: 14px var(--mono); background: white; }
+.scenario-error { color: var(--high); font-size: 13px; }
+.scenario-error:empty { display: none; }
+.scenario-editor .small, .input-scenario .small { font-size: 12px; color: var(--ink2); }
+.scenario-path { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.scenario-sheet { border: 1px solid #a6d8c4; border-radius: 10px; padding: 12px; background: white; flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.scenario-sheet > b, .scenario-sheet > span, .scenario-sheet > small { display: block; }
+.scenario-sheet > span { font-size: 13px; margin-top: 8px; }
+.scenario-sheet small { font-size: 12px; color: var(--ink2); }
+.scenario-arrow { color: var(--accent); font-size: 20px; }
+.scenario-details { margin: 20px 0; }
+.scenario-details summary { cursor: pointer; font-weight: 600; }
+.scenario-value { overflow-wrap: anywhere; }
+.insp-label > small { display: block; font-size: 11px; color: var(--mute); }
+@media (max-width: 560px) {
+  .summary { display: flex; gap: 5px; margin-bottom: 8px; }
+  .summary .stat { flex-direction: row; padding: 4px 7px; gap: 5px; border-radius: 7px; }
+  .summary .stat b { font-size: 15px; }
+  .summary .stat span { font-size: 11px; }
+  .summary .stat em { display: none; }
+  .summary .stat.time { flex-basis: 100%; }
+  .summary .notes { font-size: 12px; }
+  .compact-lane > div { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .compact-node { padding: 8px; }
+  .scenario-editor { grid-template-columns: 105px minmax(0,1fr); gap: 7px; }
+  .scenario-editor > button { grid-column: 1 / -1; padding: 7px; }
+  .scenario-editor .small { font-size: 11px; }
+  .scenario-path { gap: 7px; }
+  .scenario-sheet { flex-basis: 100%; }
+  .scenario-arrow { width: 100%; text-align: center; transform: rotate(90deg); }
+}
+.scenario-help { grid-column: 1 / -1; font-size: 12px; color: var(--ink2); }
+.scenario-help summary { cursor: pointer; }
+.scenario-help p { margin: 5px 0 0; }

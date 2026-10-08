@@ -8,12 +8,14 @@ Builder writes requests here. The human answers inline and moves them to Done.
 **Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
 It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
 
-**Session 17 update:** common Excel table formulas now calculate and show their inputs. Phone issue cards
-fit, and map text stays readable. On the sample, open the staff-cost finding → **Preview this repair** to see
-its effect through costs, profit and the dashboard, without editing the workbook. **Save report** downloads
-that finding and its calculated effects locally. Unsupported/unverified paths are disclosed. Seven independent
-public software fixtures still pass, but they are not inherited work models. Real-world usefulness and false
-alarms remain the biggest unknown. Please:
+**Session 18 update:** ordinary inputs now have **Try a different value**: enter a number, text or
+TRUE/FALSE value and see calculated before/after effects without editing the workbook. On the sample map,
+**Try a higher salary** opens 38,000 → 42,000 immediately; the five-year profit drops by 456,000.
+Existing workbook mistakes stay as written. Every scenario starts from the original workbook and does not
+combine with repairs. **Save report** now includes a sheet overview as well as the calculated changes.
+Maps default to a readable compact overview, with Diagram / Fit / zoom controls. Unsupported/unverified
+paths remain disclosed. Seven independent public software fixtures pass, but they are not inherited work
+models. Large-file loading still blocks the page. Real-world usefulness and false alarms are unknown. Please:
 1. Open it on a computer and drop in a real `.xlsx` you didn't build: a work model, a budget template,
    anything with formulas. **The file never leaves your browser**, so you don't need to share it with us.
 2. Tell us: did it open? How long did "Mapped in …" say? Did the sheet map make sense? Were the "What looks

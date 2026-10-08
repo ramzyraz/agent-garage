@@ -2,7 +2,7 @@ import { readWorkbook } from "./xlsx.js";
 import { buildModel, fmtValue, fmtNum, addr, numToCol, rangeText } from "./model.js";
 import { print, parseA1 } from "./formula.js";
 import { sheetFlow, flowLayers } from "./blocks.js";
-import { previewRepair } from "./preview.js";
+import { previewRepair, previewInput, parseInputValue } from "./preview.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -66,6 +66,7 @@ function fail(e) {
 }
 
 async function load(buf, name) {
+  $('#repairDialog')?.remove();
   const t0 = performance.now();
   const wb = await readWorkbook(buf, progress);
   progress("Tracing every formula…");
@@ -106,7 +107,7 @@ function renderSummary() {
     <div class="stat"><b>${fmtNum(stats.inputs)}</b><span>inputs feed them</span></div>
     <div class="stat ${stats.high ? "bad" : stats.issues ? "warn" : "ok"}"><b>${stats.issues}</b><span>${stats.high ? `things look wrong <em>(${stats.high} likely mistakes)</em>` : stats.issues ? "things to check" : "no issues flagged"}</span></div>
     <div class="stat time"><span>Mapped in ${stats.totalMs < 1000 ? stats.totalMs + " ms" : (stats.totalMs / 1000).toFixed(1) + " s"}, on your device</span></div>
-    ${notes.length ? `<div class="notes">${notes.map((n) => `<p>${esc(n)}</p>`).join("")}</div>` : ""}
+    ${notes.length ? `<details class="notes"><summary>Calculation coverage and limits</summary>${notes.map((n) => `<p>${esc(n)}</p>`).join("")}</details>` : ""}
     ${visible === 0 ? "" : ""}`;
   $("#issueCount").textContent = stats.issues || "";
   $("#inputCount").textContent = stats.inputs || "";
@@ -158,12 +159,12 @@ function sheetTools(idx) {
 $('#stage').addEventListener('click', (e) => {
   const mode = e.target.closest('[data-sheet-mode]');
   if (mode) { S.sheetMode = mode.dataset.sheetMode; setView('sheet', S.sheet); return; }
-  const node = e.target.closest('[data-flow-node]');
-  if (node) showFlowNode(node.dataset.flowNode);
+  const node = e.target.closest('[data-flow-node],[data-flow-choice]');
+  if (node) showFlowNode(node.dataset.flowNode || node.dataset.flowChoice);
 });
 $('#stage').addEventListener('keydown', (e) => {
-  const node = e.target.closest('[data-flow-node]');
-  if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showFlowNode(node.dataset.flowNode); }
+  const node = e.target.closest('[data-flow-node],[data-flow-choice]');
+  if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showFlowNode(node.dataset.flowNode || node.dataset.flowChoice); }
 });
 $('#stage').addEventListener('submit', (e) => {
   const form = e.target.closest('[data-jump-sheet]');
@@ -175,6 +176,7 @@ $('#stage').addEventListener('submit', (e) => {
   const name = match?.[1]?.replace(/^'|'$/g, '').replace(/''/g, "'");
   const sh = name ? S.model.sheets.find((x) => x.name.toLowerCase() === name.toLowerCase()) : S.model.sheets[+form.dataset.jumpSheet];
   if (!pos || !sh || pos.c > 16384 || pos.r > 1048576) { $('.jump-error', form).textContent = 'Use an address such as B2 or Summary!B2.'; return; }
+  $('.jump-error', form).textContent = '';
   selectCell(sh.index, pos.c, pos.r);
 });
 
@@ -255,10 +257,13 @@ function renderBlocks(idx) {
     <label class="block-filter">Explore <select id="blockFocus"><option value="">All blocks</option>${blocks.map((b) => `<option value="b${b.id}" ${S.flowFocus === 'b'+b.id ? 'selected' : ''}>${esc(b.label || 'Calculation')} · ${esc(b.rangeText)} (${fmtNum(b.n)} copies)</option>`).join('')}</select></label>
     ${S.flowRange ? `<p class="range-note">Showing blocks that overlap <b>${esc(rangeText(S.flowRange))}</b> and their sources. <button class="linkish" data-sheet-open="${idx}">Show whole sheet</button></p>` : ''}
     ${totalGroups > 80 ? `<p class="range-note">Showing 80 of ${fmtNum(totalGroups)} groups. Choose a block in Explore to see its sources and destinations together.</p>` : ''}
-    <div class="flow-scroll"><svg class="block-map" width="${Math.max(280, width)}" height="${Math.max(100, height)}" viewBox="0 0 ${Math.max(280,width)} ${Math.max(100,height)}" role="img" aria-label="Formula block dependencies"><defs><marker id="flowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>${svg}</svg></div>
+    ${mapControls()}
+    <div class="compact-map">${keys.map((l,j)=>`<section class="compact-lane"><h3>${j===0?'Sources':`↓ Step ${j+1}`} · ${grouped.get(l).length} groups</h3><div>${grouped.get(l).map((n)=>`<button class="compact-node ${n.kind==='input'?'compact-input':n.kind==='sheet'?'compact-output':''}" data-flow-choice="${esc(n.id)}"><b>${esc(n.label)}</b><small>${esc(n.sheet!=null && n.sheet!==idx && n.kind!=='sheet'?m.sheets[n.sheet].name+'!':'')}${esc(n.rangeText)}${n.n?' · '+fmtNum(n.n)+' cells':''}</small></button>`).join('')}</div></section>`).join('')}</div>
+    <div class="flow-scroll diagram-viewport"><svg class="block-map" width="${Math.max(280, width)}" height="${Math.max(100, height)}" viewBox="0 0 ${Math.max(280,width)} ${Math.max(100,height)}" role="img" aria-label="Formula block dependencies"><defs><marker id="flowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>${svg}</svg></div>
     ${!flow.nodes.length ? '<p class="empty">No formula blocks or referenced inputs on this sheet. Use Cell grid to browse its data.</p>' : ''}
-    <p class="flow-hint">${vertical ? 'Numbers flow down the arrows. ' : 'Numbers flow left to right. '}Blue = typed inputs · green = results · dashed = another sheet or file. Scroll the map to explore wide groups.</p>
+    <p class="flow-hint">Blue = typed inputs · green = results · dashed = another sheet or file. Select a group for readable sources and destinations. Fit shows the diagram together; use + or 100% for detail.</p>
     </div>`;
+  bindMapControls($('.sheet-wrap'));
   $('#blockFocus').addEventListener('change', (e) => { S.flowRange = null; S.flowFocus = e.target.value || null; renderBlocks(idx); if (S.flowFocus) showFlowNode(S.flowFocus); });
 }
 
@@ -280,7 +285,7 @@ function showFlowNode(id) {
     ${uses.length ? `<section class="insp-sec"><h4>Feeds ${uses.length} group${uses.length === 1 ? '' : 's'}</h4><ol class="mini">${uses.map(describe).join('')}</ol></section>` : ''}`;
   bindOnce(el);
   el.onclick = (e) => { const b = e.target.closest('[data-flow-inspect]'); if (b) showFlowNode(b.dataset.flowInspect); };
-  for (const node of document.querySelectorAll('[data-flow-node]')) node.classList.toggle('active', node.dataset.flowNode === id);
+  for (const node of document.querySelectorAll('[data-flow-node],[data-flow-choice]')) node.classList.toggle('active', (node.dataset.flowNode || node.dataset.flowChoice) === id);
   if (window.innerWidth < 900) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -373,9 +378,12 @@ function renderMap() {
     <div class="map-wrap">
       <div class="map-head">
         <h2>How the sheets feed each other</h2>
-        <p>Numbers flow ${vertical ? "down" : "left to right"} along the arrows; thicker means more references. Click a sheet to open it. Scroll the map to see every sheet.</p>
+        <p>Numbers flow ${vertical ? "down" : "left to right"} along the arrows; thicker means more references. Click a sheet to open it.</p>
       </div>
-      <div class="map-scroll"><svg class="map" viewBox="0 0 ${width} ${height + 50}" width="${Math.round(width * scale)}" height="${Math.round((height + 50) * scale)}" role="img" aria-label="Sheet dependency map">
+      ${S.fileName.includes('(sample)') ? '<p class="sample-scenario"><button class="ghost" data-scenario="0,2,11" data-suggested="42000">Try a higher salary → see the results</button><span>38,000 → 42,000, without editing the sample</span></p>' : ''}
+      ${mapControls()}
+      <div class="compact-map">${layerKeys.map((l,j)=>`<section class="compact-lane"><h3>${j===0?'Sources':`↓ Step ${j+1}`}</h3><div>${layers.get(l).map((sh)=>`<button class="compact-node ${sh.counts?.input?'compact-input':sh.counts?.output?'compact-output':''}" data-sheet-open="${sh.index}"><b>${esc(sh.name)}</b><small>${sh.formulaCount||0} formulas · ${sh.state!=='visible'?'hidden sheet':!sh.formulaCount?'inputs / data':'open to explore'}</small></button>`).join('')}</div></section>`).join('')}</div>
+      <div class="map-scroll diagram-viewport"><svg class="map" viewBox="0 0 ${width} ${height + 50}" width="${Math.round(width * scale)}" height="${Math.round((height + 50) * scale)}" role="img" aria-label="Sheet dependency map">
         <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
         ${edges}${nodes}
       </svg></div>
@@ -400,6 +408,7 @@ function renderMap() {
       </div>
     </div>`;
   const svg = $("#stage svg.map");
+  bindMapControls($('.map-wrap'));
   svg.addEventListener("click", (e) => { const g = e.target.closest(".node"); if (g) openSheet(+g.dataset.sheet); });
   svg.addEventListener("keydown", (e) => { const g = e.target.closest(".node"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openSheet(+g.dataset.sheet); } });
   svg.addEventListener("mouseover", (e) => {
@@ -407,6 +416,43 @@ function renderMap() {
     svg.classList.toggle("focusing", !!g);
     for (const p of svg.querySelectorAll(".edge")) p.classList.toggle("lit", !!g && (p.dataset.from === g.dataset.sheet || p.dataset.to === g.dataset.sheet));
   });
+}
+
+function mapControls() {
+  return `<div class="map-controls" aria-label="Map display"><button class="ghost small" data-map-mode="compact">Compact overview</button><button class="ghost small" data-map-mode="diagram">Diagram</button><button class="ghost small" data-map-zoom="fit">Fit</button><button class="ghost small" data-map-zoom="out" aria-label="Zoom out">−</button><output class="map-scale" aria-label="Diagram zoom"></output><button class="ghost small" data-map-zoom="in" aria-label="Zoom in">+</button><button class="ghost small" data-map-zoom="actual">100%</button></div>`;
+}
+
+function bindMapControls(root) {
+  const viewport = $('.diagram-viewport',root), svg = $('svg',viewport), compact = $('.compact-map',root);
+  const vb = svg.viewBox.baseVal;
+  let scale = 1, mode = 'compact', fit = true;
+  const resize = () => {
+    const maxH = Math.min(600,window.innerHeight*.55);
+    if (fit) scale = Math.min(1, Math.max(1,root.clientWidth-40)/vb.width, maxH/vb.height);
+    svg.setAttribute('width',vb.width*scale); svg.setAttribute('height',vb.height*scale);
+    $('.map-scale',root).textContent = `${Math.round(scale*100)}%`;
+    viewport.hidden = mode !== 'diagram'; compact.hidden = mode !== 'compact';
+    for (const b of root.querySelectorAll('[data-map-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mapMode === mode));
+    viewport.scrollLeft = 0; viewport.scrollTop = 0;
+  };
+  root.addEventListener('click',(e)=>{
+    const b = e.target.closest('[data-map-mode],[data-map-zoom]'); if (!b) return;
+    if (b.dataset.mapMode) mode = b.dataset.mapMode;
+    else {
+      mode = 'diagram';
+      const action = b.dataset.mapZoom;
+      fit = action === 'fit';
+      if (action === 'actual') scale = 1;
+      else if (!fit) scale = Math.max(.1,Math.min(2,scale*(action==='in'?1.35:1/1.35)));
+    }
+    resize();
+  });
+  svg.addEventListener('focusin',(e)=>{ if (e.target.matches('[role=button]')) e.target.scrollIntoView({block:'nearest',inline:'nearest'}); });
+  const observer = new ResizeObserver(()=>{if (fit) resize();}); observer.observe(root);
+  // The observed DOM node is replaced on navigation; disconnect once detached.
+  const cleanup = new MutationObserver(()=>{if (!root.isConnected) {observer.disconnect();cleanup.disconnect();}});
+  cleanup.observe($('#stage'),{childList:true});
+  resize();
 }
 
 function inputRow(i) {
@@ -425,9 +471,10 @@ function topBy(arr) {
 
 function bindRowButtons(root) {
   root.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open],[data-range],[data-inputs-for],[data-preview]");
+    const b = e.target.closest("[data-cell],[data-issue],[data-goto],[data-sheet-open],[data-range],[data-inputs-for],[data-preview],[data-scenario]");
     if (!b || !root.contains(b)) return;
     if (b.dataset.preview != null) { showRepairPreview(+b.dataset.preview, b); return; }
+    if (b.dataset.scenario) { showInputPreview(b.dataset.scenario.split(',').map(Number), b); return; }
     if (b.dataset.inputsFor) { const [s,c,r] = b.dataset.inputsFor.split(',').map(Number); S.inputFilter = S.model.upstream(S.model.cell(s,c,r).fc).inputs; setView('inputs'); return; }
     if (b.dataset.range) { const [sheet,c1,c2,r1,r2] = b.dataset.range.split(',').map(Number); openRange(sheet,{c1,c2,r1,r2}); return; }
     if (b.dataset.goto) { setView(b.dataset.goto); window.scrollTo({ top: $("#app").offsetTop - 8, behavior: "smooth" }); return; }
@@ -675,11 +722,14 @@ function renderInspector(issue) {
   if (issue && !issues.includes(issue)) issues.unshift(issue);
   let html = `<div class="insp-head">
     <div class="addr">${esc(m.sheets[sheet].name)}!${addr(c, r)}</div>
-    <div class="insp-label">${lbl ? esc(lbl) : "<span class=muted>no label nearby</span>"}</div>
+    <div class="insp-label">${lbl ? `<small>Nearby heading</small> ${esc(lbl)}` : "<span class=muted>no clear heading nearby</span>"}</div>
     <div class="insp-value ${cell && cell.value && cell.value.error ? "is-err" : ""}">${cell ? esc(fmtValue(cell)) : "<span class=muted>empty</span>"}</div>
     <div class="insp-role">${roleText(cell)}</div>
   </div>`;
   for (const i of issues) html += `<div class="insp-issue ${i.severity}"><b>${esc(i.title)}</b><p>${esc(i.detail)}</p>${i.expected ? `<button class="ghost small preview-button" data-preview="${i.id}">Preview this repair</button><div class="repair-slot" aria-live="polite"></div>` : ""}</div>`;
+
+  if (cell && !cell.f && !cell.array && !cell.dataTable && ['number','string','boolean'].includes(typeof cell.value))
+    html += `<section class="insp-sec input-scenario"><h4>Try a different input</h4><p>Change this value temporarily and calculate its effects across sheets.</p><button class="ghost" data-scenario="${sheet},${c},${r}">Try a different value</button><p class="small">One input at a time. Your workbook stays unchanged.</p></section>`;
 
   if (cell && cell.fc) {
     const fc = cell.fc;
@@ -728,42 +778,97 @@ function renderInspector(issue) {
 }
 
 function showRepairPreview(id, button) {
-  const m = S.model, issue = m.issues[id];
-  let slot = button.nextElementSibling;
-  const result = previewRepair(m, issue);
-  if (!result.ok) { slot.innerHTML = `<p class="coverage-warning">${esc(result.reason)}</p>`; return; }
+  const issue = S.model.issues[id], result = previewRepair(S.model, issue);
+  if (!result.ok) { button.nextElementSibling.innerHTML = `<p class="coverage-warning">${esc(result.reason)}</p>`; return; }
+  showScenarioPreview(issue, result, button);
+}
+
+function showInputPreview([sheet,c,r], button) {
+  showScenarioPreview({ sheet,c,r, kind:'input' }, null, button);
+  if (button.dataset.suggested) {
+    const editor = $('.scenario-editor', $('#repairDialog'));
+    editor.elements.value.value = button.dataset.suggested;
+    editor.requestSubmit();
+  }
+}
+
+function scenarioPath(m, changed) {
+  const groups = new Map();
+  for (const row of changed) {
+    if (!groups.has(row.sheet)) groups.set(row.sheet, []);
+    groups.get(row.sheet).push(row);
+  }
+  const ordered = [...groups].sort((a,b) => Number(b[1].some((r)=>r.target)) - Number(a[1].some((r)=>r.target)) || m.sheets[a[0]].layer - m.sheets[b[0]].layer || a[0]-b[0]);
+  return `<div class="scenario-path" aria-label="Calculated changes grouped by sheet">${ordered.map(([sheet,rows],i) => {
+    const example = rows.find((r)=>r.target) || (i===ordered.length-1 ? rows[0] : rows.find((r)=>m.cell(r.sheet,r.c,r.r)?.role === 'output') || rows[rows.length-1]);
+    return `${i ? '<span class="scenario-arrow" aria-hidden="true">→</span>' : ''}<div class="scenario-sheet"><b>${esc(m.sheets[sheet].name)}</b><small>${rows.length} previewed cell${rows.length===1?'':'s'}</small><span>${esc(m.labelText(example.sheet,example.c,example.r) || addr(example.c,example.r))}</span><small>${esc(m.where(example.sheet,example.c,example.r))}</small><div class="repair-values"><span>${esc(fmtValue(m.cell(sheet,example.c,example.r),example.before))}</span><span>→</span><b>${esc(fmtValue(m.cell(sheet,example.c,example.r),example.after))}</b></div></div>`;
+  }).join('')}</div><p class="small">Sheets ordered from the changed cell toward results. Cards summarize calculated changes; arrows show that order, not every individual reference.</p>`;
+}
+
+function showScenarioPreview(change, initialResult, button) {
+  const m = S.model, input = change.kind === 'input', target = m.cell(change.sheet,change.c,change.r);
+  const where = m.where(change.sheet,change.c,change.r);
+  const heading = input ? 'What this input could change' : 'What this repair could change';
+  const explanation = input ? 'One change using original saved inputs. Workbook unchanged. Existing formulas, including any mistakes, stay as written. Previews do not combine.' : 'Temporary calculation using saved inputs. Your file is unchanged. This proposed formula follows a pattern; confirm it matches the intended business logic in Excel.';
   $('#repairDialog')?.remove();
   const dialog = document.createElement('dialog'); dialog.id = 'repairDialog'; dialog.className = 'repair-dialog';
-  dialog.setAttribute('aria-label', 'Proposed repair preview');
-  dialog.innerHTML = `<div class="repair-dialog-head"><span>${esc(S.fileName)} · local preview</span><div class="repair-actions"><button class="ghost download-repair">Save report</button><button class="ghost close-repair" autofocus>Close preview</button></div></div><div class="repair-slot"></div>`;
-  document.body.append(dialog); slot = $('.repair-slot', dialog);
+  dialog.dataset.kind = input ? 'input' : 'repair';
+  dialog.setAttribute('aria-label', input ? 'Temporary input scenario' : 'Proposed repair preview');
+  const type = typeof target.value === 'boolean' ? 'boolean' : typeof target.value;
+  const raw = target.fmt === 'pct' ? `${target.value*100}%` : String(target.value);
+  dialog.innerHTML = `<div class="repair-dialog-head"><span>${esc(S.fileName)} · local preview</span><div class="repair-actions"><button class="ghost download-repair" ${input?'disabled':''}>Save report</button><button class="ghost close-repair">Close preview</button></div></div>
+    ${input ? `<form class="scenario-editor"><div><b>${esc(m.labelText(change.sheet,change.c,change.r)||where)}</b><small>${esc(where)} · saved value ${esc(fmtValue(target))}</small></div><label>Value type <select name="type" aria-label="Value type"><option value="number" ${type==='number'?'selected':''}>Number</option><option value="text" ${type==='string'?'selected':''}>Text</option><option value="boolean" ${type==='boolean'?'selected':''}>TRUE / FALSE</option></select></label><label>Temporary value <input name="value" aria-label="Temporary value" value="${esc(raw)}" autocomplete="off"></label><button class="ghost">Preview effects</button><details class="scenario-help"><summary>Value entry help</summary><p class="small">Numbers: no commas or currency symbols; percentages such as 30% work. Dates use Excel’s numeric serial. Text is literal, even if it starts with =.</p></details><p class="scenario-error" role="status"></p></form>` : ''}
+    <div class="repair-slot" aria-live="polite"></div>`;
+  document.body.append(dialog);
+  const slot = $('.repair-slot', dialog);
+  let result = initialResult, changed = [];
+  const format = (row, field) => fmtValue(m.cell(row.sheet, row.c, row.r), row[field]);
+  const difference = (row) => typeof row.before === 'number' && typeof row.after === 'number' ? fmtValue(m.cell(row.sheet,row.c,row.r),row.after-row.before) : 'Value changed';
+  const limits = () => `${result.skipped.length} unsupported or unverified; ${result.unchecked} not checked${result.truncated ? '; downstream search capped' : ''}.`;
+  const render = () => {
+    for (const save of dialog.querySelectorAll('.download-repair')) save.disabled = !result?.ok;
+    if (!result) { slot.innerHTML = `<section class="repair-preview"><h4>${heading}</h4><p>Enter a value above, then preview its effects on known dependent cells.</p><p>${explanation}</p>${dependencyWarning(m)}</section>`; return; }
+    if (!result.ok) { slot.innerHTML = `<p class="coverage-warning">${esc(result.reason)}</p>`; return; }
+    changed = [...result.changed].sort((a,b) => Number(b.target||false)-Number(a.target||false) || m.sheets[a.sheet].layer-m.sheets[b.sheet].layer || a.sheet-b.sheet || a.r-b.r || a.c-b.c);
+    const changeRow = (row) => `<li class="repair-step"><button class="linkish" data-cell="${row.sheet},${row.c},${row.r}">${esc(m.labelText(row.sheet,row.c,row.r)||m.where(row.sheet,row.c,row.r))}</button><small>${esc(m.where(row.sheet,row.c,row.r))}${row.target ? input ? ' · temporary input' : ' · proposed repair' : m.cell(row.sheet,row.c,row.r).role==='output' ? ' · final result' : ''}</small><div class="repair-values"><span>${esc(format(row,'before'))}</span><span aria-label="becomes">→</span><b>${esc(format(row,'after'))}</b></div><small>Difference: ${esc(difference(row))}</small></li>`;
+    const results = changed.filter((r)=>!r.target).sort((a,b) => m.sheets[b.sheet].layer-m.sheets[a.sheet].layer || a.r-b.r || a.c-b.c).slice(0,3);
+    slot.innerHTML = `<section class="repair-preview"><h4>${heading}</h4>${input ? `<p class="scenario-value"><b>${esc(where)}</b>: ${esc(format(changed[0],'before'))} → <b>${esc(format(changed[0],'after'))}</b></p>` : `<code class="ftext">=${esc(result.formula.replace(/^=/,''))}</code>`}
+      <p>${explanation}</p><p><b>${changed.length-1} dependent cells change</b> on ${new Set(changed.filter((r)=>!r.target).map((r)=>r.sheet)).size} sheets. ${result.unchanged} known dependents keep the same value.</p>
+      ${dependencyWarning(m)}${result.complete ? '' : `<p class="coverage-warning">Partial preview: ${esc(limits())} Only calculated paths appear below. Recalculate in Excel before relying on these values.</p>`}
+      ${results.length ? `<div class="repair-outcomes">${results.map((r)=>`<div class="repair-outcome"><span>${esc(m.labelText(r.sheet,r.c,r.r)||m.where(r.sheet,r.c,r.r))}</span><small>${esc(m.where(r.sheet,r.c,r.r))}</small><div class="repair-values"><span>${esc(format(r,'before'))}</span><span>→</span><b>${esc(format(r,'after'))}</b></div><small>Difference: ${esc(difference(r))}</small></div>`).join('')}</div>` : ''}
+      ${result.complete ? '<p class="recalc">All known affected cells were checked in this preview. Untangle’s calculations may differ from Excel.</p>' : ''}
+      <h4>Across the sheets</h4>${scenarioPath(m,changed)}
+      <details class="scenario-details"><summary>Every previewed cell (${changed.length})</summary><ol class="repair-path">${changed.slice(0,50).map(changeRow).join('')}</ol>${changed.length>50 ? `<p>Showing the first 50 of ${changed.length} changes. The downloaded report includes them all.</p>` : ''}</details>
+      ${result.skipped.length ? `<details><summary>${result.skipped.length} paths we could not calculate</summary><ol>${result.skipped.slice(0,20).map((r)=>`<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ol>${result.skipped.length>20?'<p>More paths are listed in the downloaded report.</p>':''}</details>` : ''}
+      <p class="small">Save report keeps every calculated change and the sheet overview. It contains workbook names, formulas and values. It is saved locally; share it only with people you choose.</p></section>`;
+    slot.scrollTop = 0;
+  };
+  if (input) {
+    const editor = $('.scenario-editor',dialog);
+    editor.addEventListener('submit', (e) => {
+      e.preventDefault();
+      $('.scenario-error',editor).textContent = '';
+      try { result = previewInput(m,change,parseInputValue(editor.elements.value.value,editor.elements.type.value)); }
+      catch (e) { result = {ok:false,reason:e.message}; $('.scenario-error',editor).textContent = e.message; }
+      render();
+    });
+    editor.addEventListener('input', () => { result=null; $('.scenario-error',editor).textContent=''; render(); });
+  }
   $('.close-repair', dialog).onclick = () => dialog.close();
-  dialog.addEventListener('close', () => { dialog.remove(); button.focus(); });
+  dialog.addEventListener('close', () => { dialog.remove(); if (button.isConnected) button.focus(); });
   bindRowButtons(dialog);
   dialog.addEventListener('click', (e) => { if (e.target.closest('[data-cell]')) dialog.close(); });
-  const changed = [...result.changed].sort((a, b) => Number(b.target || false) - Number(a.target || false) || m.sheets[a.sheet].layer - m.sheets[b.sheet].layer || a.sheet - b.sheet || a.r - b.r || a.c - b.c);
-  const format = (row, field) => fmtValue(m.cell(row.sheet, row.c, row.r), row[field]);
-  const difference = (row) => typeof row.before === "number" && typeof row.after === "number" ? fmtValue(m.cell(row.sheet,row.c,row.r),row.after-row.before) : "Value changed";
-  const changeRow = (row) => `<li class="repair-step"><button class="linkish" data-cell="${row.sheet},${row.c},${row.r}">${esc(m.labelText(row.sheet, row.c, row.r) || m.where(row.sheet, row.c, row.r))}</button><small>${esc(m.where(row.sheet, row.c, row.r))}${row.target ? ' · proposed repair' : m.cell(row.sheet,row.c,row.r).role === 'output' ? ' · final result' : ''}</small><div class="repair-values"><span>${esc(format(row,'before'))}</span><span aria-label="becomes">→</span><b>${esc(format(row,'after'))}</b></div><small>Difference: ${esc(difference(row))}</small></li>`;
-  const results = changed.filter((r) => !r.target).sort((a,b) => m.sheets[b.sheet].layer - m.sheets[a.sheet].layer || a.r - b.r || a.c - b.c).slice(0,3);
-  const limits = `${result.skipped.length} unsupported or unverified; ${result.unchecked} not checked${result.truncated ? '; downstream search capped' : ''}.`;
-  slot.innerHTML = `<section class="repair-preview"><h4>What this repair could change</h4><code class="ftext">=${esc(result.formula.replace(/^=/,''))}</code>
-    <p>Temporary calculation using saved inputs. Your file is unchanged. This proposed formula follows a pattern; confirm it matches the intended business logic in Excel.</p>
-    <p><b>${changed.length} calculated changes</b> on ${new Set(changed.map((r) => r.sheet)).size} sheets. ${result.unchanged} known dependents keep the same value.</p>
-    ${dependencyWarning(m)}${result.complete ? '<p class="recalc">All known affected cells were checked in this preview. Untangle’s calculations may differ from Excel.</p>' : `<p class="coverage-warning">Partial preview: ${esc(limits)} Only calculated paths appear below. Recalculate in Excel before relying on these values.</p>`}
-    ${results.length ? `<div class="repair-outcomes">${results.map((r) => `<div class="repair-outcome"><span>${esc(m.labelText(r.sheet,r.c,r.r) || m.where(r.sheet,r.c,r.r))}</span><small>${esc(m.where(r.sheet,r.c,r.r))}</small><div class="repair-values"><span>${esc(format(r,'before'))}</span><span>→</span><b>${esc(format(r,'after'))}</b></div><small>Difference: ${esc(difference(r))}</small></div>`).join('')}</div>` : ''}
-    <h4>Follow the changes through the workbook</h4><ol class="repair-path">${changed.slice(0,50).map(changeRow).join('')}</ol>
-    ${changed.length > 50 ? `<p>Showing the first 50 of ${changed.length} changes. The downloaded report includes them all.</p>` : ''}
-    ${result.skipped.length ? `<details><summary>${result.skipped.length} paths we could not calculate</summary><ol>${result.skipped.slice(0,20).map((r) => `<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ol>${result.skipped.length > 20 ? '<p>More paths are listed in the downloaded report.</p>' : ''}</details>` : ''}
-    <button class="ghost small download-repair">Save this preview report</button><p class="small">The report contains workbook names, formulas and values. It is saved locally; share it only with people you choose.</p></section>`;
-  dialog.showModal();
-  for (const save of dialog.querySelectorAll('.download-repair')) save.onclick = () => {
-    const reportRows = changed.map((row) => `<tr><td>${esc(m.where(row.sheet,row.c,row.r))}</td><td>${esc(m.labelText(row.sheet,row.c,row.r) || '')}</td><td>${esc(format(row,'before'))}</td><td>${esc(format(row,'after'))}</td><td>${esc(difference(row))}</td></tr>`).join('');
-    const report = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Untangle repair preview</title><style>body{font:16px system-ui;max-width:1100px;margin:30px auto;padding:20px;color:#182230}table{border-collapse:collapse;display:block;overflow:auto}th,td{padding:10px;border:1px solid #ddd;text-align:left}code,p,li{overflow-wrap:anywhere}h1{font-size:26px}</style><h1>Untangle · proposed repair</h1><p>Workbook: ${esc(S.fileName)}</p><p>${esc(issue.title)}</p><p>${esc(issue.detail)}</p><p>Proposed formula at ${esc(m.where(issue.sheet,issue.c,issue.r))}: <code>=${esc(result.formula.replace(/^=/,''))}</code></p><p>Temporary calculation using saved inputs. The workbook was not edited. A pattern is not proof of intended business logic. Untangle's calculations may differ from Excel. Recalculate in Excel before relying on these values.</p>${dependencyWarning(m)}<p>${result.complete ? 'All known affected cells were checked.' : 'Partial preview: '+esc(limits)} ${result.unchanged} dependents keep the same value.</p><table><thead><tr><th>Cell</th><th>Nearby label</th><th>Saved value</th><th>Preview value</th><th>Difference</th></tr></thead><tbody>${reportRows}</tbody></table><h2>Paths we could not calculate (${result.skipped.length})</h2><ul>${result.skipped.map((r) => `<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ul><p>Created locally with Untangle. Contains private workbook information; share deliberately.</p>`;
-    const url = URL.createObjectURL(new Blob([report], { type: 'text/html;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = 'untangle-repair-preview.html'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('.download-repair',dialog).onclick = () => {
+    if (!result?.ok) return;
+    const reportRows = changed.map((row)=>`<tr><td>${esc(m.where(row.sheet,row.c,row.r))}</td><td>${esc(m.labelText(row.sheet,row.c,row.r)||'')}</td><td>${esc(format(row,'before'))}</td><td>${esc(format(row,'after'))}</td><td>${esc(difference(row))}</td></tr>`).join('');
+    const description = input ? `<p>Temporary input at ${esc(where)}: ${esc(format(changed[0],'before'))} → ${esc(format(changed[0],'after'))}</p>` : `<p>${esc(change.title)}</p><p>${esc(change.detail)}</p><p>Proposed formula at ${esc(where)}: <code>=${esc(result.formula.replace(/^=/,''))}</code></p>`;
+    const report = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Untangle ${input?'input scenario':'repair preview'}</title><style>body{font:16px system-ui;max-width:1100px;margin:30px auto;padding:20px;color:#182230}table{border-collapse:collapse;display:block;overflow:auto}th,td{padding:10px;border:1px solid #ddd;text-align:left}code,p,li{overflow-wrap:anywhere}h1{font-size:26px}.scenario-path{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.scenario-sheet{border:1px solid #a6d8c4;border-radius:10px;padding:14px;max-width:260px;overflow-wrap:anywhere}.scenario-sheet>b,.scenario-sheet>small,.scenario-sheet>span{display:block}.scenario-sheet small{font-size:12px;color:#4a5565}.repair-values{margin-top:10px;font-size:14px}.repair-values b{color:#13704b}</style><h1>Untangle · ${input?'temporary input scenario':'proposed repair'}</h1><p>Workbook: ${esc(S.fileName)}</p>${description}<p>${explanation} The workbook was not edited. Untangle's calculations may differ from Excel. Recalculate in Excel before relying on these values.</p>${dependencyWarning(m)}<p>${result.complete?'All known affected cells were checked.':'Partial preview: '+esc(limits())} ${result.unchanged} dependents keep the same value.</p><h2>Across the sheets</h2>${scenarioPath(m,changed)}<h2>Every previewed cell</h2><table><thead><tr><th>Cell</th><th>Nearby heading</th><th>Saved value</th><th>Preview value</th><th>Difference</th></tr></thead><tbody>${reportRows}</tbody></table><h2>Paths we could not calculate (${result.skipped.length})</h2><ul>${result.skipped.map((r)=>`<li>${esc(m.where(r.sheet,r.c,r.r))}: ${esc(r.reason)}</li>`).join('')}</ul><p>Created locally with Untangle. Contains private workbook information; share deliberately.</p>`;
+    const url = URL.createObjectURL(new Blob([report], {type:'text/html;charset=utf-8'}));
+    const a = document.createElement('a'); a.href = url; a.download = input ? 'untangle-input-scenario.html' : 'untangle-repair-preview.html'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
+  render(); dialog.showModal();
+  if (input) $('.scenario-editor input',dialog).focus();
 }
 
 function bindOnce(el) {
