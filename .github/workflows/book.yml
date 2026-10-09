@@ -1,0 +1,52 @@
+name: build-book
+
+# Rebuilds the downloadable book (PDF, Word, EPUB) from the published chapters.
+# The story workflow does this after every run; this is for rebuilding on demand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: story-chapter
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          sudo apt-get install -y -qq pandoc > /dev/null
+          bash projects/story/build-book.sh
+      - name: Commit
+        run: |
+          git config user.name "story-agents"
+          git config user.email "52238175+ramzyraz@users.noreply.github.com"
+          git add site/story/download
+          git diff --cached --quiet && { echo "No changes."; exit 0; }
+          git commit -q -m "Rebuild the downloadable book"
+          git pull -q --rebase origin main && git push -q
+
+  deploy-site:
+    needs: build
+    if: vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

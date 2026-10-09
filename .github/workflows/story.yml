@@ -115,6 +115,8 @@ jobs:
           tar -czf - -C projects/story/.secret . | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:STORY_KEY -out projects/story/vault.enc
           rm -rf projects/story/.secret ~/.codex
           node projects/story/build-manifest.mjs
+          sudo apt-get install -y -qq pandoc > /dev/null && bash projects/story/build-book.sh \
+            || echo "::warning::Couldn't rebuild the downloadable book."
           git add -A
           n=$(node -e 'const c=require("./site/story/chapters.json");const l=c[c.length-1];console.log(l?`Book ${l.book}, chapter ${l.chapter}`:"Story setup")')
           # An agent may have committed on its own; push whatever is ahead of origin.

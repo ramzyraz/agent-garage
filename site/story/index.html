@@ -26,6 +26,10 @@
     .continue { display: block; padding: 16px 18px; border: 1px solid var(--accent); border-radius: 12px;
       text-decoration: none; margin-bottom: 26px; }
     .continue small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .downloads { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -10px 0 26px; font-size: 14px; }
+    .downloads span { color: var(--muted); margin-right: 4px; }
+    .downloads a { text-decoration: none; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; }
+    .downloads small { flex-basis: 100%; color: var(--muted); }
     .book { font-family: Literata, Georgia, serif; font-size: 19px; margin: 26px 0 8px; }
     ol.toc { list-style: none; padding: 0; margin: 0; }
     ol.toc a { display: flex; gap: 12px; padding: 13px 4px; border-bottom: 1px solid var(--line); text-decoration: none; }
@@ -61,12 +65,16 @@ const store = {
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const id = (c) => c.file.replace(/\.md$/, "");
 
-let chapters = [], meta = { series: "", books: [] };
+let chapters = [], meta = { series: "", books: [] }, downloads = false;
 
 async function load() {
   const bust = "?v=" + Date.now();
   try { chapters = await (await fetch("chapters.json" + bust)).json(); } catch { chapters = []; }
   try { meta = await (await fetch("book.json" + bust)).json(); } catch {}
+  try {
+    const slug = (meta.series || "the-story").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    downloads = (await fetch(`download/${slug}.pdf`, { method: "HEAD" })).ok;
+  } catch { downloads = false; }
   route();
 }
 
@@ -95,6 +103,15 @@ function renderToc() {
   if (next) {
     html += `<a class="continue" href="#${id(next)}"><small>${lastIdx >= 0 ? "Continue reading" : "Start reading"}</small>
       ${esc(next.title)}</a>`;
+  }
+  if (downloads) {
+    const slug = (meta.series || "the-story").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const done = (meta.books || []).some((b) => b.complete);
+    html += `<div class="downloads"><span>Download</span>
+      <a href="download/${slug}.pdf" download>PDF</a>
+      <a href="download/${slug}.docx" download>Word</a>
+      <a href="download/${slug}.epub" download>EPUB</a>
+      ${done ? "" : `<small>Includes the chapters written so far.</small>`}</div>`;
   }
   let book = null;
   for (const c of chapters) {
