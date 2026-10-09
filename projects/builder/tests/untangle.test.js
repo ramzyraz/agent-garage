@@ -6,7 +6,7 @@ import { evaluate } from "../../../site/builder/untangle/evaluate.js";
 import { readWorkbook } from "../../../site/builder/untangle/xlsx.js";
 import { buildModel } from "../../../site/builder/untangle/model.js";
 import { makeXlsx } from "./xlsx-fixture.js";
-import { previewRepair, previewInput, parseInputValue } from "../../../site/builder/untangle/preview.js";
+import { previewRepair, previewInput, parseInputValue, causalPath } from "../../../site/builder/untangle/preview.js";
 
 const SAMPLE = new URL("../../../site/builder/untangle/samples/northwind-plan.xlsx", import.meta.url);
 
@@ -292,4 +292,33 @@ test('scenario value entry is explicit and strict, including percentages and lit
   assert.equal(parseInputValue('','text'),'');
   for (const text of ['', '1,000','$4','Infinity','1e400','nonsense']) assert.throws(()=>parseInputValue(text,'number'));
   assert.throws(()=>parseInputValue('0','boolean'));
+});
+
+test("causal path follows changed cells from a repair to the best-year result", async () => {
+  const m = buildModel(await readWorkbook(readFileSync(SAMPLE)));
+  const result = previewRepair(m, m.issues.find((i) => i.type === 'override'));
+  const best = result.changed.find((r) => m.where(r.sheet, r.c, r.r) === 'Dashboard!B6');
+  assert.deepEqual([best.before, best.after], [2030, 2031]);
+  const path = causalPath(m, result, best);
+  assert.deepEqual(path.map((r) => m.where(r.sheet, r.c, r.r)), ['Costs!F6', 'Costs!F9', "P&L!F5", "P&L!F6", "P&L!F8", 'Dashboard!B6']);
+  assert.ok(path[0].target);
+  // Every step really reads the previous one, and every step changed.
+  for (let i = 1; i < path.length; i++) {
+    assert.ok(m.dependentsOf(path[i-1].sheet, path[i-1].c, path[i-1].r).has(m.cell(path[i].sheet, path[i].c, path[i].r).fc));
+    assert.notEqual(path[i].before, path[i].after);
+  }
+  const salary = previewInput(m, { sheet: 0, c: 2, r: 11 }, 42000);
+  const profit = salary.changed.find((r) => m.where(r.sheet, r.c, r.r) === 'Dashboard!B4');
+  assert.equal(causalPath(m, salary, profit).at(-1), profit);
+  assert.equal(causalPath(m, salary, { sheet: 0, c: 1, r: 1 }), null, 'unchanged cells have no path');
+  assert.equal(causalPath(m, { ok: false }, profit), null);
+});
+
+test("block layers ignore self-referencing running formulas", async () => {
+  const { sheetFlow, flowLayers } = await import('../../../site/builder/untangle/blocks.js');
+  const m = buildModel(await readWorkbook(readFileSync(SAMPLE)));
+  const flow = sheetFlow(m, m.sheets.findIndex((s) => s.name === 'Revenue'));
+  const layers = flowLayers(flow);
+  for (const e of flow.edges) if (e.from !== e.to) assert.ok(layers.get(e.from) < layers.get(e.to), `${e.from} before ${e.to}`);
+  assert.ok(flow.edges.some((e) => e.from === e.to), 'the sample keeps its year-header self-loop');
 });

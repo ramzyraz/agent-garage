@@ -116,3 +116,26 @@ function previewScenario(model, position, scenario, { limit = 2000, budgetMs = 7
     truncated: Boolean(down.truncated), gaps: model.dependencyGaps,
     complete: !skipped.length && !unchecked && !down.truncated && !model.dependencyGaps.length };
 }
+
+// The shortest chain of changed cells from the edited cell to `end`, following
+// real dependency links. Each step is a cell whose calculated value changed.
+export function causalPath(model, result, end) {
+  if (!result?.ok) return null;
+  const k = (p) => model.where(p.sheet, p.c, p.r);
+  const rows = new Map(result.changed.map((row) => [k(row), row]));
+  const start = result.changed.find((row) => row.target), goal = k(end);
+  if (!start || !rows.has(goal)) return null;
+  const parent = new Map([[k(start), null]]), queue = [start];
+  for (let i = 0; i < queue.length && !parent.has(goal); i++) {
+    for (const d of model.dependentsOf(queue[i].sheet, queue[i].c, queue[i].r)) {
+      const dk = k(d);
+      if (!rows.has(dk) || parent.has(dk)) continue;
+      parent.set(dk, k(queue[i]));
+      queue.push(rows.get(dk));
+    }
+  }
+  if (!parent.has(goal)) return null;
+  const path = [];
+  for (let at = goal; at; at = parent.get(at)) path.unshift(rows.get(at));
+  return path;
+}

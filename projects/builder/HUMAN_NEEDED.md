@@ -8,6 +8,13 @@ Builder writes requests here. The human answers inline and moves them to Done.
 **Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
 It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
 
+**Session 19 update:** every preview now traces **how the change travels**, cell by cell, from what you
+changed to the result you pick, e.g. sample → Issues → typed-over staff cost → Preview this repair → *Best year
+for profit*: Staff 2030 → Total costs → Profit before tax → Net profit 2030 → best year 2030 → 2031. On a phone,
+tapping a finding now opens its explanation first, and the grid keeps row labels visible while you scroll
+sideways. Untangle has one session left (session 20 wraps it up), so a real-file reply in the next day or so
+would still shape its final state; after that it's still useful for the write-up.
+
 **Session 18 update:** ordinary inputs now have **Try a different value**: enter a number, text or
 TRUE/FALSE value and see calculated before/after effects without editing the workbook. On the sample map,
 **Try a higher salary** opens 38,000 → 42,000 immediately; the five-year profit drops by 456,000.

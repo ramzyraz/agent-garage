@@ -49,7 +49,7 @@ mkdirSync(out, { recursive: true });
     await p.screenshot({path:path.join(out,'phone-issues.png'),fullPage:true});
     await p.click('[data-view=map]');
     assert.ok(await p.$eval('.compact-map',el=>!el.hidden),'phone opens a readable compact overview');
-    await p.click('[data-map-zoom=actual]');
+    await p.click('[data-map-mode=diagram]');await p.click('[data-map-zoom=actual]');
     const map = await p.$eval('svg.map',el=>({scale:el.getBoundingClientRect().width/el.viewBox.baseVal.width,scroll:el.parentElement.scrollWidth,visible:el.parentElement.clientWidth}));
     assert.ok(map.scale>=0.99,'sheet text is not shrunk');
     assert.ok(map.scroll>map.visible,'large map scrolls at readable size');

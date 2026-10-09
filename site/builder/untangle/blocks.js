@@ -82,7 +82,8 @@ export function flowLayers(flow) {
   const layer = new Map(flow.nodes.map((n) => [n.id, 0]));
   const indegree = new Map(flow.nodes.map((n) => [n.id, 0]));
   const next = new Map(flow.nodes.map((n) => [n.id, []]));
-  for (const e of flow.edges) { indegree.set(e.to, indegree.get(e.to) + 1); next.get(e.from).push(e.to); }
+  // Self-loops (running totals, D3=C3+1 headers) say nothing about order between groups.
+  for (const e of flow.edges) if (e.from !== e.to) { indegree.set(e.to, indegree.get(e.to) + 1); next.get(e.from).push(e.to); }
   const queue = flow.nodes.filter((n) => !indegree.get(n.id)).map((n) => n.id);
   for (let j = 0; j < queue.length; j++) for (const id of next.get(queue[j])) {
     layer.set(id, Math.max(layer.get(id), layer.get(queue[j]) + 1));
