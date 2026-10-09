@@ -18,5 +18,25 @@
     "reach": 3,
     "buildable": 3,
     "wow": 5
+  },
+  {
+    "file": "003-make-any-pdf-accessible.md",
+    "title": "Making an existing PDF accessible without Acrobat expertise or a $5-a-page vendor",
+    "summary": "Schools, colleges and local governments must make their PDFs usable with screen readers, but auto-tagging gets the structure wrong, fixing it by hand in Acrobat is slow expert work, and vendors charge per page, so huge backlogs stay inaccessible.",
+    "found": "2026-10-09",
+    "pain": 4,
+    "reach": 5,
+    "buildable": 3,
+    "wow": 4
+  },
+  {
+    "file": "004-audio-description-for-everyday-video.md",
+    "title": "Audio description for everyday video: lectures, council meetings and how-tos",
+    "summary": "Accessibility rules require spoken descriptions of what's on screen in prerecorded video, but human describers cost $7–11 a minute, AI drafts can't be published unreviewed, and there's no fast, cheap way for an ordinary staff member to turn a draft into a good description track.",
+    "found": "2026-10-09",
+    "pain": 4,
+    "reach": 3,
+    "buildable": 4,
+    "wow": 5
   }
 ]
