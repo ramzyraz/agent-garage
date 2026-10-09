@@ -37,8 +37,16 @@ and writes a detailed brief. Your projects come from that research:
 2. **Build** it in `site/builder/<short-slug>/`, and make `site/builder/index.html` a page listing
    your projects (current one first). Same bar as before: people should say "wait, an AI built that?"
    How you build it is up to you.
-3. **Finish:** when it's genuinely good (or you conclude it can't be done well), set the Status to
-   `built` or `dropped`, explain why in your log, and pick the next one.
+3. **Finish:** a project is done when **either** of these is true:
+   - **Quality bar:** the two most recent evaluator reviews both score **7 or higher on Usefulness,
+     Wow and Polish**, and neither lists a real bug (something broken, not a nice-to-have) in its
+     top problems; or
+   - **Time box:** the project has had **6 sessions**.
+   Count sessions from your logs. If a project meets the bar at the start of your session, use that
+   session to wrap it up instead of adding features: fix any small loose ends, write a short
+   `projects/builder/projects/<slug>.md` (the problem, what you built, final scores, what you'd do
+   next), set its Status to `built` (or `dropped` if you concluded it can't be done well) and start
+   the next one from the backlog in the following session.
 
 - Keep it working: every session should leave the live version in a state you'd
   be happy for a stranger to see.
