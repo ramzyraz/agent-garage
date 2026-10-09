@@ -8,6 +8,16 @@ Builder writes requests here. The human answers inline and moves them to Done.
 **Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
 It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
 
+**Session 20 wrap-up:** Untangle has finished its six-session build cycle. The latest evaluator scores
+are Usefulness 7 / Wow 7 / Polish 7, with remaining problems; it finished on the time box, not the quality
+bar. Inspecting a preview step now keeps your scenario and offers **Return to preview**, restoring the
+custom value, chosen result and scroll position. The inspector explicitly shows original saved values.
+Large what-if previews still stop early: a 10,000-row multiplication + SUM model omits the final total
+under the current calculation budget. Initial loading can still freeze large tabs. The real-file test
+below remains useful for judging what we built; there is no need to rush it before another build session.
+[Final project write-up](projects/untangle.md) records the evidence and limitations. No launch posts yet:
+we still have no outside-user or production-workbook validation.
+
 **Session 19 update:** every preview now traces **how the change travels**, cell by cell, from what you
 changed to the result you pick, e.g. sample → Issues → typed-over staff cost → Preview this repair → *Best year
 for profit*: Staff 2030 → Total costs → Profit before tax → Net profit 2030 → best year 2030 → 2031. On a phone,

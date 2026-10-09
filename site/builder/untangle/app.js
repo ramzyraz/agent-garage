@@ -8,7 +8,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const track = (e) => { try { window.UTAnalytics && window.UTAnalytics.track(e); } catch (_) { /* never break the app */ } };
 
-const S = { model: null, view: "map", sheet: null, sel: null, hi: null, fileName: "", sheetMode: "blocks", flows: new Map(), flowRange: null, flowFocus: null };
+const S = { model: null, view: "map", sheet: null, sel: null, hi: null, fileName: "", sheetMode: "blocks", flows: new Map(), flowRange: null, flowFocus: null, preview: null };
 window.__untangle = S; // for tests
 
 // ---------------- loading ----------------
@@ -66,7 +66,7 @@ function fail(e) {
 }
 
 async function load(buf, name) {
-  $('#repairDialog')?.remove();
+  S.preview?.discard();
   const t0 = performance.now();
   const wb = await readWorkbook(buf, progress);
   progress("Tracing every formula…");
@@ -89,6 +89,7 @@ async function load(buf, name) {
 }
 
 function showLanding() {
+  S.preview?.discard();
   $("#landing").hidden = false;
   $("#app").hidden = true;
   $("#fileBar").hidden = true;
@@ -857,7 +858,7 @@ function showScenarioPreview(change, initialResult, button) {
   const where = m.where(change.sheet,change.c,change.r);
   const heading = input ? 'What this input could change' : 'What this repair could change';
   const explanation = input ? 'One change using original saved inputs. Workbook unchanged. Existing formulas, including any mistakes, stay as written. Previews do not combine.' : 'Temporary calculation using saved inputs. Your file is unchanged. This proposed formula follows a pattern; confirm it matches the intended business logic in Excel.';
-  $('#repairDialog')?.remove();
+  S.preview?.discard();
   const dialog = document.createElement('dialog'); dialog.id = 'repairDialog'; dialog.className = 'repair-dialog';
   dialog.dataset.kind = input ? 'input' : 'repair';
   dialog.setAttribute('aria-label', input ? 'Temporary input scenario' : 'Proposed repair preview');
@@ -891,6 +892,7 @@ function showScenarioPreview(change, initialResult, button) {
       <p class="small">Save report keeps every calculated change and the sheet overview. It contains workbook names, formulas and values. It is saved locally; share it only with people you choose.</p></section>`;
     slot.scrollTop = 0;
     const trace = (i) => {
+      dialog.classList.remove('resumed-preview');
       traced = i;
       for (const b of slot.querySelectorAll('[data-trace]')) b.setAttribute('aria-pressed', String(+b.dataset.trace === i));
       $('.ripple-slot', slot).innerHTML = ripple(m, result, results[i], format, difference, input);
@@ -909,10 +911,44 @@ function showScenarioPreview(change, initialResult, button) {
     });
     editor.addEventListener('input', () => { result=null; $('.scenario-error',editor).textContent=''; render(); });
   }
+  // Keep the actual dialog and calculation when inspecting a step. Rebuilding would
+  // lose custom entries, the chosen result, expanded details and scroll position.
+  const returnBar = document.createElement('aside');
+  returnBar.className = 'preview-return'; returnBar.hidden = true;
+  returnBar.setAttribute('aria-label', 'Paused preview');
+  returnBar.innerHTML = `<div><b>Inspecting original saved values</b><small>${esc(where)} · ${input ? 'input scenario' : 'repair preview'} kept</small></div><button class="ghost resume-preview">Return to preview</button><button class="linkish discard-preview">Discard preview</button>`;
+  document.body.append(returnBar);
+  let suspended = false, previewScroll = 0, inspectedStep = null;
+  const preview = { discard() {
+    dialog.remove(); returnBar.remove();
+    document.body.classList.remove('has-paused-preview');
+    if (S.preview === preview) S.preview = null;
+  } };
+  S.preview = preview;
   $('.close-repair', dialog).onclick = () => dialog.close();
-  dialog.addEventListener('close', () => { dialog.remove(); if (button.isConnected) button.focus(); });
-  bindRowButtons(dialog);
-  dialog.addEventListener('click', (e) => { if (e.target.closest('[data-cell]')) dialog.close(); });
+  dialog.addEventListener('close', () => {
+    if (suspended || dialog.open || S.preview !== preview) return;
+    preview.discard();
+    if (button.isConnected) button.focus();
+  });
+  dialog.addEventListener('click', (e) => {
+    const step = e.target.closest('[data-cell]');
+    if (!step) return;
+    inspectedStep = step; previewScroll = slot.scrollTop; suspended = true;
+    dialog.close(); dialog.remove();
+    returnBar.hidden = false; document.body.classList.add('has-paused-preview');
+    selectCell(...step.dataset.cell.split(',').map(Number));
+  });
+  $('.resume-preview', returnBar).onclick = () => {
+    suspended = false; returnBar.hidden = true;
+    document.body.classList.remove('has-paused-preview');
+    dialog.classList.add('resumed-preview');
+    document.body.append(dialog); dialog.showModal();
+    inspectedStep?.focus({preventScroll:true}); slot.scrollTop = previewScroll;
+  };
+  $('.discard-preview', returnBar).onclick = () => {
+    preview.discard(); $('.to-grid')?.focus({preventScroll:true});
+  };
   $('.download-repair',dialog).onclick = () => {
     if (!result?.ok) return;
     const reportRows = changed.map((row)=>`<tr><td>${esc(m.where(row.sheet,row.c,row.r))}</td><td>${esc(m.labelText(row.sheet,row.c,row.r)||'')}</td><td>${esc(format(row,'before'))}</td><td>${esc(format(row,'after'))}</td><td>${esc(difference(row))}</td></tr>`).join('');
