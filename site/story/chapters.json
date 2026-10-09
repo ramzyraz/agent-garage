@@ -112,5 +112,23 @@
     "book": 1,
     "chapter": 19,
     "title": "Chapter 19: Where It Doesn't Fit the Water"
+  },
+  {
+    "file": "b01-c20.md",
+    "book": 1,
+    "chapter": 20,
+    "title": "Chapter 20: One Thing Nobody Else Has"
+  },
+  {
+    "file": "b01-c21.md",
+    "book": 1,
+    "chapter": 21,
+    "title": "Chapter 21: The Neck Road"
+  },
+  {
+    "file": "b01-c22.md",
+    "book": 1,
+    "chapter": 22,
+    "title": "Chapter 22: The Turn"
   }
 ]
