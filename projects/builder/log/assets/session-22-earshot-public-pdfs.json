@@ -1,0 +1,329 @@
+{
+  "note": "Session 22: re-fetched the same five official public PDFs and ran extract/analyze/tag/re-read plus veraPDF 1.30.3 PDF/UA-1. textMoved counts extraction-item regrouping and is not a render comparison. The new browser suite separately compared all pixels on both pages of a reused tagged sample (0 differences) and validated its downloaded output. No screen-reader-user check.",
+  "pipeline": [
+    {
+      "file": "9fe053bb.pdf",
+      "pages": 6,
+      "taggedBefore": true,
+      "analyzeMs": 408,
+      "blocks": {
+        "h": 27,
+        "p": 190,
+        "li": 85,
+        "table": 0,
+        "figure": 0,
+        "artifact": 11
+      },
+      "firstHeadings": [
+        "H1 W-9",
+        "H2 Request for Taxpayer Identification Numb",
+        "H3 Part I",
+        "H3 Taxpayer Identification Number (TIN)",
+        "H3 Part II"
+      ],
+      "tagMs": 249,
+      "report": {
+        "mcids": 330,
+        "unmatchedText": 0,
+        "emptyLeaves": 0,
+        "links": 0,
+        "formsWithText": 0,
+        "unembedded": 0,
+        "strippedTags": 478
+      },
+      "coverage": "936/936",
+      "textMoved": 6,
+      "realText": "29823 tagged / 29823 expected; artifact 109 vs 109 expected",
+      "vera_before": "7.4.2-1\u00d71 7.21.7-1\u00d71 7.18.1-3\u00d723 7.21.4.1-1\u00d71",
+      "vera_after": "7.21.4.1-1\u00d71 7.21.7-1\u00d71 7.18.1-3\u00d723",
+      "source": "https://www.irs.gov/pub/irs-pdf/fw9.pdf"
+    },
+    {
+      "file": "e34ab8e1.pdf",
+      "pages": 289,
+      "taggedBefore": true,
+      "analyzeMs": 3861,
+      "blocks": {
+        "h": 244,
+        "p": 8036,
+        "li": 34,
+        "table": 3,
+        "figure": 0,
+        "artifact": 324
+      },
+      "firstHeadings": [
+        "H1 Billing Code: 4410-13",
+        "H1 DEPARTMENT OF JUSTICE",
+        "H1 28 CFR Part 35",
+        "H1 [CRT Docket No. 144; AG Order No. 5919-2",
+        "H1 RIN 1190-AA79"
+      ],
+      "tagMs": 5297,
+      "report": {
+        "mcids": 55698,
+        "unmatchedText": 80,
+        "emptyLeaves": 0,
+        "links": 1117,
+        "formsWithText": 0,
+        "unembedded": 0,
+        "strippedTags": 5157
+      },
+      "coverage": "32034/32034",
+      "textMoved": 26616,
+      "realText": "546211 tagged / 546211 expected; artifact 3502 vs 3502 expected",
+      "vera_before": "7.21.4.2-2\u00d76",
+      "vera_after": "7.21.4.2-2\u00d76",
+      "source": "https://www.ada.gov/assets/pdfs/web-rule.pdf"
+    },
+    {
+      "file": "f0738dd2.pdf",
+      "pages": 15,
+      "taggedBefore": false,
+      "analyzeMs": 956,
+      "blocks": {
+        "h": 16,
+        "p": 468,
+        "li": 10,
+        "table": 1,
+        "figure": 3,
+        "artifact": 14
+      },
+      "firstHeadings": [
+        "H1 Attention Is All You Need",
+        "H2 Abstract",
+        "H2 1 Introduction",
+        "H2 2 Background",
+        "H2 3 Model Architecture"
+      ],
+      "tagMs": 679,
+      "report": {
+        "mcids": 508,
+        "unmatchedText": 11,
+        "emptyLeaves": 111,
+        "links": 113,
+        "formsWithText": 5,
+        "unembedded": 1,
+        "strippedTags": 0
+      },
+      "coverage": "1768/1768",
+      "textMoved": 3,
+      "realText": "31480 tagged / 31546 expected; artifact 86 vs 20 expected",
+      "vera_before": "7.1-8\u00d71 6.2-1\u00d71 7.18.1-2\u00d7113 7.2-2\u00d722 7.21.7-1\u00d71 7.1-3\u00d74482 7.18.3-1\u00d711 7.21.4.1-1\u00d71 7.2-34\u00d71769 7.18.5-1\u00d7113 7.1-10\u00d71 7.18.5-2\u00d7113 7.1-11\u00d71",
+      "vera_after": "7.21.7-1\u00d71 7.21.4.1-1\u00d71",
+      "source": "https://arxiv.org/pdf/1706.03762v7"
+    },
+    {
+      "file": "fb67433f.pdf",
+      "pages": 30,
+      "taggedBefore": false,
+      "analyzeMs": 244,
+      "blocks": {
+        "h": 17,
+        "p": 716,
+        "li": 13,
+        "table": 1,
+        "figure": 0,
+        "artifact": 4
+      },
+      "firstHeadings": [
+        "H1 DEPARTMENT OF JUSTICE",
+        "H1 28 CFR Part 35",
+        "H1 [Docket No. CRT150; AG Order No. 6742-20",
+        "H1 RIN 1190-AA82",
+        "H1 Accessibility of Web Information and Ser"
+      ],
+      "tagMs": 222,
+      "report": {
+        "mcids": 893,
+        "unmatchedText": 0,
+        "emptyLeaves": 0,
+        "links": 0,
+        "formsWithText": 0,
+        "unembedded": 0,
+        "strippedTags": 7
+      },
+      "coverage": "1385/1385",
+      "textMoved": 0,
+      "realText": "56105 tagged / 56105 expected; artifact 44 vs 44 expected",
+      "vera_before": "7.1-10\u00d71 6.2-1\u00d71 7.2-34\u00d71434 7.2-30\u00d77 7.1-3\u00d72028 7.1-11\u00d71 7.1-8\u00d71",
+      "vera_after": "PASS",
+      "source": "https://public-inspection.federalregister.gov/2026-07663.pdf"
+    },
+    {
+      "file": "2268f593.pdf",
+      "pages": 64,
+      "taggedBefore": true,
+      "analyzeMs": 2939,
+      "blocks": {
+        "h": 193,
+        "p": 2922,
+        "li": 54,
+        "table": 19,
+        "figure": 7,
+        "artifact": 167
+      },
+      "firstHeadings": [
+        "H1 Income in the United States: 2021",
+        "H2 Current Population Reports",
+        "H3 by Jessica Semega and Melissa Kollar Iss",
+        "H2 Acknowledgments",
+        "H3 Jessica Semega and Melissa Kollar prepar"
+      ],
+      "tagMs": 4735,
+      "report": {
+        "mcids": 18314,
+        "unmatchedText": 826,
+        "emptyLeaves": 5,
+        "links": 336,
+        "formsWithText": 101,
+        "unembedded": 0,
+        "strippedTags": 21919
+      },
+      "coverage": "19638/19638",
+      "textMoved": 956,
+      "realText": "168880 tagged / 168894 expected; artifact 3302 vs 3288 expected",
+      "vera_before": "7.9-1\u00d751 7.21.7-1\u00d7147 7.18.1-2\u00d7336 7.18.5-1\u00d712 7.18.5-2\u00d7336 7.5-1\u00d717 5-1\u00d71 7.1-3\u00d714834 7.4.2-1\u00d71",
+      "vera_after": "7.21.7-1\u00d7753",
+      "source": "https://www.census.gov/content/dam/Census/library/publications/2022/demo/p60-276.pdf"
+    }
+  ],
+  "existingTagPreviews": [
+    {
+      "file": "2268f593.pdf",
+      "pages": 64,
+      "ms": 5129,
+      "roles": {
+        "Root": 63,
+        "Document": 63,
+        "Art": 62,
+        "Figure": 12,
+        "H1": 2,
+        "Sect": 91,
+        "P": 14442,
+        "H3": 1,
+        "Span": 3831,
+        "TOC": 9,
+        "TOCI": 57,
+        "Reference": 114,
+        "Link": 241,
+        "Note": 51,
+        "L": 3,
+        "LI": 26,
+        "Lbl": 26,
+        "LBody": 26,
+        "Table": 32,
+        "TR": 1211,
+        "TD": 14193,
+        "TH": 349
+      },
+      "canReuse": false,
+      "issues": [
+        "A figure contains drawings or text; its exported structure needs a careful check.",
+        "The Link role is retained as text when reusing tags.",
+        "The unknown role is retained as text when reusing tags.",
+        "The Span role is retained as text when reusing tags.",
+        "Some tags point to annotations or content that Earshot cannot preview.",
+        "Replacement text (ActualText) cannot be preserved on export; keep the original PDF.",
+        "Language changes within the document cannot be preserved on export; keep the original PDF.",
+        "Merged table cells cannot be preserved on export; keep the original PDF."
+      ],
+      "linkedChars": 222271,
+      "unlinkedChars": 0,
+      "first": [
+        "figure:",
+        "h:Income in the United States: 2021 Current Population Reports",
+        "p:by Jessica Semega and Melissa Kollar Issued September 2022 P60-276",
+        "artifact:"
+      ]
+    },
+    {
+      "file": "9fe053bb.pdf",
+      "pages": 6,
+      "ms": 192,
+      "roles": {
+        "Root": 6,
+        "Document": 6,
+        "Part": 6,
+        "Sect": 29,
+        "Div": 189,
+        "H1": 2,
+        "P": 221,
+        "Form": 23,
+        "H2": 6,
+        "L": 11,
+        "LI": 53,
+        "LBody": 53,
+        "H3": 12,
+        "H4": 8,
+        "Table": 4,
+        "TR": 30,
+        "TH": 8,
+        "TD": 52
+      },
+      "canReuse": false,
+      "issues": [
+        "Language changes within the document cannot be preserved on export; keep the original PDF.",
+        "Explicit table header associations cannot be preserved on export; keep the original PDF."
+      ],
+      "linkedChars": 36781,
+      "unlinkedChars": 0,
+      "first": [
+        "h:Form W-9",
+        "p:(Rev. March 2024)",
+        "h:Request for Taxpayer Identification Number and Certification",
+        "p:Department of the Treasury Internal Revenue Service"
+      ]
+    },
+    {
+      "file": "e34ab8e1.pdf",
+      "pages": 289,
+      "ms": 4158,
+      "roles": {
+        "Root": 289,
+        "Document": 289,
+        "Part": 288,
+        "Sect": 289,
+        "P": 806,
+        "H1": 1,
+        "H2": 6,
+        "Link": 997,
+        "H3": 6,
+        "H4": 61,
+        "Reference": 375,
+        "Note": 379,
+        "Lbl": 419,
+        "Table": 15,
+        "TR": 102,
+        "TH": 200,
+        "TD": 639,
+        "H5": 40,
+        "Span": 5,
+        "L": 15,
+        "LI": 45,
+        "LBody": 45,
+        "H6": 7
+      },
+      "canReuse": false,
+      "issues": [
+        "The Lbl role is retained as text when reusing tags.",
+        "The unknown role is retained as text when reusing tags.",
+        "The Link role is retained as text when reusing tags.",
+        "Complex table headers need review; export supports one column-header row.",
+        "The Note role is retained as text when reusing tags.",
+        "Some tags point to annotations or content that Earshot cannot preview.",
+        "215 text characters are outside the existing tag tree; included at the end of each page for review.",
+        "Row or combined table headers cannot be preserved on export; keep the original PDF.",
+        "Replacement text (ActualText) cannot be preserved on export; keep the original PDF.",
+        "Nested list levels cannot be preserved on export; keep the original or use layout suggestions."
+      ],
+      "linkedChars": 659900,
+      "unlinkedChars": 215,
+      "first": [
+        "p:Billing Code: 4410-13",
+        "p:DEPARTMENT OF JUSTICE",
+        "p:28 CFR Part 35",
+        "p:[CRT Docket No. 144; AG Order No. 5919-2024]"
+      ]
+    }
+  ]
+}

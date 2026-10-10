@@ -10,7 +10,9 @@ function mul(m, n) {
 export async function extractPage(pdfjs, page, index) {
   const [x0, y0, x1, y1] = page.view;
   const ops = await page.getOperatorList();
-  const tc = await page.getTextContent();
+  const tc = await page.getTextContent({ includeMarkedContent: true });
+  let tree = null;
+  try { tree = await page.getStructTree(); } catch { /* malformed or absent tree */ }
   const fontInfo = {};
   for (const name of new Set(tc.items.map(it => it.fontName).filter(Boolean))) {
     let real = '';
@@ -18,24 +20,31 @@ export async function extractPage(pdfjs, page, index) {
     fontInfo[name] = { real, bold: BOLD.test(real) };
   }
   const items = [];
-  tc.items.forEach((it, i) => {
+  const marked = [];
+  let i = 0;
+  tc.items.forEach(it => {
+    if (it.type === 'beginMarkedContent' || it.type === 'beginMarkedContentProps') { marked.push(it); return; }
+    if (it.type === 'endMarkedContent') { marked.pop(); return; }
     if (typeof it.str !== 'string') return;
     const t = it.transform;
     const size = Math.hypot(t[2], t[3]) || it.height || 10;
     items.push({
       s: it.str, x: t[4] - x0, y: t[5] - y0, w: it.width, size,
       font: (fontInfo[it.fontName] && fontInfo[it.fontName].real) || it.fontName,
-      bold: !!(fontInfo[it.fontName] && fontInfo[it.fontName].bold), i,
+      bold: !!(fontInfo[it.fontName] && fontInfo[it.fontName].bold), i: i++,
+      markedIds: marked.map(m => m.id).filter(Boolean), artifact: marked.some(m => m.tag === 'Artifact'),
       rot: Math.abs(t[1]) > 0.01 * size, dx: t[0] / size, dy: t[1] / size,
     });
   });
   // Images: follow the transformation matrix through the operator list.
   const O = pdfjs.OPS, images = [];
   let ctm = [1, 0, 0, 1, 0, 0];
-  const stack = [];
+  const stack = [], imageMarked = [];
   ops.fnArray.forEach((fn, k) => {
     const a = ops.argsArray[k];
-    if (fn === O.save) stack.push(ctm);
+    if (fn === O.beginMarkedContent || fn === O.beginMarkedContentProps) imageMarked.push({ tag: a[0], mcid: a[1] });
+    else if (fn === O.endMarkedContent) imageMarked.pop();
+    else if (fn === O.save) stack.push(ctm);
     else if (fn === O.restore) ctm = stack.pop() || [1, 0, 0, 1, 0, 0];
     else if (fn === O.transform) ctm = mul(a, ctm);
     else if (fn === O.paintFormXObjectBegin) { stack.push(ctm); if (a && a[0]) ctm = mul(a[0], ctm); }
@@ -44,10 +53,10 @@ export async function extractPage(pdfjs, page, index) {
       const pts = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([u, v]) => [ctm[0] * u + ctm[2] * v + ctm[4], ctm[1] * u + ctm[3] * v + ctm[5]]);
       const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
       const x = Math.min(...xs) - x0, y = Math.min(...ys) - y0;
-      images.push({ x, y, w: Math.max(...xs) - x0 - x, h: Math.max(...ys) - y0 - y, i: 100000 + k });
+      images.push({ x, y, w: Math.max(...xs) - x0 - x, h: Math.max(...ys) - y0 - y, i: 100000 + k, mcid: imageMarked.map(m => m.mcid).filter(Number.isInteger).at(-1), artifact: imageMarked.some(m => m.tag === 'Artifact') });
     }
   });
-  return { n: index, w: x1 - x0, h: y1 - y0, ox: x0, oy: y0, items, images };
+  return { n: index, tree, ref: page.ref ? `${page.ref.num}R${page.ref.gen || ''}` : '', rotation: page.rotate, w: x1 - x0, h: y1 - y0, ox: x0, oy: y0, items, images };
 }
 
 export async function extractDocument(pdfjs, doc, onProgress) {
@@ -55,15 +64,13 @@ export async function extractDocument(pdfjs, doc, onProgress) {
   let tagged = false, structSummary = null;
   for (let n = 1; n <= doc.numPages; n++) {
     const page = await doc.getPage(n);
-    pages.push(await extractPage(pdfjs, page, n - 1));
-    if (n <= 3) {
-      try {
-        const st = await page.getStructTree();
-        if (st && st.children && st.children.length) {
-          tagged = true;
-          structSummary = structSummary || summarize(st);
-        }
-      } catch { /* no tree */ }
+    const extracted = await extractPage(pdfjs, page, n - 1);
+    pages.push(extracted);
+    if (extracted.tree && extracted.tree.children && extracted.tree.children.length) {
+      tagged = true;
+      structSummary = structSummary || {};
+      const counts = summarize(extracted.tree);
+      for (const [role, count] of Object.entries(counts)) structSummary[role] = (structSummary[role] || 0) + count;
     }
     if (onProgress) onProgress(n, doc.numPages);
   }

@@ -4,6 +4,7 @@ import { extractDocument } from './extract.js';
 import { analyze, fileOrder, spoken, stripBullet, union } from './analyze.js';
 import { buildChecks, suggestTitle } from './checks.js';
 import { toHtml } from './html.js';
+import { existingStructure, inspectExistingAttributes } from './existing.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', import.meta.url).href;
 const PDF_OPTS = {
@@ -48,9 +49,21 @@ async function openBytes(bytes, name, isSample) {
     const pdf = await pdfjs.getDocument({ ...PDF_OPTS, data: bytes.slice() }).promise;
     const ex = await extractDocument(pdfjs, pdf, (n, total) => { prog.textContent = `Reading page ${n} of ${total}…`; });
     const { blocks, bodySize } = analyze(ex.pages);
+    const existing = ex.tagged ? existingStructure(ex.pages) : null;
+    if (existing?.hasTree) {
+      try {
+        const L = await import('./vendor/pdf-lib.esm.min.js');
+        const warnings = await inspectExistingAttributes(L, bytes);
+        existing.issues.push(...warnings);
+        if (warnings.length) existing.canReuse = false;
+      } catch {
+        existing.issues.push('Original tag attributes could not be checked. Keep the original or use layout suggestions.');
+        existing.canReuse = false;
+      }
+    }
     const textChars = ex.pages.reduce((n, p) => n + p.items.reduce((m, it) => m + it.s.trim().length, 0), 0);
     if (!textChars) throw new Error('scanned');
-    Object.assign(S, { name, bytes, pdf, ex, blocks, bodySize, sel: null, history: [], mode: 'before', ms: Math.round(performance.now() - t0) });
+    Object.assign(S, { name, bytes, pdf, ex, blocks, bodySize, existing, proposals: cloneBlocks(blocks), source: 'layout', sel: null, history: [], mode: 'before', ms: Math.round(performance.now() - t0) });
     S.title = suggestTitle(ex.title, blocks);
     S.titleFromFile = ex.title;
     S.lang = ex.lang || (navigator.language && /^en/i.test(navigator.language) ? 'en-US' : 'en-US');
@@ -94,13 +107,16 @@ async function renderPages() {
   const width = Math.min(host.clientWidth || 700, 820) - 2;
   for (let n = 0; n < S.ex.pages.length; n++) {
     const p = S.ex.pages[n];
-    const scale = width / p.w;
-    const wrap = h('div', { class: 'page', style: `width:${Math.round(p.w * scale)}px;height:${Math.round(p.h * scale)}px`, 'data-page': n, role: 'group', 'aria-label': `Page ${n + 1}` });
+    const page = await S.pdf.getPage(n + 1);
+    const natural = page.getViewport({ scale: 1 });
+    const scale = width / natural.width;
+    const viewport = page.getViewport({ scale });
+    const wrap = h('div', { class: 'page', style: `width:${Math.round(viewport.width)}px;height:${Math.round(viewport.height)}px`, 'data-page': n, role: 'group', 'aria-label': `Page ${n + 1}` });
     const canvas = h('canvas', { 'aria-hidden': 'true' });
     const overlay = h('div', { class: 'overlay' });
     wrap.append(canvas, overlay, h('span', { class: 'pageno', 'aria-hidden': 'true' }, `Page ${n + 1}`));
     host.append(wrap);
-    S.pageEls[n] = { wrap, canvas, overlay, scale, drawn: false };
+    S.pageEls[n] = { wrap, canvas, overlay, scale, viewport, drawn: false };
   }
   const io = new IntersectionObserver(entries => {
     for (const e of entries) if (e.isIntersecting) drawPage(+e.target.dataset.page);
@@ -120,14 +136,18 @@ async function drawPage(n) {
   await page.render({ canvasContext: pe.canvas.getContext('2d'), viewport: vp }).promise;
 }
 
-// Units shown for a mode: in "before" mode table cells are separate, in file order.
+// Original tagged order (or untagged file order) versus the editable proposal.
 function units() {
   if (S.mode === 'after') {
     let n = 0;
     return S.blocks.map(b => ({ b, key: String(b.id), page: b.page, bbox: b.bbox, num: b.type === 'artifact' ? null : ++n }));
   }
+  if (S.ex.tagged && S.existing?.hasTree) {
+    let n = 0;
+    return S.existing.blocks.map(b => ({ b, key: `existing-${b.id}`, page: b.page, bbox: b.bbox, num: b.type === 'artifact' ? null : ++n, existing: true }));
+  }
   const out = [];
-  for (const b of S.blocks) {
+  for (const b of S.proposals) {
     if (b.type === 'table') {
       b.rows.forEach((r, ri) => r.forEach((c, ci) => out.push({ b, key: `${b.id}:${ri}:${ci}`, page: b.page, bbox: c.bbox, text: c.text, fileIndex: Math.min(...c.items.map(it => it.i)) })));
     } else out.push({ b, key: String(b.id), page: b.page, bbox: b.bbox, text: b.text, fileIndex: b.fileIndex });
@@ -138,23 +158,33 @@ function units() {
   return out;
 }
 
+function viewportBox(viewport, page, bbox) {
+  const v = viewport.convertToViewportRectangle([bbox[0] + page.ox, bbox[1] + page.oy, bbox[2] + page.ox, bbox[3] + page.oy]);
+  return [Math.min(v[0], v[2]), Math.min(v[1], v[3]), Math.max(v[0], v[2]), Math.max(v[1], v[3])];
+}
 function drawOverlays(list) {
   for (const pe of S.pageEls) pe.overlay.textContent = '';
   for (const u of list) {
     const pe = S.pageEls[u.page];
     if (!pe || !u.bbox) continue;
-    const p = S.ex.pages[u.page], s = pe.scale;
-    const [x0, y0, x1, y1] = u.bbox;
+    const p = S.ex.pages[u.page];
+    const [x0, y0, x1, y1] = viewportBox(pe.viewport, p, u.bbox);
     const pad = 2;
-    const type = S.mode === 'before' ? (u.b.type === 'figure' ? 'figure skipped' : 'plain') : u.b.type;
+    const type = S.mode === 'before' && !u.existing ? (u.b.type === 'figure' ? 'figure skipped' : 'plain') : u.b.type;
     const box = h('button', {
       class: `ov t-${type}${S.sel === u.b.id ? ' sel' : ''}`, type: 'button', tabindex: '-1',
-      style: `left:${x0 * s - pad}px;top:${(p.h - y1) * s - pad}px;width:${(x1 - x0) * s + 2 * pad}px;height:${(y1 - y0) * s + 2 * pad}px`,
+      style: `left:${x0 - pad}px;top:${y0 - pad}px;width:${x1 - x0 + 2 * pad}px;height:${y1 - y0 + 2 * pad}px`,
       'data-key': u.key, 'data-id': u.b.id, 'aria-hidden': 'true',
-      onclick: () => select(u.b.id, true),
+      onclick: () => {
+        if (S.mode === 'after') select(u.b.id, true);
+        else {
+          const match = S.blocks.find(b => b.page === u.page && (b.items.some(it => u.b.items.includes(it)) || b.image && b.image === u.b.image));
+          if (match) select(match.id, true); else setMode('after');
+        }
+      },
     });
     if (u.num != null) box.append(h('span', { class: 'badge' }, String(u.num)));
-    else if (S.mode === 'after' && u.b.type === 'artifact') box.append(h('span', { class: 'hidden-tag' }, 'hidden'));
+    else if ((S.mode === 'after' || u.existing) && u.b.type === 'artifact') box.append(h('span', { class: 'hidden-tag' }, 'hidden'));
     else if (S.mode === 'before' && u.b.type === 'figure') box.append(h('span', { class: 'hidden-tag' }, 'not announced'));
     pe.overlay.append(box);
   }
@@ -179,24 +209,44 @@ function banner() {
     el.append(
       h('strong', {}, S.ex.tagged ? 'This PDF already has tags. ' : 'This PDF has no tags. '),
       S.ex.tagged
-        ? `Below is the order its text is stored in. Earshot proposes a fresh structure from the page layout; comparing it with the existing tags is coming next.`
+        ? S.existing?.hasTree
+          ? `Showing its existing headings, lists, tables and picture descriptions in tag order, page by page. This is a reading preview; screen readers may handle annotations and unlinked content differently. ${S.existing.unlinkedChars ? 'Text outside the tree is flagged below.' : ''}`
+          : 'The file claims to be tagged, but no readable tag tree was found. Showing file order as a fallback.'
         : `A screen reader has to guess what is a heading, list or table, and many read text in the order it is stored in the file. Here that order ${moved ? `jumps around the page ${moved} times` : 'follows the page'}, includes ${c.artifacts} pieces of repeated page furniture and skips ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}. Nothing is marked as a heading.`,
-      ' ',
-      h('button', { class: 'linkish', type: 'button', onclick: () => setMode('after') }, 'See Earshot’s fix →'),
+      ' ', h('button', { class: 'linkish', type: 'button', onclick: () => setMode('after') }, 'Review fixes →'),
     );
+    if (S.existing?.issues.length) el.append(h('p', { class: 'hint' }, S.existing.issues.join(' ')));
   } else {
     el.className = 'banner ok';
     const chk = buildChecks(S);
     const todo = chk.filter(x => x.status === 'todo').length;
     el.append(
-      h('strong', {}, `Earshot found ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
+      h('strong', {}, `${S.source === 'existing' ? 'Reusing existing tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
       ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}, and hid ${c.artifacts} pieces of page furniture. `,
       todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'Ready to export. Check the order and wording once more before you publish.',
     );
   }
+  if (S.ex.tagged) {
+    el.append(h('div', { class: 'source-actions' },
+      S.mode === 'after' && S.existing?.hasTree ? h('button', { class: 'ghost', type: 'button', disabled: !S.existing.canReuse, title: !S.existing.canReuse ? S.existing.issues.join(' ') : null, onclick: () => useStructure(S.source === 'existing' ? 'layout' : 'existing') }, S.source === 'existing' ? 'Use layout suggestions instead' : 'Reuse existing tags to edit') : null,
+      h('button', { class: 'ghost', type: 'button', onclick: () => download(S.bytes, S.name, 'application/pdf') }, 'Keep original PDF'),
+      S.mode === 'after' ? h('span', { class: 'hint' }, S.existing?.canReuse ? 'Reuse keeps supported roles, order and descriptions. Export rebuilds tags; complex table attributes are not preserved. Keep original preserves every tag.' : 'Some original structure cannot be reused safely. Use layout suggestions to rebuild, or keep the original with all its tags.') : null));
+  }
+}
+function useStructure(source) {
+  if (source === 'existing' && !S.existing?.canReuse) return;
+  stopSpeaking();
+  mutate(() => {
+    S.source = source;
+    S.blocks = cloneBlocks(source === 'existing' ? S.existing.blocks : S.proposals);
+    // Untagged pictures stay visibly skipped in the original preview, but
+    // must be reviewed as pictures when borrowing the rest of its structure.
+    if (source === 'existing') for (const b of S.blocks) if (b.image && b.unlinked) { b.type = 'figure'; b.alt = ''; b.why = 'Picture outside existing tags: review it'; }
+    S.sel = null;
+  });
 }
 function count() {
-  const bs = S.blocks;
+  const bs = S.mode === 'before' ? (S.existing?.hasTree ? S.existing.blocks : S.proposals) : S.blocks;
   return {
     headings: bs.filter(b => b.type === 'h').length, paragraphs: bs.filter(b => b.type === 'p').length,
     lists: bs.filter(b => b.type === 'li').length, tables: bs.filter(b => b.type === 'table').length,
@@ -207,7 +257,7 @@ function count() {
 function disorder(order) {
   const pos = new Map();
   let n = 0;
-  for (const b of S.blocks) if (b.type !== 'artifact') pos.set(b.id, n++);
+  for (const b of S.proposals) if (b.type !== 'artifact') pos.set(b.id, n++);
   let jumps = 0, prev = -1;
   for (const u of order) {
     const p = pos.has(u.b.id) ? pos.get(u.b.id) : null;
@@ -239,6 +289,15 @@ function renderList(list) {
       lastPage = u.page;
     }
     const b = u.b;
+    if (S.mode === 'before' && u.existing) {
+      ol.append(h('li', { class: `item t-${b.type}`, 'data-key': u.key },
+        h('span', { class: 'num' }, u.num != null ? String(u.num) : '–'),
+        h('div', { class: 'body' }, h('span', { class: `chip c-${b.type}` }, label(b)),
+          b.unlinked ? h('span', { class: 'flag' }, 'outside tags') : null,
+          h('p', { class: 'txt' }, preview(b)),
+          h('p', { class: 'why' }, b.type === 'artifact' ? `${b.why}: not read aloud` : b.why))));
+      continue;
+    }
     if (S.mode === 'before') {
       const isFig = b.type === 'figure';
       ol.append(h('li', { class: `item plain${isFig ? ' skipped' : ''}`, 'data-key': u.key },
@@ -263,7 +322,7 @@ function renderList(list) {
     ol.append(li);
   }
   ol.setAttribute('role', S.mode === 'after' ? 'listbox' : 'list');
-  ol.setAttribute('aria-label', S.mode === 'after' ? 'Reading order with Earshot’s fixes' : 'Reading order as stored in the file');
+  ol.setAttribute('aria-label', S.mode === 'after' ? 'Reading order with Earshot’s fixes' : S.existing?.hasTree ? 'Existing tag order, page by page' : 'Reading order as stored in the file');
 }
 function label(b) {
   if (b.type === 'h') return `Heading ${b.level}`;
@@ -315,11 +374,11 @@ function editor(b) {
 }
 
 // ---------- edits ----------
-function snapshot() {
-  return S.blocks.map(b => ({ ...b, rows: b.rows && b.rows.map(r => r.slice()), items: b.items.slice(), lines: b.lines && b.lines.slice() }));
+function cloneBlocks(blocks) {
+  return blocks.map(b => ({ ...b, rows: b.rows && b.rows.map(r => r.slice()), items: b.items.slice(), lines: b.lines && b.lines.slice() }));
 }
 function mutate(fn, keepSel) {
-  S.history.push({ blocks: snapshot(), sel: S.sel });
+  S.history.push({ blocks: cloneBlocks(S.blocks), sel: S.sel, source: S.source });
   if (S.history.length > 100) S.history.shift();
   fn();
   if (!keepSel && S.sel != null && !S.blocks.some(b => b.id === S.sel)) S.sel = null;
@@ -331,6 +390,7 @@ function undo() {
   if (!last) return;
   S.blocks = last.blocks;
   S.sel = last.sel;
+  S.source = last.source;
   renderAll();
   focusSel();
 }
@@ -462,7 +522,7 @@ function showPanel(p) {
 
 // ---------- listen ----------
 function speechList() {
-  if (S.mode === 'before') return units().filter(u => u.num != null).map(u => ({ key: u.key, id: u.b.id, text: u.text || u.b.text }));
+  if (S.mode === 'before') return units().filter(u => u.num != null).map(u => ({ key: u.key, id: u.b.id, text: u.existing ? spoken(u.b) : u.text || u.b.text }));
   const out = [];
   if (S.title) out.push({ id: null, text: `Document: ${S.title}.` });
   let prevList = false;
@@ -651,10 +711,10 @@ async function cropFigure(b) {
   const c = document.createElement('canvas');
   c.width = Math.round(vp.width); c.height = Math.round(vp.height);
   await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-  const [x0, y0, x1, y1] = b.bbox;
+  const [x0, y0, x1, y1] = viewportBox(vp, p, b.bbox);
   const out = document.createElement('canvas');
-  out.width = Math.max(1, Math.round((x1 - x0) * scale)); out.height = Math.max(1, Math.round((y1 - y0) * scale));
-  out.getContext('2d').drawImage(c, x0 * scale, (p.h - y1) * scale, out.width, out.height, 0, 0, out.width, out.height);
+  out.width = Math.max(1, Math.round(x1 - x0)); out.height = Math.max(1, Math.round(y1 - y0));
+  out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
   return out.toDataURL('image/jpeg', 0.86);
 }
 
@@ -682,7 +742,7 @@ window.addEventListener('resize', () => {
   resizeT = setTimeout(async () => {
     if (!S.ex) return;
     const w = Math.min($('#pages').clientWidth, 820) - 2;
-    if (S.pageEls[0] && Math.abs(S.pageEls[0].scale * S.ex.pages[0].w - w) < 8) return;
+    if (S.pageEls[0] && Math.abs(S.pageEls[0].viewport.width - w) < 8) return;
     await renderPages();
     renderAll();
   }, 250);

@@ -52,6 +52,9 @@ export function buildChecks(S) {
   const scanned = (S.ex ? S.ex.pages : []).filter(p => !p.items.some(it => it.s.trim()) && p.images.length);
   if (scanned.length) out.push({ status: 'todo', title: `${scanned.length === 1 ? 'Page' : 'Pages'} ${scanned.map(p => p.n + 1).join(', ')} look${scanned.length === 1 ? 's' : ''} scanned`, detail: 'There is no real text to tag. These pages need text recognition (OCR) first, which Earshot doesn’t do yet.' });
 
-  if (S.ex && S.ex.tagged) out.push({ status: 'info', title: 'This file already had tags', detail: 'Downloading replaces them with the structure you see here.' });
+  if (S.ex && S.ex.tagged) {
+    out.push({ status: 'info', title: S.source === 'existing' ? 'Starting from existing tags' : 'This file already had tags', detail: '“As it is now” previews the original tag order. Export rebuilds the structure shown in the editor; “Keep original PDF” saves every original tag unchanged.' });
+    for (const issue of S.existing?.issues || []) out.push({ status: 'todo', title: 'Existing structure needs review', detail: issue });
+  }
   return out;
 }

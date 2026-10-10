@@ -11,10 +11,107 @@ import { toHtml } from '../../../site/builder/earshot/html.js';
 import * as L from '../../../site/builder/earshot/vendor/pdf-lib.esm.min.js';
 import { tagPdf } from '../../../site/builder/earshot/tagger.js';
 import { extractDocument } from '../../../site/builder/earshot/extract.js';
+import { existingStructure, inspectExistingAttributes } from '../../../site/builder/earshot/existing.js';
 
 const enc = s => new TextEncoder().encode(s);
 const PDFJS = '/tmp/lib/node_modules/pdfjs-dist/legacy/build/pdf.mjs';
 const SAMPLE = new URL('../../../site/builder/earshot/sample.pdf', import.meta.url);
+
+test('existing tag order wins over physical/file order; unlinked text stays visible', () => {
+  const a = item('Stored first', 40, 700, 12, { i: 0, markedIds: ['p1R_mc0'] });
+  const b = item('Read first', 40, 500, 12, { i: 1, markedIds: ['p1R_mc1'] });
+  const hidden = item('Hidden footer', 40, 20, 10, { i: 2, artifact: true });
+  const outside = item('Must not disappear', 40, 200, 10, { i: 3, markedIds: ['p1R_mc99'] });
+  const tree = { role: 'Root', children: [
+    { role: 'H3', children: [{ type: 'content', id: 'p1R_mc1' }] },
+    { role: 'P', children: [{ type: 'content', id: 'p1R_mc0' }] },
+  ] };
+  const ex = existingStructure([{ n: 0, ref: '1R', items: [a, b, hidden, outside], images: [], tree }]);
+  assert.equal(ex.blocks[0].text, 'Read first');
+  assert.equal(ex.blocks[0].level, 3, 'do not normalize original heading levels');
+  assert.equal(ex.blocks[1].text, 'Stored first');
+  assert.equal(ex.blocks[2].type, 'artifact');
+  assert.equal(ex.blocks[3].unlinked, true);
+  assert.equal(ex.unlinkedChars, outside.s.length);
+  assert.equal(ex.canReuse, true, 'unlinked text can be included for review');
+});
+
+test('unsafe original structures are previewed but cannot be reused silently', () => {
+  const it = item('Formula text', 20, 300, 10, { markedIds: ['p1R_mc0'] });
+  const ex = existingStructure([{ n: 0, ref: '1R', items: [it], images: [], tree: { role: 'Root', children: [{ role: 'Formula', actualText: 'a squared', children: [{ type: 'content', id: 'p1R_mc0' }] }] } }]);
+  assert.equal(ex.blocks[0].text, 'a squared');
+  assert.equal(ex.canReuse, false);
+  assert.ok(ex.issues.some(i => i.includes('ActualText')));
+  assert.ok(ex.issues.some(i => i.includes('Formula')));
+});
+
+test('raw tag attribute check catches merged cells, row headers and nested lists', async () => {
+  const d = await L.PDFDocument.create();
+  d.addPage();
+  const root = d.context.obj({ Type: 'StructTreeRoot', K: [
+    { S: 'TH', A: { O: 'Table', Scope: 'Row', ColSpan: 2 } },
+    { S: 'TD', A: { O: 'Table', RowSpan: 2, Headers: [L.PDFString.of('header')] } },
+    { S: 'L', K: { S: 'LI', K: { S: 'L' } } },
+    { S: 'P', Lang: L.PDFString.of('de') },
+  ] });
+  d.catalog.set(L.PDFName.of('StructTreeRoot'), d.context.register(root));
+  const issues = await inspectExistingAttributes(L, await d.save());
+  for (const word of ['Merged', 'Row or combined', 'Nested list', 'Language changes', 'Explicit table']) assert.ok(issues.some(i => i.includes(word)), word);
+});
+
+test('existing tags survive reuse/export, including table headers, alt text and hidden furniture', { skip: !existsSync(PDFJS) && 'pdf.js not installed' }, async () => {
+  const pdfjs = await import(PDFJS);
+  const bytes = new Uint8Array(readFileSync(SAMPLE));
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), verbosity: 0 }).promise;
+  const ex = await extractDocument(pdfjs, doc);
+  const { blocks } = analyze(ex.pages);
+  blocks.find(b => b.type === 'figure').alt = 'A description from the original author';
+  // A deliberate order and role different from Earshot's layout proposals.
+  const a = blocks.findIndex(b => b.type === 'p');
+  [blocks[a], blocks[a + 1]] = [blocks[a + 1], blocks[a]];
+  blocks.find(b => b.type === 'h').level = 2;
+  const first = await tagPdf(L, bytes, { pages: ex.pages, blocks, title: 'Original title', lang: 'fr' });
+  const taggedDoc = await pdfjs.getDocument({ data: first.bytes.slice(), verbosity: 0 }).promise;
+  const taggedEx = await extractDocument(pdfjs, taggedDoc);
+  assert.deepEqual(await inspectExistingAttributes(L, first.bytes), []);
+  const original = existingStructure(taggedEx.pages);
+  assert.equal(original.hasTree, true);
+  assert.equal(original.canReuse, true);
+  assert.deepEqual(original.issues, []);
+  assert.equal(original.unlinkedChars, 0);
+  assert.equal(original.blocks[0].level, 2);
+  const signature = bs => bs.filter(b => b.type !== 'artifact').map(b => ({ type: b.type, level: b.level, text: b.text.replace(/\s+/g, ' '), alt: b.alt, rows: b.rows?.map(r => r.map(c => c.text)), headerRows: b.headerRows }));
+  assert.deepEqual(signature(original.blocks), signature(blocks));
+  assert.equal(original.blocks.filter(b => b.type === 'artifact').length, 6);
+  const rewritten = await tagPdf(L, first.bytes, { pages: taggedEx.pages, blocks: original.blocks, title: taggedEx.title, lang: taggedEx.lang });
+  assert.equal(rewritten.report.unmatchedText, 0);
+  assert.deepEqual(rewritten.report.emptyLeaves, []);
+  const reusedDoc = await pdfjs.getDocument({ data: rewritten.bytes.slice(), verbosity: 0 }).promise;
+  const reusedEx = await extractDocument(pdfjs, reusedDoc);
+  assert.deepEqual(signature(existingStructure(reusedEx.pages).blocks), signature(original.blocks));
+  assert.equal(reusedEx.title, 'Original title');
+  assert.equal(reusedEx.lang, 'fr');
+  await Promise.all([doc.destroy(), taggedDoc.destroy(), reusedDoc.destroy()]);
+});
+
+test('tags beginning after page three are discovered', { skip: !existsSync(PDFJS) && 'pdf.js not installed' }, async () => {
+  const pdfjs = await import(PDFJS);
+  const d = await L.PDFDocument.create();
+  const font = await d.embedFont(L.StandardFonts.Helvetica);
+  for (let n = 0; n < 4; n++) d.addPage([300, 400]).drawText(`Page ${n + 1} text`, { x: 30, y: 200, font });
+  const input = await d.save();
+  const source = await pdfjs.getDocument({ data: input.slice(), verbosity: 0 }).promise;
+  const ex = await extractDocument(pdfjs, source);
+  const { blocks } = analyze(ex.pages);
+  const out = await tagPdf(L, input, { pages: ex.pages, blocks: blocks.filter(b => b.page === 3), title: 'Late tags', lang: 'en' });
+  const result = await pdfjs.getDocument({ data: out.bytes.slice(), verbosity: 0 }).promise;
+  const extracted = await extractDocument(pdfjs, result);
+  assert.equal(extracted.tagged, true);
+  assert.ok(extracted.structSummary.P);
+  assert.equal(extracted.pages[0].tree?.children.length || 0, 0);
+  assert.ok(extracted.pages[3].tree);
+  await Promise.all([source.destroy(), result.destroy()]);
+});
 
 test('lexer keeps byte ranges and parses strings, arrays, dicts and inline images', () => {
   const src = enc('q 1 0 0 1 5 5 cm BT /F1 12 Tf (a\\(b\\)\\101) Tj [(x) -250 <4142>] TJ ET /P <</MCID 3>> BDC EMC BI /W 2 /H 1 ID \x00EI\xff EI Q');

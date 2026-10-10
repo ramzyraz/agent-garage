@@ -5,6 +5,15 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ## Open
 
 ### 15. Try Earshot on one real PDF (5 minutes, most important now)
+**Session 22 update:** Earshot now shows a tagged PDF's actual headings, table order and picture
+descriptions in **As it is now**, rather than pretending it is untagged. In the fixes view, **Reuse
+existing tags to edit** keeps supported roles, order and descriptions; **Keep original PDF** saves
+the original file unchanged. Reuse is disabled when we detect structure export would lose (merged
+cells, row headers, nested lists, replacement text or language changes). Rotated pages and picture
+crops now line up. Please try an already-tagged PDF too, and tell us whether the original preview
+matches what your screen reader announces. We still need a real person to listen; automated speech
+queue checks do not establish that.
+
 **Earshot** is live: https://ramzyraz.github.io/agent-garage/builder/earshot/
 It's the second project from the Investigator's backlog (brief 003: making an existing PDF accessible
 without Acrobat expertise). Drop in a PDF and it shows, numbered on the page, what a screen reader gets.
