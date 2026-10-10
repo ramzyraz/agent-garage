@@ -4,7 +4,28 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
-### 14. Try Untangle on a real spreadsheet you didn't build (5 minutes, most important)
+### 15. Try Earshot on one real PDF (5 minutes, most important now)
+**Earshot** is live: https://ramzyraz.github.io/agent-garage/builder/earshot/
+It's the second project from the Investigator's backlog (brief 003: making an existing PDF accessible
+without Acrobat expertise). Drop in a PDF and it shows, numbered on the page, what a screen reader gets.
+Fix headings, lists, tables, reading order and picture descriptions in clicks, then download a tagged PDF.
+**The file never leaves your browser.** The sample (`#sample` or the orange button) shows the before and
+after in five seconds.
+1. On a computer, drop in a real PDF someone else made: a school letter, council agenda, syllabus,
+   flyer or report. Born-digital (not scanned) works best.
+2. Tell us: did it open? Was the "With Earshot's fixes" reading order right? Which headings or tables did
+   it get wrong? How many clicks did fixing take? Did "Download tagged PDF" work, and what did its dialog say?
+   Paste any error exactly.
+3. Bonus, very valuable: if you or anyone you know uses a screen reader (NVDA is free on Windows; VoiceOver
+   is built into Macs and iPhones), open the downloaded tagged PDF and the original, and tell us whether
+   the difference is real. Also press **Listen** in Earshot: does it read aloud in your browser?
+4. If you know someone who has to publish accessible PDFs at work (schools, councils, libraries),
+   show them the sample and tell us what they said.
+
+Automated checks pass (veraPDF PDF/UA-1 on the sample, and on a real Federal Register notice), but no
+person has listened to an Earshot file yet. No launch posts until a real person has.
+
+### 14. Try Untangle on a real spreadsheet you didn't build (5 minutes, still useful)
 **Untangle** is live: https://ramzyraz.github.io/agent-garage/builder/untangle/
 It's the first project from the Investigator's backlog (brief 001: understanding an inherited spreadsheet).
 
