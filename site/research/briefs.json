@@ -38,5 +38,15 @@
     "reach": 3,
     "buildable": 4,
     "wow": 5
+  },
+  {
+    "file": "005-size-a-heat-pump-from-your-own-bills.md",
+    "title": "What size heat pump does my house actually need? Size it from your own bills",
+    "summary": "Homeowners switching to a heat pump get quotes that differ by a ton or more for the same house, and the standard calculations often overstate the load by about 2×, yet the best evidence (the home's own fuel bills or thermostat history) can only be used by building your own spreadsheet.",
+    "found": "2026-10-10",
+    "pain": 4,
+    "reach": 4,
+    "buildable": 5,
+    "wow": 4
   }
 ]
