@@ -65,7 +65,7 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
     const originalList = await p.$eval('#order', el => el.textContent);
     assert.match(originalList, /Heading 2/);
     assert.match(originalList, /Original author: two canoes/);
-    assert.match(await p.$eval('#banner', el => el.textContent), /existing.*tag order/);
+    assert.match(await p.$eval('#banner', el => el.textContent), /already has tags.*order its tags give/);
     await p.screenshot({ path: path.join(out, 'existing-before.png') });
 
     // Mock only the voice transport: assert the actual queued original roles/order.
@@ -84,15 +84,18 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
     assert.ok(!speech.some(t => /Published May|Page 1 of 2/.test(t)), 'original artifacts are skipped');
 
     // Source selection and all edits are undoable. The original view stays fixed.
+    // Safe original tags are the default starting point, not layout guesses.
     await p.click('.seg [data-mode="after"]');
-    const proposed = await p.evaluate(() => window.Earshot.blocks.map(b => b.type + ':' + b.text));
-    await p.click('#banner .source-actions button:first-child');
     assert.equal(await p.evaluate(() => window.Earshot.source), 'existing');
     assert.equal(await p.evaluate(() => window.Earshot.blocks[0].level), 2);
-    await p.click('#undo');
-    assert.equal(await p.evaluate(() => window.Earshot.source), 'layout');
-    assert.deepEqual(await p.evaluate(() => window.Earshot.blocks.map(b => b.type + ':' + b.text)), proposed);
+    assert.match(await p.$eval('#banner', el => el.textContent), /Starting from this PDF’s own tags/);
+    const reused = await p.evaluate(() => window.Earshot.blocks.map(b => b.type + ':' + b.text));
     await p.click('#banner .source-actions button:first-child');
+    assert.equal(await p.evaluate(() => window.Earshot.source), 'layout');
+    assert.equal(await p.evaluate(() => window.Earshot.blocks[0].level), 1, 'layout guesses normalize to H1');
+    await p.click('#undo');
+    assert.equal(await p.evaluate(() => window.Earshot.source), 'existing');
+    assert.deepEqual(await p.evaluate(() => window.Earshot.blocks.map(b => b.type + ':' + b.text)), reused);
     await p.click('#order .item[data-id="0"]');
     await p.keyboard.press('1');
     assert.equal(await p.evaluate(() => window.Earshot.blocks[0].level), 1);
@@ -100,7 +103,7 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
     assert.equal(await p.$eval('#order', el => el.textContent), originalList, 'edits must not rewrite before');
     const savedOriginal = path.join(out, 'original-tagged.pdf');
     fs.unlinkSync(savedOriginal); // fixture is now in browser memory; expect a new download
-    await p.click('#banner .source-actions button');
+    await p.click('#banner .source-actions button.ghost');
     assert.deepEqual(new Uint8Array(fs.readFileSync(await waitFile('original-tagged.pdf'))), tagged, 'Keep original is byte identical');
 
     await p.click('.seg [data-mode="after"]');
@@ -139,7 +142,8 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
 
     await upload(unsafeFile);
     await p.click('.seg [data-mode="after"]');
-    assert.equal(await p.$eval('#banner .source-actions button:first-child', el => el.disabled), true);
+    assert.equal(await p.evaluate(() => window.Earshot.source), 'layout', 'unsafe tags fall back to layout');
+    assert.match(await p.$eval('#banner .source-actions', el => el.textContent), /^Keep original PDF/, 'no reuse button offered');
     await p.click('#tabChecks');
     assert.match(await p.$eval('#checksPanel', el => el.textContent), /Merged table cells/);
     assert.match(await p.$eval('#checksPanel', el => el.textContent), /Row or combined table headers/);

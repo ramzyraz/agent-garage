@@ -110,10 +110,14 @@ export function findArtifacts(pages) {
       if (!inMargin(l, p)) continue;
       const n = norm(l.text);
       if (pageNo.test(n)) l.artifact = 'Page number';
+      else if (PRINT_STAMP.test(l.text.trim())) l.artifact = 'Print header or footer';
       else if (pages.length > 1 && counts.get(n) >= 2) l.artifact = l.bbox[1] > p.h / 2 ? 'Running header' : 'Running footer';
     }
   }
 }
+// What browsers and print dialogs stamp in the margins: a date/time, the
+// page URL or file name, "1/3". Only ever applied to lines in the margin.
+const PRINT_STAMP = /^(\d{1,4}[/.-]\d{1,2}[/.-]\d{2,4},?\s+\d{1,2}:\d{2}(:\d{2})?\s*([ap]\.?m\.?)?|(https?|file):\/\/\S+|\S+\.(html?|aspx?|php|docx?|pdf|txt)|\d+\s*\/\s*\d+)$/i;
 function inMargin(l, p) {
   return l.bbox[1] > p.h * 0.9 || l.bbox[3] < p.h * 0.1;
 }
@@ -226,7 +230,11 @@ function groupLines(ordered, bodySize) {
     const sameStyle = prev && Math.abs(prev.size - l.size) < 0.6 && prev.font === l.font;
     const close = prev && prev.y - l.y > 0 && prev.y - l.y < 1.75 * l.size;
     const indent = cur && (cur.kind === 'li' ? Math.abs(l.x0 - cur.textX) < 0.9 * l.size : Math.abs(l.x0 - cur.lines[0].x0) < 3 * l.size || (cur.lines.length === 1 && l.x0 < cur.lines[0].x0));
-    if (cur && !bullet && sameStyle && close && indent && !l.inTable) {
+    // A short line followed by another means the author broke the line on
+    // purpose (list without bullet glyphs, address, menu): not one paragraph.
+    const wide = prev && Math.max(...ordered.filter(o => Math.abs(o.x0 - prev.x0) < 3 * o.size && Math.abs(o.size - prev.size) < 0.6).map(o => o.bbox[2] - o.bbox[0]));
+    const shortPrev = prev && prev.bbox[2] - prev.bbox[0] < 0.45 * wide;
+    if (cur && !bullet && sameStyle && close && indent && !l.inTable && !shortPrev) {
       cur.lines.push(l);
     } else {
       cur = { kind: bullet ? 'li' : 'p', lines: [l] };
@@ -244,8 +252,12 @@ function groupLines(ordered, bodySize) {
 export function analyze(pagesIn) {
   const pages = pagesIn.map((p, n) => ({ ...p, n, lines: buildLines(p.items) }));
   const allLines = pages.flatMap(p => p.lines);
-  const bodySize = mode(allLines.map(l => [l.size, l.text.length])) || 10;
-  const bodyFont = mode(allLines.map(l => [l.font, l.text.length]));
+  // Margin text (print stamps, footers) is often small and must not set the
+  // body size on short documents, or every normal line looks like a heading.
+  const inner = pages.flatMap(p => p.lines.filter(l => !inMargin(l, p)));
+  const basis = inner.reduce((n, l) => n + l.text.length, 0) >= 20 ? inner : allLines;
+  const bodySize = mode(basis.map(l => [l.size, l.text.length])) || 10;
+  const bodyFont = mode(basis.map(l => [l.font, l.text.length]));
   findArtifacts(pages);
 
   const blocks = [];

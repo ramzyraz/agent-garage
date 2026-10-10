@@ -1,0 +1,195 @@
+{
+ "note": "Session 23: same five official PDFs, check-earshot-pdfs.mjs now mirrors the app default (reuse original tags when safe, else layout). W-9 now reuses its own tags (Chrome-style simple Headers/same-language Lang no longer block reuse). Layout changes: body size ignores margin text, print stamps hidden, intentionally short lines not merged. veraPDF 1.30.3 PDF/UA-1. Also a Chrome print-to-PDF of a small HTML page: before 7.1-8x1, after PASS. No render comparison or screen-reader check this session.",
+ "pipeline": [
+  {
+   "file": "2268f593.pdf",
+   "source": "layout",
+   "pages": 64,
+   "taggedBefore": true,
+   "analyzeMs": 3096,
+   "blocks": {
+    "h": 224,
+    "p": 4131,
+    "li": 54,
+    "table": 19,
+    "figure": 7,
+    "artifact": 167
+   },
+   "firstHeadings": [
+    "H1 Income in the United States: 2021",
+    "H2 Current Population Reports",
+    "H3 by Jessica Semega and Melissa Kollar Iss",
+    "H2 Acknowledgments",
+    "H3 Jessica Semega and Melissa Kollar prepar"
+   ],
+   "tagMs": 4936,
+   "report": {
+    "mcids": 18419,
+    "unmatchedText": 826,
+    "emptyLeaves": 5,
+    "links": 336,
+    "formsWithText": 101,
+    "unembedded": 0,
+    "strippedTags": 21919
+   },
+   "coverage": "19638/19638",
+   "textMoved": 956,
+   "realText": "168880 tagged / 168894 expected; artifact 3302 vs 3288 expected",
+   "vera_before": "7.9-1×51 7.18.5-2×336 7.18.1-2×336 7.21.7-1×147 5-1×1 7.4.2-1×1 7.1-3×14834 7.18.5-1×12 7.5-1×17",
+   "vera_after": "7.21.7-1×755",
+   "source_url": "https://www.census.gov/content/dam/Census/library/publications/2022/demo/p60-276.pdf"
+  },
+  {
+   "file": "9fe053bb.pdf",
+   "source": "existing",
+   "pages": 6,
+   "taggedBefore": true,
+   "analyzeMs": 306,
+   "blocks": {
+    "h": 28,
+    "p": 153,
+    "li": 53,
+    "table": 4,
+    "figure": 0,
+    "artifact": 0
+   },
+   "firstHeadings": [
+    "H1 Form W-9",
+    "H1 Request for Taxpayer Identification Numb",
+    "H2 Part I",
+    "H2 Taxpayer Identification Number (TIN)",
+    "H2 Part II"
+   ],
+   "tagMs": 156,
+   "report": {
+    "mcids": 299,
+    "unmatchedText": 0,
+    "emptyLeaves": 0,
+    "links": 0,
+    "formsWithText": 0,
+    "unembedded": 0,
+    "strippedTags": 478
+   },
+   "coverage": "936/936",
+   "textMoved": 0,
+   "realText": "29932 tagged / 29932 expected; artifact 0 vs 0 expected",
+   "vera_before": "7.18.1-3×23 7.21.4.1-1×1 7.4.2-1×1 7.21.7-1×1",
+   "vera_after": "7.21.4.1-1×1 7.21.7-1×1 7.18.1-3×23 7.4.2-1×1",
+   "source_url": "https://www.irs.gov/pub/irs-pdf/fw9.pdf"
+  },
+  {
+   "file": "e34ab8e1.pdf",
+   "source": "layout",
+   "pages": 289,
+   "taggedBefore": true,
+   "analyzeMs": 5563,
+   "blocks": {
+    "h": 255,
+    "p": 8203,
+    "li": 34,
+    "table": 3,
+    "figure": 0,
+    "artifact": 326
+   },
+   "firstHeadings": [
+    "H1 Billing Code: 4410-13",
+    "H1 DEPARTMENT OF JUSTICE",
+    "H1 28 CFR Part 35",
+    "H1 [CRT Docket No. 144; AG Order No. 5919-2",
+    "H1 RIN 1190-AA79"
+   ],
+   "tagMs": 6654,
+   "report": {
+    "mcids": 55700,
+    "unmatchedText": 80,
+    "emptyLeaves": 0,
+    "links": 1117,
+    "formsWithText": 0,
+    "unembedded": 0,
+    "strippedTags": 5157
+   },
+   "coverage": "32034/32034",
+   "textMoved": 26616,
+   "realText": "546052 tagged / 546052 expected; artifact 3661 vs 3661 expected",
+   "vera_before": "7.21.4.2-2×6",
+   "vera_after": "7.21.4.2-2×6",
+   "source_url": "https://www.ada.gov/assets/pdfs/web-rule.pdf"
+  },
+  {
+   "file": "f0738dd2.pdf",
+   "source": "layout",
+   "pages": 15,
+   "taggedBefore": false,
+   "analyzeMs": 941,
+   "blocks": {
+    "h": 16,
+    "p": 540,
+    "li": 10,
+    "table": 1,
+    "figure": 3,
+    "artifact": 14
+   },
+   "firstHeadings": [
+    "H1 Attention Is All You Need",
+    "H2 Abstract",
+    "H2 1 Introduction",
+    "H2 2 Background",
+    "H2 3 Model Architecture"
+   ],
+   "tagMs": 687,
+   "report": {
+    "mcids": 522,
+    "unmatchedText": 11,
+    "emptyLeaves": 122,
+    "links": 113,
+    "formsWithText": 5,
+    "unembedded": 1,
+    "strippedTags": 0
+   },
+   "coverage": "1768/1768",
+   "textMoved": 3,
+   "realText": "31480 tagged / 31546 expected; artifact 86 vs 20 expected",
+   "vera_before": "7.1-8×1 6.2-1×1 7.18.1-2×113 7.2-2×22 7.21.7-1×1 7.1-3×4482 7.18.3-1×11 7.21.4.1-1×1 7.2-34×1769 7.18.5-1×113 7.1-10×1 7.18.5-2×113 7.1-11×1",
+   "vera_after": "7.21.4.1-1×1 7.21.7-1×1",
+   "source_url": "https://arxiv.org/pdf/1706.03762v7"
+  },
+  {
+   "file": "fb67433f.pdf",
+   "source": "layout",
+   "pages": 30,
+   "taggedBefore": false,
+   "analyzeMs": 270,
+   "blocks": {
+    "h": 17,
+    "p": 762,
+    "li": 13,
+    "table": 1,
+    "figure": 0,
+    "artifact": 6
+   },
+   "firstHeadings": [
+    "H1 DEPARTMENT OF JUSTICE",
+    "H1 28 CFR Part 35",
+    "H1 [Docket No. CRT150; AG Order No. 6742-20",
+    "H1 RIN 1190-AA82",
+    "H1 Accessibility of Web Information and Ser"
+   ],
+   "tagMs": 218,
+   "report": {
+    "mcids": 893,
+    "unmatchedText": 0,
+    "emptyLeaves": 0,
+    "links": 0,
+    "formsWithText": 0,
+    "unembedded": 0,
+    "strippedTags": 7
+   },
+   "coverage": "1385/1385",
+   "textMoved": 0,
+   "realText": "56007 tagged / 56007 expected; artifact 142 vs 142 expected",
+   "vera_before": "7.1-10×1 6.2-1×1 7.2-34×1434 7.2-30×7 7.1-3×2028 7.1-11×1 7.1-8×1",
+   "vera_after": "PASS",
+   "source_url": "https://public-inspection.federalregister.gov/2026-07663.pdf"
+  }
+ ]
+}

@@ -14,32 +14,62 @@ export async function inspectExistingAttributes(L, bytes) {
   const doc = await L.PDFDocument.load(bytes, { updateMetadata: false });
   const N = L.PDFName.of, seen = new Set(), issues = new Set();
   const lookup = (d, key) => d.lookup(N(key));
-  const walk = (value, listDepth = 0) => {
+  const str = v => v?.decodeText?.() ?? (v ? String(v) : '');
+  const lang = v => str(v).toLowerCase().split('-')[0].trim();
+  const docLang = lang(lookup(doc.catalog, 'Lang'));
+  const attrList = v => {
+    const a = doc.context.lookup(lookup(v, 'A'));
+    return (a instanceof L.PDFArray ? a.asArray().map(x => doc.context.lookup(x)) : [a]).filter(x => x instanceof L.PDFDict);
+  };
+  const headersOf = v => {
+    for (const d of [v, ...attrList(v)]) {
+      const hs = d && lookup(d, 'Headers');
+      if (hs) return hs instanceof L.PDFArray ? hs.asArray().map(x => str(doc.context.lookup(x))) : [str(hs)];
+    }
+    return null;
+  };
+  const kids = v => {
+    const k = doc.context.lookup(lookup(v, 'K'));
+    return (k instanceof L.PDFArray ? k.asArray() : [k]).map(x => doc.context.lookup(x)).filter(x => x instanceof L.PDFDict && lookup(x, 'S'));
+  };
+  const role = v => lookup(v, 'S')?.decodeText?.();
+  // Browsers and Word write /Headers on every data cell even for a plain
+  // table: each cell pointing at the header above it in the first row. That
+  // is exactly what one column-header row exports, so it is safe to reuse.
+  const simpleHeaders = table => {
+    const rows = [];
+    const collect = v => kids(v).forEach(k => { const r = role(k); if (r === 'TR') rows.push(kids(k).filter(c => ['TH', 'TD'].includes(role(c)))); else if (['THead', 'TBody', 'TFoot'].includes(r)) collect(k); });
+    collect(table);
+    if (!rows.length) return true;
+    const ids = rows[0].map(c => role(c) === 'TH' ? str(lookup(c, 'ID')) : null);
+    return rows.every((r, ri) => r.every((c, ci) => {
+      const hs = headersOf(c);
+      if (!hs || !hs.length) return true;
+      return ri > 0 && hs.length === 1 && ids[ci] && hs[0] === ids[ci];
+    }));
+  };
+  const walk = (value, listDepth = 0, inSimpleTable = false) => {
     const v = doc.context.lookup(value);
     if (!v || seen.has(v)) return;
     seen.add(v);
-    if (v instanceof L.PDFArray) { v.asArray().forEach(child => walk(child, listDepth)); return; }
+    if (v instanceof L.PDFArray) { v.asArray().forEach(child => walk(child, listDepth, inSimpleTable)); return; }
     if (!(v instanceof L.PDFDict)) return;
-    const role = lookup(v, 'S')?.decodeText?.();
-    if (role === 'L') {
+    const r = role(v);
+    if (r === 'L') {
       if (listDepth) issues.add('Nested list levels cannot be preserved on export; keep the original or use layout suggestions.');
       listDepth++;
     }
+    if (r === 'Table') inSimpleTable = simpleHeaders(v);
     if (lookup(v, 'ActualText')) issues.add('Replacement text (ActualText) cannot be preserved on export; keep the original PDF.');
-    if (lookup(v, 'Lang')) issues.add('Language changes within the document cannot be preserved on export; keep the original PDF.');
-    if (lookup(v, 'Headers')) issues.add('Explicit table header associations cannot be preserved on export; keep the original PDF.');
-    const attrs = lookup(v, 'A');
-    const checkAttr = a => {
-      a = doc.context.lookup(a);
-      if (a instanceof L.PDFArray) { a.asArray().forEach(checkAttr); return; }
-      if (!(a instanceof L.PDFDict)) return;
+    // A tag that repeats the document's own language changes nothing.
+    if (lookup(v, 'Lang') && lang(lookup(v, 'Lang')) !== docLang) issues.add('Language changes within the document cannot be preserved on export; keep the original PDF.');
+    if (headersOf(v) && !inSimpleTable) issues.add('Explicit table header associations cannot be preserved on export; keep the original PDF.');
+    for (const a of attrList(v)) {
       if ((lookup(a, 'RowSpan')?.asNumber?.() || 1) > 1 || (lookup(a, 'ColSpan')?.asNumber?.() || 1) > 1) issues.add('Merged table cells cannot be preserved on export; keep the original PDF.');
       const scope = lookup(a, 'Scope')?.decodeText?.();
       if (scope && scope !== 'Column') issues.add('Row or combined table headers cannot be preserved on export; keep the original PDF.');
-      if (lookup(a, 'Headers')) issues.add('Explicit table header associations cannot be preserved on export; keep the original PDF.');
-    };
-    checkAttr(attrs);
-    walk(lookup(v, 'K'), listDepth);
+    }
+    walk(lookup(v, 'K'), listDepth, inSimpleTable);
   };
   walk(lookup(doc.catalog, 'StructTreeRoot'));
   return [...issues];

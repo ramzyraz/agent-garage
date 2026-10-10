@@ -1,6 +1,6 @@
 // What still needs a person before export. Pure: reads Earshot's state.
 
-const JUNK_TITLE = /^(untitled.*|document\d*|doc\d*|microsoft (word|powerpoint) - .*|.*\.(docx?|pptx?|pdf|indd|qxd|rtf|odt)|title|new document|\s*)$/i;
+const JUNK_TITLE = /^(untitled.*|document\d*|doc\d*|microsoft (word|powerpoint|excel) - .*|.*\.(docx?|pptx?|xlsx?|pdf|indd|qxd|rtf|odt|html?|txt|md|csv|pages)|(https?|file):\/\/.*|title|new document|\s*)$/i;
 
 export function suggestTitle(fileTitle, blocks) {
   const t = (fileTitle || '').trim();

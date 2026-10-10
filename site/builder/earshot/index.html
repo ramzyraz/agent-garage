@@ -46,6 +46,31 @@
         <p id="loadProgress" class="load-progress" aria-live="polite" hidden></p>
       </div>
 
+      <section id="demo" class="demo" aria-labelledby="demoTitle">
+        <h2 id="demoTitle" class="demo-title">Watch a screen reader read the same page twice</h2>
+        <div class="demo-grid">
+          <div class="demo-page" role="img" aria-label="Page 1 of the sample town notice. A numbered line traces the reading order: first scrambled, then top to bottom after Earshot's fixes.">
+            <canvas aria-hidden="true"></canvas>
+            <svg class="demo-path" aria-hidden="true" preserveAspectRatio="none"><polyline points="" /></svg>
+            <div class="demo-boxes" aria-hidden="true"></div>
+          </div>
+          <div class="demo-side">
+            <p class="demo-phase">Loading the sample…</p>
+            <p class="demo-sub"></p>
+            <div class="demo-reader">
+              <span class="demo-count"></span>
+              <p class="demo-said"></p>
+            </div>
+            <p class="demo-verdict" hidden></p>
+            <div class="demo-controls">
+              <button type="button" class="ghost demo-play" aria-pressed="false"><span aria-hidden="true">▶</span> Play</button>
+              <button type="button" class="ghost demo-sound" aria-pressed="false"><span aria-hidden="true">🔈</span> Hear it</button>
+              <button type="button" class="primary demo-open">Fix this sample yourself →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="features" aria-label="What Earshot does">
         <div class="feat">
           <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="8" y="6" width="104" height="10" rx="2" class="f-h"/><rect x="8" y="22" width="48" height="36" rx="2" class="f-p"/><rect x="64" y="22" width="48" height="36" rx="2" class="f-p"/><circle cx="8" cy="6" r="6" class="f-badge"/><text x="8" y="9" class="f-num">1</text><circle cx="8" cy="22" r="6" class="f-badge"/><text x="8" y="25" class="f-num">2</text><circle cx="64" cy="22" r="6" class="f-badge"/><text x="64" y="25" class="f-num">3</text></svg>

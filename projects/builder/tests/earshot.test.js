@@ -262,3 +262,45 @@ test('TJ arrays are split at piece boundaries without moving glyphs', { skip: !e
   const tags = tc.items.filter(i => i.type === 'beginMarkedContentProps').map(i => i.tag);
   assert.deepEqual(tags.filter(t => t === 'H1').length, 2, 'each part gets its own H1 marked content');
 });
+
+test('browser-style simple header links and repeated document language do not block reuse', async () => {
+  const d = await L.PDFDocument.create();
+  d.addPage();
+  d.catalog.set(L.PDFName.of('Lang'), L.PDFString.of('en-US'));
+  const S = L.PDFString.of;
+  const th = (id) => ({ S: 'TH', ID: S(id), A: [{ O: 'Table', Scope: 'Column' }, { O: 'Table', RowSpan: 1 }] });
+  const td = (h) => ({ S: 'TD', A: [{ O: 'Table', Headers: [S(h)] }, { O: 'Table', ColSpan: 1 }] });
+  const root = d.context.obj({ Type: 'StructTreeRoot', K: { S: 'Document', Lang: S('en'), K: [
+    { S: 'Table', K: [{ S: 'TR', K: [th('h1'), th('h2')] }, { S: 'TR', K: [td('h1'), td('h2')] }] },
+  ] } });
+  d.catalog.set(L.PDFName.of('StructTreeRoot'), d.context.register(root));
+  assert.deepEqual(await inspectExistingAttributes(L, await d.save()), []);
+
+  // Header pointing at the wrong column, or a real language change, still blocks reuse.
+  const e = await L.PDFDocument.create();
+  e.addPage();
+  e.catalog.set(L.PDFName.of('Lang'), L.PDFString.of('en-US'));
+  const root2 = e.context.obj({ Type: 'StructTreeRoot', K: [
+    { S: 'Table', K: [{ S: 'TR', K: [th('h1'), th('h2')] }, { S: 'TR', K: [td('h2'), td('h1')] }] },
+    { S: 'P', Lang: S('fr') },
+  ] });
+  e.catalog.set(L.PDFName.of('StructTreeRoot'), e.context.register(root2));
+  const issues = await inspectExistingAttributes(L, await e.save());
+  assert.ok(issues.some(i => i.includes('Explicit table')));
+  assert.ok(issues.some(i => i.includes('Language changes')));
+});
+
+test('print stamps in the margin are furniture and do not set the body size', () => {
+  const page = { w: 612, h: 792, images: [], items: [
+    item('10/10/26, 6:21 PM', 20, 775, 8, { i: 0 }), item('a.html', 300, 775, 8, { i: 1 }),
+    item('file:///tmp/ev/a.html', 20, 15, 8, { i: 2 }), item('1/1', 580, 15, 8, { i: 3 }),
+    item('Main title', 40, 700, 24, { i: 4 }), item('Intro paragraph text here, long enough to set the width.', 40, 660, 12, { i: 5 }),
+    item('One', 60, 630, 12, { i: 6 }), item('Two', 60, 614, 12, { i: 7 }),
+  ] };
+  const { blocks, bodySize } = analyze([page]);
+  assert.equal(bodySize, 12);
+  assert.equal(blocks.filter(b => b.type === 'artifact').length, 4);
+  assert.deepEqual(blocks.filter(b => b.type === 'h').map(b => b.text), ['Main title']);
+  assert.ok(blocks.some(b => b.text === 'One') && blocks.some(b => b.text === 'Two'), 'short lines broken on purpose stay separate');
+  assert.equal(suggestTitle('a.html', blocks), 'Main title');
+});

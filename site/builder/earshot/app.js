@@ -5,6 +5,7 @@ import { analyze, fileOrder, spoken, stripBullet, union } from './analyze.js';
 import { buildChecks, suggestTitle } from './checks.js';
 import { toHtml } from './html.js';
 import { existingStructure, inspectExistingAttributes } from './existing.js';
+import { initDemo } from './demo.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', import.meta.url).href;
 const PDF_OPTS = {
@@ -64,7 +65,9 @@ async function openBytes(bytes, name, isSample) {
     const textChars = ex.pages.reduce((n, p) => n + p.items.reduce((m, it) => m + it.s.trim().length, 0), 0);
     if (!textChars) throw new Error('scanned');
     Object.assign(S, { name, bytes, pdf, ex, blocks, bodySize, existing, proposals: cloneBlocks(blocks), source: 'layout', sel: null, history: [], mode: 'before', ms: Math.round(performance.now() - t0) });
-    S.title = suggestTitle(ex.title, blocks);
+    // Good original tags beat layout guesses: start from them when they can be kept safely.
+    if (existing?.hasTree && existing.canReuse) Object.assign(S, { source: 'existing', blocks: startingBlocks('existing') });
+    S.title = suggestTitle(ex.title, S.blocks);
     S.titleFromFile = ex.title;
     S.lang = ex.lang || (navigator.language && /^en/i.test(navigator.language) ? 'en-US' : 'en-US');
     S.isSample = !!isSample;
@@ -210,27 +213,32 @@ function banner() {
       h('strong', {}, S.ex.tagged ? 'This PDF already has tags. ' : 'This PDF has no tags. '),
       S.ex.tagged
         ? S.existing?.hasTree
-          ? `Showing its existing headings, lists, tables and picture descriptions in tag order, page by page. This is a reading preview; screen readers may handle annotations and unlinked content differently. ${S.existing.unlinkedChars ? 'Text outside the tree is flagged below.' : ''}`
+          ? `Numbers show the order its tags give a screen reader, with their headings, lists, tables and picture descriptions.${S.existing.unlinkedChars ? ' Text outside the tags is flagged.' : ''}`
           : 'The file claims to be tagged, but no readable tag tree was found. Showing file order as a fallback.'
         : `A screen reader has to guess what is a heading, list or table, and many read text in the order it is stored in the file. Here that order ${moved ? `jumps around the page ${moved} times` : 'follows the page'}, includes ${c.artifacts} pieces of repeated page furniture and skips ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}. Nothing is marked as a heading.`,
       ' ', h('button', { class: 'linkish', type: 'button', onclick: () => setMode('after') }, 'Review fixes →'),
     );
-    if (S.existing?.issues.length) el.append(h('p', { class: 'hint' }, S.existing.issues.join(' ')));
   } else {
     el.className = 'banner ok';
     const chk = buildChecks(S);
     const todo = chk.filter(x => x.status === 'todo').length;
     el.append(
-      h('strong', {}, `${S.source === 'existing' ? 'Reusing existing tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
-      ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}, and hid ${c.artifacts} pieces of page furniture. `,
+      h('strong', {}, `${S.source === 'existing' ? 'Starting from this PDF’s own tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
+      ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}${c.artifacts ? `, with ${c.artifacts} pieces of page furniture hidden` : ''}. `,
       todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'Ready to export. Check the order and wording once more before you publish.',
     );
   }
   if (S.ex.tagged) {
+    const issues = S.existing?.issues || [];
+    const why = S.mode === 'before' ? null
+      : S.existing?.canReuse ? 'Export rebuilds the tags from what you see here. Keep original PDF saves the file unchanged, every original tag included.'
+        : 'Some original structure can’t be edited here safely, so these are layout suggestions. Keep original PDF saves the file unchanged, every original tag included.';
     el.append(h('div', { class: 'source-actions' },
-      S.mode === 'after' && S.existing?.hasTree ? h('button', { class: 'ghost', type: 'button', disabled: !S.existing.canReuse, title: !S.existing.canReuse ? S.existing.issues.join(' ') : null, onclick: () => useStructure(S.source === 'existing' ? 'layout' : 'existing') }, S.source === 'existing' ? 'Use layout suggestions instead' : 'Reuse existing tags to edit') : null,
+      S.mode === 'after' && S.existing?.hasTree && S.existing.canReuse ? h('button', { class: 'ghost', type: 'button', onclick: () => useStructure(S.source === 'existing' ? 'layout' : 'existing') }, S.source === 'existing' ? 'Use layout suggestions instead' : 'Use the original tags') : null,
       h('button', { class: 'ghost', type: 'button', onclick: () => download(S.bytes, S.name, 'application/pdf') }, 'Keep original PDF'),
-      S.mode === 'after' ? h('span', { class: 'hint' }, S.existing?.canReuse ? 'Reuse keeps supported roles, order and descriptions. Export rebuilds tags; complex table attributes are not preserved. Keep original preserves every tag.' : 'Some original structure cannot be reused safely. Use layout suggestions to rebuild, or keep the original with all its tags.') : null));
+      why || issues.length ? h('details', { class: 'more' }, h('summary', {}, issues.length ? `What Earshot can’t keep (${issues.length})` : 'How export works'),
+        why ? h('p', { class: 'hint' }, why) : null,
+        issues.length ? h('ul', { class: 'hint' }, issues.map(i => h('li', {}, i))) : null) : null));
   }
 }
 function useStructure(source) {
@@ -238,12 +246,16 @@ function useStructure(source) {
   stopSpeaking();
   mutate(() => {
     S.source = source;
-    S.blocks = cloneBlocks(source === 'existing' ? S.existing.blocks : S.proposals);
-    // Untagged pictures stay visibly skipped in the original preview, but
-    // must be reviewed as pictures when borrowing the rest of its structure.
-    if (source === 'existing') for (const b of S.blocks) if (b.image && b.unlinked) { b.type = 'figure'; b.alt = ''; b.why = 'Picture outside existing tags: review it'; }
+    S.blocks = startingBlocks(source);
     S.sel = null;
   });
+}
+function startingBlocks(source) {
+  const blocks = cloneBlocks(source === 'existing' ? S.existing.blocks : S.proposals);
+  // Untagged pictures stay visibly skipped in the original preview, but
+  // must be reviewed as pictures when borrowing the rest of its structure.
+  if (source === 'existing') for (const b of blocks) if (b.image && b.unlinked) { b.type = 'figure'; b.alt = ''; b.why = 'Picture outside existing tags: review it'; }
+  return blocks;
 }
 function count() {
   const bs = S.mode === 'before' ? (S.existing?.hasTree ? S.existing.blocks : S.proposals) : S.blocks;
@@ -748,5 +760,6 @@ window.addEventListener('resize', () => {
   }, 250);
 });
 showPanel('pages');
+initDemo({ pdfjs, opts: PDF_OPTS, onOpen: () => { track('demo-open'); openSample(); } });
 if (location.hash === '#sample') openSample();
 window.addEventListener('hashchange', () => { if (location.hash === '#sample') openSample(); });

@@ -9,6 +9,7 @@ import * as L from '../../../site/builder/earshot/vendor/pdf-lib.esm.min.js';
 import { extractDocument } from '../../../site/builder/earshot/extract.js';
 import { analyze } from '../../../site/builder/earshot/analyze.js';
 import { tagPdf } from '../../../site/builder/earshot/tagger.js';
+import { existingStructure, inspectExistingAttributes } from '../../../site/builder/earshot/existing.js';
 
 const pdfjs = await import(process.env.PDFJS || '/tmp/lib/node_modules/pdfjs-dist/legacy/build/pdf.mjs');
 const dir = process.argv[2];
@@ -23,7 +24,16 @@ for (const f of readdirSync(dir).filter(n => n.endsWith('.pdf')).sort()) {
     const t0 = Date.now();
     const doc = await pdfjs.getDocument({ data: bytes.slice(), verbosity: 0 }).promise;
     const ex = await extractDocument(pdfjs, doc);
-    const { blocks } = analyze(ex.pages);
+    let { blocks } = analyze(ex.pages);
+    // Same default as the app: start from original tags when they can be reused safely.
+    row.source = 'layout';
+    if (ex.tagged) {
+      const existing = existingStructure(ex.pages);
+      if (existing.hasTree && existing.canReuse && !(await inspectExistingAttributes(L, bytes)).length) {
+        row.source = 'existing';
+        blocks = existing.blocks.map(b => ({ ...b, ...(b.image && b.unlinked ? { type: 'figure', alt: '' } : {}) }));
+      }
+    }
     row.pages = ex.pages.length;
     row.taggedBefore = ex.tagged;
     row.analyzeMs = Date.now() - t0;

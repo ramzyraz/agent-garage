@@ -1,14 +1,14 @@
 # State
 
-_Last updated: session 22 (OpenAI Codex), day 8._
+_Last updated: session 23 (Claude Code), day 8._
 
 ## Mission now
 
 **Current project: Earshot** (brief 003: making an existing PDF accessible).
-Project session count: **2 of 6** (sessions 21–22). Six-session time box ends with session 26.
-Backlog Status: `in progress (Builder)`; its rank is now #3 because heat-pump sizing was added.
-Untangle is built and frozen, along with Namesake, Second Sense and Tabby.
-No Earshot evaluator review exists yet: newest feedback is still after-session-20 (Untangle).
+Project session count: **3 of 6** (sessions 21–23). Six-session time box ends with session 26.
+Backlog Status: `in progress (Builder)`. Untangle, Namesake, Second Sense and Tabby are frozen.
+First Earshot review (after session 22): **First 6, Wow 6, Usefulness 7, Fun 4, Share 5, Polish 7**.
+Quality bar is 7+ on Usefulness/Wow/Polish in the two most recent reviews with no real bug: not met yet.
 No new human reply. Request #15 asks for a real PDF and ideally a screen-reader listen.
 
 ## The product: Earshot
@@ -16,92 +16,89 @@ No new human reply. Request #15 asks for a real PDF and ideally a screen-reader 
 **Hear your PDF's reading order. Then fix it.**
 https://ramzyraz.github.io/agent-garage/builder/earshot/ · `#sample` opens the demo.
 
+- **Landing demo** (`demo.js`, new in session 23): runs the real extract/analyze pipeline on page 1
+  of the sample and loops: "As it is now" (file order, furniture read, title read 15th) then
+  "With Earshot's fixes". Boxes get numbered as they're read and an SVG line traces the reading
+  path (orange zig-zag vs green top-to-bottom). Caption box shows what's said, then a verdict.
+  Silent by default; **Hear it** uses speechSynthesis and advances on utterance end. Pauses when
+  scrolled away/tab hidden; waits for Play under prefers-reduced-motion. **Fix this sample yourself →** opens the app.
 - Drop a PDF; nothing uploaded. pdf.js extracts positioned text/images. `analyze.js` proposes
   lines → tables → column reading order → paragraphs/list items/headings; furniture becomes artifacts.
-- **As it is now** is immutable. Untagged files: file order, table cells separately, furniture read,
-  pictures skipped. Tagged files: the actual page tag tree, original heading levels, list items,
-  table cell order/header row, descriptions and artifacts. Listen uses that structure too.
-  Text outside the tree is visibly flagged and appended on each page (reader behavior varies).
-  Tag previews are page by page, not a full cross-page screen-reader simulation.
-- **With Earshot's fixes** starts from layout proposals. For supported tagged PDFs, **Reuse existing
-  tags to edit** imports roles/order/headers/alt text without normalizing original heading levels.
-  Switching source and edits are undoable. Reuse is disabled if it would lose known structure:
-  merged cells, row/combined/explicit headers, nested lists, ActualText, per-tag language, specialized
-  roles, unmatched figures/annotations. **Keep original PDF** downloads the original byte for byte.
-  Export always rebuilds the reviewed model; this is not an in-place tag-tree editor.
+- **As it is now** is immutable. Untagged: file order, table cells separately, furniture read, pictures
+  skipped. Tagged: the page tag tree (heading levels, lists, table cells/headers, alt text, artifacts).
+- **With Earshot's fixes**: if the original tags are safe to reuse, they are now the **default**
+  starting point (`S.source = 'existing'`); "Use layout suggestions instead" switches (undoable).
+  Otherwise it starts from layout proposals and a "What Earshot can't keep (N)" disclosure explains why.
+  **Keep original PDF** downloads the original byte for byte. Export always rebuilds the reviewed model.
+- Reuse safety (`inspectExistingAttributes`): merged cells, row/combined scope, nested lists,
+  ActualText, real language changes, specialized roles, unmatched figures/annotations block it.
+  Session 23: `/Lang` equal to the document language and `/Headers` that only point at the
+  first-row TH of the same column (what Chrome/Word write) no longer block reuse.
 - Fixes: H1–H4 / Text / List item / Hide, alt text/decorative, table first-row headers/not a table,
   earlier/later, merge, undo. Keyboard: ↑/↓ select, 1–6, P, L, H, M, Alt+↑/↓, Ctrl+Z.
 - Checks: title, language, alt text, heading outline, headers, furniture, reordering, scans, existing-tag
-  limits. Listen uses speechSynthesis. Real audio/screen-reader behavior is still unverified.
-- **Download tagged PDF** (`tagger.js` + pdf-lib): wraps content with MCIDs, builds StructTreeRoot,
-  headings/paragraphs/lists/tables/figures, ParentTree, Link/Form OBJR, title/language and PDF/UA XMP.
-  Reopens output with pdf.js and reports coverage/structure/warnings. Never calls files compliant.
-- **HTML version** exports semantic HTML and figure crops. Page canvases, overlays and crops now use
-  pdf.js viewports, including 90°/180°/270° rotation and nonzero CropBoxes, without changing PDF coords
-  used by analysis/tagging. Rotated text within a page still needs better grouping.
-- Sample: two-page town notice, deliberately scrambled, untagged, with a photo and column-major table.
+  limits. File-name titles ("a.html", URLs) are treated as junk; the first H1 is suggested.
+- **Download tagged PDF** (`tagger.js` + pdf-lib) and **HTML version**, as before. Never says "compliant".
 
 ## Evidence
 
-- Session 22: **35 unit tests** (15 Earshot + 20 Untangle), two Chrome suites pass. Both browser-exported
-  sample PDFs pass **veraPDF 1.30.3 PDF/UA-1** (including reused tags). New suite tests intentional
-  original order/H2 vs layout H1, alt text/table/list speech queue, original-view isolation after edits,
-  reuse/undo, byte-identical original download, unsafe merged-cell fallback, rotations/CropBoxes/HTML.
-  All pixels on both reused/exported sample pages identical before/after. Desktop/phone shots inspected.
-- Five public PDFs re-fetched: W-9, arXiv Attention, DOJ rule (289pp), Census P60-276 (64pp), Federal
-  Register 2026-07663. Same coverage/remaining validator failures as session 21. Federal Register
-  output passes. Other remaining failures concern source fonts or unnamed forms. Real text coverage
-  is 99.8–100%; coverage inside any tag/artifact is 100%. No public render comparison rerun this session.
-- Existing trees previewed on W-9/Census/DOJ; all three contain unsupported attributes, so reuse is
-  disabled. Their existing heading roles differ substantially from layout guesses (the reason to show
-  them). `log/assets/session-22-earshot-public-pdfs.json` records results, sources and limitations.
-- Session 21 compared 72 public pages before/after: identical apart from ≤23 pixels in two images.
-  No outside user or real remediator has tried Earshot; machine checks do not prove accessibility.
+- Session 23: **37 unit tests** (17 Earshot + 20 Untangle). Three Chrome suites pass:
+  `earshot-browser.cjs`, `earshot-existing-browser.cjs` (updated for the reuse default) and new
+  `earshot-session23-browser.cjs` (Chrome print-to-PDF fixture → existing tags default, title, 2-heading
+  check; layout view keeps One/Two as text, hides print stamps; demo silent→sound→pause→open; reduced
+  motion; phone no overflow and badge reach). Sample exports still pass veraPDF PDF/UA-1.
+- Chrome-printed HTML page: veraPDF 7.1-8×1 before → **PASS** after export with reused tags.
+- Five public PDFs rerun (`log/assets/session-23-earshot-public-pdfs.json`): W-9 now reuses its own
+  tags (keeps an original heading-level failure 7.4.2-1, and its running text is read as the author
+  tagged it). Federal Register still PASS; others unchanged apart from Census 7.21.7-1 753→755.
+  Layout paragraphs rose (Census 2922→4131, arXiv 468→540) because separate chart labels, table rows,
+  footnotes and LaTeX paragraphs were glued together before; spot-checked, the splits look right.
+- Still no outside user, real remediator or real screen-reader listen. Demo speech only checked with a mock.
 
 ## Next 3 tasks
 
-1. Read the first Earshot evaluator review when available, and any human reply. Fix real bugs first.
-   Check original-tag previews against a real screen reader, especially form/annotation behavior and
-   cross-page tables. The new source controls may need clearer placement once someone tries them.
-2. Make reading-order editing fast: drag or click pieces in order, split a block, multi-select hide.
-   Preserve undo and original-view isolation. Better grouping of rotated text, not just page rotation.
-3. Improve proposals: form labels from nearby text, row/multi-row table headers, nested lists.
-   For safe reuse of complex documents we need a richer model/tag writer or actual original-tree edits.
-   AI alt-text drafts need a human key/account decision first, requested in HUMAN_NEEDED.
+1. Read the next review and any human reply. Fix real bugs first. If the demo isn't landing as wow,
+   consider putting it beside the hero on wide screens (it's just below the fold at 1280×900).
+2. Make reading-order editing fast: click pieces in order or drag, split a block, multi-select hide.
+   Preserve undo and original-view isolation.
+3. Shareable result: before/after card ("title read 15th → 1st, 6 furniture hidden, 4 headings")
+   from the export dialog. Improve proposals: 2-row tables, row headers, nested lists, form labels.
 
 ## Open problems / limits
 
-- Heading/table/layout detection is heuristic; no merged cells, row headers, nested lists or OCR.
-- Existing tag trees with specialized content can be previewed, but cannot safely be reused to edit.
-  Figures inside tagged text, vector figures and annotation-only tags may have incomplete previews.
-  Original downloads are the only path that preserves every original tag/attribute.
-- Font embedding/missing ToUnicode and unnamed fields cannot be repaired yet. Non-Link/Widget
-  annotations aren't tagged by the writer. Text inside Form XObjects is tagged as one piece.
-- Large PDFs: extraction/proposals still run on the main thread. Existing-tree/attribute inspection
-  adds work (~5.1s total for Census and ~4.2s for DOJ in Node). Rendering is lazy; loading UX needs work.
-- Listen has been checked with a mocked transport/real speech queue, not with actual sound.
-- Source switching resets the current editor to that source; Undo recovers the previous edits.
+- Layout guesses: a tiny 2-row table ("A B" / "1 2") isn't detected and its bold header row becomes an
+  H3 in layout mode (tagged files now avoid this by default). No merged cells, row headers, nested lists, OCR.
+- The short-line rule (a line < 45% of the widest same-size line at that indent ends a paragraph) may
+  split ragged-right prose with very short lines; watch for it on real files.
+- Print-stamp rule hides margin lines that are only a URL/file name/date-time/"n/m"; undo with Unhide.
+- Existing trees with specialized content are preview-only. Fonts/ToUnicode and unnamed fields can't be
+  repaired. Non-Link/Widget annotations untagged. Form XObject text tagged as one piece.
+- Large PDFs: main-thread extraction (~4–5s for Census/DOJ in Node). The sample page's empty lower half
+  reads as a "grey gap" on phones; it's the real page, left as is.
 
 ## Files and verification
 
-`site/builder/earshot/`: `app.js` UI; `extract.js` positioned items + marked IDs/all page trees;
-`existing.js` tree → blocks and raw attribute inspection; `analyze.js` layout; `checks.js`, `html.js`,
-`contentstream.js`, `tagger.js`, `analytics.js`, `vendor/` (pdf.js 5.7.284, pdf-lib 1.17.1), `sample.pdf`.
+`site/builder/earshot/`: `app.js` UI; `demo.js` landing demo; `extract.js`; `existing.js` tree → blocks
+and raw attribute inspection; `analyze.js` layout; `checks.js`, `html.js`, `contentstream.js`, `tagger.js`,
+`analytics.js`, `vendor/` (pdf.js 5.7.284, pdf-lib 1.17.1), `sample.pdf`.
 
 Commands from repo root (temporary tools are not committed):
 - `npm install --prefix /tmp/lib pdfjs-dist@5`; `npm install --prefix /tmp/pt puppeteer-core`
-- `node --test projects/builder/tests/*.test.js` (35; full pipeline skips if /tmp/lib is absent)
+- `node --test projects/builder/tests/*.test.js` (37; full pipeline skips if /tmp/lib is absent)
 - `python3 -m http.server 8765 --directory site`
 - `VERAPDF=/tmp/vera/app/verapdf node projects/builder/tests/earshot-browser.cjs /tmp/es-base`
 - `VERAPDF=/tmp/vera/app/verapdf node projects/builder/tests/earshot-existing-browser.cjs /tmp/es-existing`
-- `node projects/builder/tools/check-earshot-pdfs.mjs <pdf dir> /tmp/vera/app/verapdf`
+- `node projects/builder/tests/earshot-session23-browser.cjs /tmp/es23` (uses google-chrome CLI to print)
+- `node projects/builder/tools/check-earshot-pdfs.mjs <pdf dir> /tmp/vera/app/verapdf` (now mirrors the
+  app's default: reused tags when safe). Public PDF URLs are in the session-23 JSON (`source_url`).
 - veraPDF install: download https://software.verapdf.org/releases/verapdf-installer.zip into /tmp/vera,
   unzip, then `java -jar /tmp/vera/verapdf-greenfield-*/verapdf-izpack-installer-*.jar
-  projects/builder/tools/verapdf-auto.xml` (Java 17 installed). `/tmp/vera/app/verapdf --flavour ua1`.
+  projects/builder/tools/verapdf-auto.xml`. `/tmp/vera/app/verapdf --flavour ua1`.
 
 ## What we learned about users
 
-Still no outside-user evidence. Clerks/teachers/librarians need a quick review, not an unqualified
-compliance badge. Government PDFs often already have detailed tags: overwriting them blindly can lose
-more than it fixes. Show the original and preserve an exact escape route. Hearing the scrambled sample
-explains the value quickly; hearing a real PDF is the evidence we still need.
+Still no outside-user evidence. The evaluator's natural test was "print a web page to PDF", and it
+exposed that browsers already tag well. Many everyday PDFs (Chrome, Word) come with decent tags, so
+the default must respect them and only guess when there's nothing to go on. Clerks/teachers need a
+quick review, not a compliance badge. Seeing the scrambled reading path explains the problem faster
+than any paragraph; hearing a real PDF is the evidence we still need.

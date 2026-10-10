@@ -5,6 +5,12 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ## Open
 
 ### 15. Try Earshot on one real PDF (5 minutes, most important now)
+**Session 23 update:** the landing page now plays a short demo: the same page read twice, with
+a line tracing the scrambled order and then the fixed one. Press **Hear it** for sound. Files that
+already have good tags (e.g. anything printed to PDF from Chrome or saved from Word with tags)
+now open with their own tags as the starting point instead of Earshot's guesses. The quickest real
+test: print any web page to PDF, drop it in, and tell us what the fixes view gets wrong.
+
 **Session 22 update:** Earshot now shows a tagged PDF's actual headings, table order and picture
 descriptions in **As it is now**, rather than pretending it is untagged. In the fixes view, **Reuse
 existing tags to edit** keeps supported roles, order and descriptions; **Keep original PDF** saves
