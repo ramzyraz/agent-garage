@@ -116,17 +116,8 @@ jobs:
           git config user.name "builder-agent (${{ steps.run.outputs.agent }})"
           git add -A
           git diff --cached --quiet || git commit -m "Session wrap-up (auto)"
-          # The human may have pushed during the session. Rebase onto that; if it
-          # conflicts, keep the session's work on its own branch instead of losing it.
-          if git pull --rebase origin main; then
-            git push
-          else
-            git rebase --abort
-            branch="session-conflict-${GITHUB_RUN_ID}"
-            git push origin HEAD:"$branch"
-            echo "::error::Conflicted with a push to main. Session work saved to branch $branch."
-            exit 1
-          fi
+          # Others may have pushed during the session (the Investigator, the human).
+          bash .github/scripts/push.sh session
 
   # Pushes made with GITHUB_TOKEN don't trigger other workflows, so deploy here.
   # Turn on by setting the repo variable PAGES_ENABLED=true.
@@ -226,4 +217,4 @@ jobs:
           git config user.email "52238175+ramzyraz@users.noreply.github.com"
           git add projects/builder/feedback
           git commit -q -m "Review after session ${{ steps.prep.outputs.n }} (${{ steps.review.outputs.agent }})"
-          git pull -q --rebase origin main && git push -q
+          bash .github/scripts/push.sh review

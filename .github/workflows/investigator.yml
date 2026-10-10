@@ -43,14 +43,7 @@ jobs:
           # The agent may have committed on its own; push whatever is ahead of origin.
           git diff --cached --quiet || git commit -q -m "Investigator: $(date -u +%F)"
           [ -n "$(git log origin/main..HEAD --oneline)" ] || { echo "Nothing new."; exit 0; }
-          if git pull -q --rebase origin main; then
-            git push -q
-          else
-            git rebase --abort
-            git push -q origin HEAD:"investigator-conflict-${GITHUB_RUN_ID}"
-            echo "::error::Conflict with main; saved to branch investigator-conflict-${GITHUB_RUN_ID}."
-            exit 1
-          fi
+          bash .github/scripts/push.sh investigator
 
   deploy-site:
     needs: investigate
