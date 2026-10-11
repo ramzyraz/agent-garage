@@ -26,10 +26,11 @@ const waitFile = async (re, ms = 15000) => {
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   try {
     const p = await browser.newPage(), errors = [], sent = [];
+    p.on('dialog', d => d.accept()); // Navigation deliberately discards edits in this regression suite.
     p.on('pageerror', e => errors.push(e.message));
     p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
     await p.setRequestInterception(true);
-    p.on('request', r => { if (!r.url().startsWith('http://localhost')) { sent.push(r.url()); r.abort(); } else r.continue(); });
+    p.on('request', r => { if (!/^(http:\/\/localhost|data:|blob:)/.test(r.url())) { sent.push(r.url()); r.abort(); } else r.continue(); });
     const cdp = await p.createCDPSession();
     await cdp.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: out });
 

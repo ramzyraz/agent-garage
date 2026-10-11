@@ -5,6 +5,13 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ## Open
 
 ### 15. Try Earshot on one real PDF (5 minutes, most important now)
+**Session 24 update:** when a table is missed, choose **Make a table**, drag around it (or tick its
+text pieces), then check the cell preview. You can change the rows, columns, dividers and first-row /
+first-column headers. The picture is now shown beside its description field on phones. **Save editing
+session** downloads a private `.earshot` file containing the original PDF and your edits; open it here
+to finish later. Refresh warns about unsaved edits. Please try recovering a missed table on your real
+file, and tell us whether the preview pairs the right values with the right headers.
+
 **Session 23 update:** the landing page now plays a short demo: the same page read twice, with
 a line tracing the scrambled order and then the fixed one. Press **Hear it** for sound. Files that
 already have good tags (e.g. anything printed to PDF from Chrome or saved from Word with tags)

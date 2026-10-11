@@ -35,7 +35,7 @@ export async function tagPdf(L, bytes, plan) {
       const pag = /header/i.test(b.why || '') ? 'Header' : /footer|page number/i.test(b.why || '') ? 'Footer' : null;
       addLeaf('a' + b.id, b.page, null, b.image ? [b.bbox] : boxes(b.items), { artifact: true, pag, isImage: !!b.image });
     } else if (b.type === 'table') {
-      b.rows.forEach((r, ri) => r.forEach((c, ci) => addLeaf(`${b.id}:${ri}:${ci}`, b.page, ri < (b.headerRows || 0) ? 'TH' : 'TD', boxes(c.items))));
+      b.rows.forEach((r, ri) => r.forEach((c, ci) => addLeaf(`${b.id}:${ri}:${ci}`, b.page, ri < (b.headerRows || 0) || ci < (b.headerCols || 0) ? 'TH' : 'TD', boxes(c.items))));
     } else if (b.type === 'figure') {
       addLeaf(String(b.id), b.page, 'Figure', [b.bbox], { isImage: true });
     } else if (b.type === 'li') {
@@ -274,8 +274,11 @@ export async function tagPdf(L, bytes, plan) {
       b.rows.forEach((r, ri) => {
         const tr = elem('TR', t.ref);
         r.forEach((c, ci) => {
-          const header = ri < (b.headerRows || 0);
-          leafElem(leaves.get(`${b.id}:${ri}:${ci}`), tr.ref, header ? { A: ctx.obj({ O: 'Table', Scope: 'Column' }) } : {});
+          const col = ri < (b.headerRows || 0), row = ci < (b.headerCols || 0);
+          const extra = col || row ? { A: ctx.obj({ O: 'Table', Scope: col && row ? 'Both' : col ? 'Column' : 'Row' }) } : {};
+          const leaf = leaves.get(`${b.id}:${ri}:${ci}`);
+          if (!c.items.length) elem(col || row ? 'TH' : 'TD', tr.ref, extra);
+          else leafElem(leaf, tr.ref, extra);
         });
       });
     } else if (b.type === 'figure') {

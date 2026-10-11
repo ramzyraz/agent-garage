@@ -31,7 +31,7 @@
         <h1>Hear your PDF the way a screen reader does. <em>Then fix it.</em></h1>
         <p class="lede">PDFs without useful tags can give blind readers scrambled text and pictures with no description. Drop one here. Earshot shows existing tags or proposes headings, lists, tables and a reading order. You check and fix them in a few clicks, then download a tagged PDF.</p>
         <label id="drop" class="drop" tabindex="0">
-          <input id="file" type="file" accept=".pdf,application/pdf" hidden>
+          <input id="file" type="file" accept=".pdf,.earshot,application/pdf" hidden>
           <span class="drop-icon" aria-hidden="true">
             <svg viewBox="0 0 48 48" width="44" height="44"><path d="M11 5h19l9 9v29H11z" fill="#fff" stroke="#182230" stroke-width="2" stroke-linejoin="round"/><path d="M30 5v9h9" fill="none" stroke="#182230" stroke-width="2" stroke-linejoin="round"/><path d="M17 22h15M17 28h15M17 34h9" stroke="#9aa3ae" stroke-width="2" stroke-linecap="round"/><circle cx="36" cy="36" r="9" fill="#e0663a"/><path d="M36 41V31M31 36l5-5 5 5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
@@ -44,6 +44,8 @@
         </div>
         <p id="loadError" class="load-error" role="alert" hidden></p>
         <p id="loadProgress" class="load-progress" aria-live="polite" hidden></p>
+        <p><button id="restoreSession" class="linkish" type="button">Resume a saved editing session</button></p>
+        <input id="sessionFile" type="file" accept=".earshot" hidden>
       </div>
 
       <section id="demo" class="demo" aria-labelledby="demoTitle">
@@ -80,7 +82,7 @@
         <div class="feat">
           <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="6" y="10" width="30" height="16" rx="8" class="f-chip on"/><text x="21" y="21" class="f-chip-t">H2</text><rect x="42" y="10" width="34" height="16" rx="8" class="f-chip"/><text x="59" y="21" class="f-chip-t2">Text</text><rect x="82" y="10" width="32" height="16" rx="8" class="f-chip"/><text x="98" y="21" class="f-chip-t2">Hide</text><rect x="6" y="36" width="108" height="20" rx="4" class="f-alt"/><text x="12" y="50" class="f-alt-t">Two canoes on a pond…</text></svg>
           <h3>Fix what the computer gets wrong</h3>
-          <p>Reuse supported existing tags or start from layout suggestions. Change heading levels, hide page furniture, reorder, merge, set table headers and write picture descriptions. No tag trees, no Acrobat.</p>
+          <p>Reuse supported existing tags or start from layout suggestions. Draw around a missed table, check its cells and set headers. Fix headings, reading order and picture descriptions. Save an editing session to finish later.</p>
         </div>
         <div class="feat">
           <svg viewBox="0 0 120 64" aria-hidden="true"><path d="M30 4h40l12 12v44H30z" class="f-doc"/><path d="M40 22h28M40 30h28M40 38h18" class="f-line"/><circle cx="84" cy="46" r="13" class="f-ok"/><path d="M78 46l4 4 8-8" class="f-tick"/></svg>
@@ -100,9 +102,11 @@
         <button id="listen" class="ghost listen" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> Listen</button>
         <span class="tb-gap"></span>
         <button id="undo" class="ghost" type="button" disabled title="Undo (Ctrl+Z)">Undo</button>
+        <button id="makeTable" class="ghost" type="button">Make a table</button>
         <button id="exportHtml" class="ghost" type="button">HTML version</button>
         <button id="exportPdf" class="primary" type="button">Download tagged PDF</button>
       </div>
+      <div class="session-bar"><span id="editStatus">Save a session to keep this PDF and your edits</span><button id="saveSession" class="linkish" type="button">Save editing session</button><span class="hint">A private .earshot file on your device. Open it here to resume.</span></div>
       <div id="banner" class="banner" aria-live="polite"></div>
       <nav class="mtabs" aria-label="Panels">
         <button type="button" data-panel="pages" aria-pressed="true">Pages</button>

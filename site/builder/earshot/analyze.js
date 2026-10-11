@@ -360,7 +360,7 @@ export function spoken(b) {
     case 'li': return `List item. ${b.text.replace(BULLET, '').trim()}`;
     case 'table': {
       const hdr = b.headerRows ? b.rows[0].map(c => c.text) : null;
-      const body = b.rows.slice(b.headerRows ? 1 : 0).map(r => r.map((c, k) => hdr ? `${hdr[k]}: ${c.text}` : c.text).join(', ')).join('. ');
+      const body = b.rows.slice(b.headerRows ? 1 : 0).map(r => `${b.headerCols ? `Row ${r[0].text}. ` : ''}${r.map((c, k) => hdr ? `${hdr[k]}: ${c.text}` : c.text).join(', ')}`).join('. ');
       return `Table with ${b.rows.length} rows and ${b.rows[0].length} columns. ${body}`;
     }
     case 'figure': return b.alt ? `Graphic. ${b.alt}` : 'Unlabeled graphic';

@@ -36,7 +36,7 @@ const pause = ms => new Promise(r => setTimeout(r, ms));
     assert.deepEqual(state.types, ['h1', 'p', 'h2', 'li', 'li', 'table']);
     await p.click('#tabChecks');
     const checks = await p.$eval('#checksPanel', el => el.textContent);
-    assert.match(checks, /2 headings in a sensible outline/);
+    assert.match(checks, /2 headings with no level gaps/);
     assert.doesNotMatch(checks, /H3/, 'list items and table headers are not headings');
     assert.match(checks, /has column headers/);
     // Layout suggestions on the same file no longer turn list items into headings.

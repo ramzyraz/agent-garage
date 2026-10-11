@@ -49,6 +49,7 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
   const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
   try {
     const p = await browser.newPage(), errors = [], sent = [];
+    p.on('dialog', d => d.accept()); // This suite intentionally moves between edited fixtures.
     p.on('pageerror', e => errors.push(e.message));
     await p.setRequestInterception(true);
     p.on('request', r => { if (!r.url().startsWith('http://localhost') && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) { sent.push(r.url()); r.abort(); } else r.continue(); });

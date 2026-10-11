@@ -29,14 +29,15 @@ export function buildChecks(S) {
     let prev = 0, skip = null;
     for (const hd of heads) { if (hd.level > prev + 1 && prev) { skip = { hd, prev }; break; } prev = hd.level; }
     if (skip) out.push({ status: 'todo', title: `Heading levels skip from ${skip.prev} to ${skip.hd.level}`, detail: `“${skip.hd.text.slice(0, 60)}” jumps a level, which suggests a missing section to screen-reader users.`, goto: skip.hd.id });
-    if (heads[0].level === 1 && !skip) out.push({ status: 'ok', title: `${heads.length} headings in a sensible outline`, detail: heads.slice(0, 4).map(hd => `${'  '.repeat(hd.level - 1)}H${hd.level} ${hd.text.slice(0, 40)}`).join(' · ') + (heads.length > 4 ? ' …' : '') });
+    if (heads[0].level === 1 && !skip) out.push({ status: 'ok', title: `${heads.length} headings with no level gaps`, detail: heads.slice(0, 4).map(hd => `${'  '.repeat(hd.level - 1)}H${hd.level} ${hd.text.slice(0, 40)}`).join(' · ') + (heads.length > 4 ? ' …' : '') + '. Check that these really are section titles.' });
   }
 
   bs.filter(b => b.type === 'table').forEach(t => {
     out.push(t.headerRows
-      ? { status: 'ok', title: `Table on page ${t.page + 1} has column headers`, detail: `${t.rows[0].map(c => c.text).join(', ')}. Each cell will be read with its header.`, goto: t.id, gotoLabel: 'Check it' }
+      ? { status: 'ok', title: `Table on page ${t.page + 1} has column headers`, detail: `${t.rows[0].map(c => c.text).join(', ')}.${t.headerCols ? ' The first column also provides row headers.' : ''} Check that every value belongs to the right header.`, goto: t.id, gotoLabel: 'Check it' }
       : { status: 'todo', title: `Table on page ${t.page + 1} has no header row`, detail: 'Without headers, a screen reader reads cells with no context. Tick “first row holds the column headers” if it does.', goto: t.id });
   });
+  out.push({ status: 'info', title: 'Check for missed tables', detail: 'Aligned text can be mistaken for headings or prose. If a table is missing, choose “Make a table”, draw around it and review the cell preview.' });
 
   const hidden = bs.filter(b => b.type === 'artifact');
   if (hidden.length) out.push({ status: 'info', title: `${hidden.length} ${hidden.length === 1 ? 'piece' : 'pieces'} of page furniture hidden`, detail: `${[...new Set(hidden.map(b => b.why))].join(', ')}. They stay visible on the page but aren’t read aloud. Check nothing important is hidden.`, goto: hidden[0].id, gotoLabel: 'Show the first' });

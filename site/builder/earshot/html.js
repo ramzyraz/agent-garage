@@ -21,7 +21,7 @@ export function toHtml(S, crops = {}) {
     } else if (b.type === 'table') {
       const head = b.headerRows ? b.rows.slice(0, b.headerRows) : [];
       const body = b.rows.slice(b.headerRows || 0);
-      parts.push(`<table>\n${head.length ? `  <thead>\n${head.map(r => `    <tr>${r.map(c => `<th scope="col">${esc(c.text)}</th>`).join('')}</tr>`).join('\n')}\n  </thead>\n` : ''}  <tbody>\n${body.map(r => `    <tr>${r.map(c => `<td>${esc(c.text)}</td>`).join('')}</tr>`).join('\n')}\n  </tbody>\n</table>`);
+      parts.push(`<table>\n${head.length ? `  <thead>\n${head.map(r => `    <tr>${r.map(c => `<th scope="col">${esc(c.text)}</th>`).join('')}</tr>`).join('\n')}\n  </thead>\n` : ''}  <tbody>\n${body.map(r => `    <tr>${r.map((c, ci) => ci < (b.headerCols || 0) ? `<th scope="row">${esc(c.text)}</th>` : `<td>${esc(c.text)}</td>`).join('')}</tr>`).join('\n')}\n  </tbody>\n</table>`);
     } else if (b.type === 'figure') {
       const src = crops[b.id];
       parts.push(src ? `<figure><img src="${src}" alt="${esc(b.alt || '')}"></figure>` : b.alt ? `<p>[Picture: ${esc(b.alt)}]</p>` : '');

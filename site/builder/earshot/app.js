@@ -6,6 +6,9 @@ import { buildChecks, suggestTitle } from './checks.js';
 import { toHtml } from './html.js';
 import { existingStructure, inspectExistingAttributes } from './existing.js';
 import { initDemo } from './demo.js';
+import { editTable } from './table-editor.js';
+import { replaceWithTable } from './table.js';
+import { encodeSession, decodeSession, restoreModel } from './session.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./vendor/pdf.worker.min.mjs', import.meta.url).href;
 const PDF_OPTS = {
@@ -36,11 +39,13 @@ const LANGS = [['en-US', 'English (US)'], ['en-GB', 'English (UK)'], ['es', 'Spa
 const S = {
   name: '', bytes: null, pdf: null, ex: null, blocks: [], mode: 'after', sel: null,
   title: '', lang: 'en-US', history: [], pageEls: [], scale: [], speaking: false, tab: 'order', panel: 'pages',
+  revision: 0, savedRevision: 0, crops: new Map(),
 };
 window.Earshot = S; // handy for tests and the curious
 
 // ---------- loading ----------
-async function openBytes(bytes, name, isSample) {
+async function openBytes(bytes, name, isSample, saved) {
+  if (S.revision !== S.savedRevision && !confirm('You have unsaved edits. Save an editing session to keep them. Open this document and discard those edits?')) return;
   const err = $('#loadError'), prog = $('#loadProgress');
   err.hidden = true;
   prog.hidden = false;
@@ -64,13 +69,17 @@ async function openBytes(bytes, name, isSample) {
     }
     const textChars = ex.pages.reduce((n, p) => n + p.items.reduce((m, it) => m + it.s.trim().length, 0), 0);
     if (!textChars) throw new Error('scanned');
-    Object.assign(S, { name, bytes, pdf, ex, blocks, bodySize, existing, proposals: cloneBlocks(blocks), source: 'layout', sel: null, history: [], mode: 'before', ms: Math.round(performance.now() - t0) });
+    const restored = saved ? restoreModel(saved, ex.pages) : null;
+    stopSpeaking();
+    if (S.pdf) await S.pdf.destroy();
+    Object.assign(S, { name, bytes, pdf, ex, blocks, bodySize, existing, proposals: cloneBlocks(blocks), source: 'layout', sel: null, history: [], mode: 'before', ms: Math.round(performance.now() - t0), revision: 0, savedRevision: 0, crops: new Map() });
     // Good original tags beat layout guesses: start from them when they can be kept safely.
     if (existing?.hasTree && existing.canReuse) Object.assign(S, { source: 'existing', blocks: startingBlocks('existing') });
     S.title = suggestTitle(ex.title, S.blocks);
     S.titleFromFile = ex.title;
     S.lang = ex.lang || (navigator.language && /^en/i.test(navigator.language) ? 'en-US' : 'en-US');
     S.isSample = !!isSample;
+    if (restored) Object.assign(S, restored);
     $('#landing').hidden = true;
     $('#app').hidden = false;
     $('#fileBar').hidden = false;
@@ -79,7 +88,7 @@ async function openBytes(bytes, name, isSample) {
     document.title = `${name} · Earshot`;
     prog.hidden = true;
     await renderPages();
-    setMode('before');
+    setMode(restored ? 'after' : 'before');
     track(isSample ? 'sample-opened' : 'file-opened');
   } catch (e) {
     console.error(e);
@@ -90,12 +99,20 @@ async function openBytes(bytes, name, isSample) {
       ? 'This PDF has no selectable text, so it is probably a scan. Earshot needs real text; run it through text recognition (OCR) first, then try again.'
       : msg === 'password' ? 'This PDF is password-protected. Open it with the password in another app, save an unprotected copy, and try that.'
         : /Invalid PDF|FormatError|PDF header/i.test(msg) ? 'That file doesn’t look like a PDF Earshot can read. Is it really a .pdf?' : `Earshot couldn’t read this PDF: ${msg}`;
+    if (S.pdf) showError(err.textContent);
   }
 }
 async function openFile(f) {
   if (!f) return;
+  if (/\.earshot$/i.test(f.name)) {
+    try {
+      const saved = decodeSession(await f.text());
+      await openBytes(saved.bytes, saved.name, false, saved.model);
+    } catch (e) { showError(`Earshot couldn’t restore this editing session: ${e.message}`); }
+    return;
+  }
   const buf = new Uint8Array(await f.arrayBuffer());
-  openBytes(buf, f.name, false);
+  await openBytes(buf, f.name, false);
 }
 async function openSample() {
   const res = await fetch('sample.pdf');
@@ -104,6 +121,7 @@ async function openSample() {
 
 // ---------- pages ----------
 async function renderPages() {
+  S.pageObserver?.disconnect();
   const host = $('#pages');
   host.textContent = '';
   S.pageEls = [];
@@ -122,21 +140,34 @@ async function renderPages() {
     S.pageEls[n] = { wrap, canvas, overlay, scale, viewport, drawn: false };
   }
   const io = new IntersectionObserver(entries => {
-    for (const e of entries) if (e.isIntersecting) drawPage(+e.target.dataset.page);
+    for (const e of entries) if (e.isIntersecting) drawPage(+e.target.dataset.page).catch(err => {
+      console.error(err); showError(`Earshot couldn’t draw this page: ${err.message}`);
+    });
   }, { rootMargin: '600px' });
+  S.pageObserver = io;
   S.pageEls.forEach(pe => io.observe(pe.wrap));
   await drawPage(0);
 }
 async function drawPage(n) {
   const pe = S.pageEls[n];
   if (!pe || pe.drawn) return;
-  pe.drawn = true;
-  const page = await S.pdf.getPage(n + 1);
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const vp = page.getViewport({ scale: pe.scale * dpr });
-  pe.canvas.width = Math.round(vp.width);
-  pe.canvas.height = Math.round(vp.height);
-  await page.render({ canvasContext: pe.canvas.getContext('2d'), viewport: vp }).promise;
+  if (pe.drawing) return pe.drawing;
+  const pdf = S.pdf;
+  pe.drawing = (async () => {
+    try {
+      const page = await pdf.getPage(n + 1);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vp = page.getViewport({ scale: pe.scale * dpr });
+      pe.canvas.width = Math.round(vp.width);
+      pe.canvas.height = Math.round(vp.height);
+      await page.render({ canvasContext: pe.canvas.getContext('2d'), viewport: vp }).promise;
+      pe.drawn = true;
+    } catch (e) {
+      // Replacing a document or leaving the tab cancels pending page renders.
+      if (e.name !== 'RenderingCancelledException') throw e;
+    } finally { pe.drawing = null; }
+  })();
+  return pe.drawing;
 }
 
 // Original tagged order (or untagged file order) versus the editable proposal.
@@ -225,7 +256,7 @@ function banner() {
     el.append(
       h('strong', {}, `${S.source === 'existing' ? 'Starting from this PDF’s own tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
       ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}${c.artifacts ? `, with ${c.artifacts} pieces of page furniture hidden` : ''}. `,
-      todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'Ready to export. Check the order and wording once more before you publish.',
+      todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'No missing fields found. Review the order, headings and tables before export.',
     );
   }
   if (S.ex.tagged) {
@@ -288,6 +319,7 @@ function renderAll() {
   renderChecks();
   banner();
   $('#undo').disabled = !S.history.length;
+  $('#editStatus').textContent = S.revision !== S.savedRevision ? 'Unsaved edits · save a session to resume later' : 'Save a session to keep this PDF and your edits';
 }
 function renderList(list) {
   const ol = $('#order');
@@ -351,20 +383,31 @@ function editor(b) {
   const ed = h('div', { class: 'editor', role: 'group', 'aria-label': 'Fix this piece' });
   const typeBtn = (lbl, fn, on, key) => h('button', { type: 'button', class: `tbtn${on ? ' on' : ''}`, 'aria-pressed': String(!!on), title: key ? `Shortcut: ${key}` : null, onclick: fn }, lbl);
   if (b.type === 'figure') {
+    const image = h('img', { class: 'figure-preview', alt: 'Original picture to describe' });
+    const pdf = S.pdf;
+    const key = `${b.page}:${b.image?.i}:${b.bbox.join(',')}`;
+    if (!S.crops.has(key)) S.crops.set(key, cropFigure(b));
+    S.crops.get(key).then(src => { if (pdf === S.pdf) image.src = src; }).catch(() => { image.alt = 'Picture preview unavailable; inspect the Pages panel.'; });
     const ta = h('textarea', { rows: '3', 'aria-label': 'Picture description (alt text)', placeholder: 'Describe what matters in this picture, e.g. “Two canoes on a pond below green hills”.' });
     ta.value = b.alt || '';
+    ta.addEventListener('input', () => markEdited());
     ta.addEventListener('change', () => { mutate(() => { b.alt = ta.value.trim(); }); });
     ta.addEventListener('keydown', e => e.stopPropagation());
-    ed.append(h('label', { class: 'lbl' }, 'Picture description'), ta,
+    ed.append(image, h('label', { class: 'lbl' }, 'Picture description'), ta,
       h('p', { class: 'hint' }, 'Say what a sighted reader gets from it, in a sentence. Don’t start with “image of”.'),
       h('div', { class: 'row' }, h('button', { type: 'button', class: 'tbtn', onclick: () => mutate(() => { b.type = 'artifact'; b.why = 'Decorative picture'; }) }, 'It’s decorative: hide it')));
   } else if (b.type === 'table') {
     const grid = h('table', { class: 'mini' });
-    b.rows.slice(0, 8).forEach((r, ri) => grid.append(h('tr', {}, r.map(c => h(ri < b.headerRows ? 'th' : 'td', {}, c.text)))));
+    b.rows.slice(0, 8).forEach((r, ri) => grid.append(h('tr', {}, r.map((c, ci) => h(ri < b.headerRows || ci < (b.headerCols || 0) ? 'th' : 'td', {}, c.text)))));
     const cb = h('input', { type: 'checkbox', id: 'hdr' + b.id });
     cb.checked = !!b.headerRows;
     cb.addEventListener('change', () => mutate(() => { b.headerRows = cb.checked ? 1 : 0; }));
-    ed.append(grid, h('label', { class: 'check' }, cb, ' First row holds the column headers'),
+    const rowCb = h('input', { type: 'checkbox', 'aria-label': 'First column holds row headers' });
+    rowCb.checked = !!b.headerCols;
+    rowCb.addEventListener('change', () => mutate(() => { b.headerCols = rowCb.checked ? 1 : 0; }));
+    ed.append(h('div', { class: 'table-scroll' }, grid), h('label', { class: 'check' }, cb, ' First row holds the column headers'),
+      h('label', { class: 'check' }, rowCb, ' First column holds row headers'),
+      h('button', { type: 'button', class: 'tbtn', onclick: () => makeTable(b) }, 'Edit table region, rows and columns'),
       h('div', { class: 'row' }, h('button', { type: 'button', class: 'tbtn', onclick: () => tableToText(b) }, 'Not a table: make it text')));
   } else if (b.type === 'artifact') {
     ed.append(h('p', { class: 'hint' }, 'Hidden pieces stay on the page but screen readers skip them. Use this for page numbers, running headers and decoration.'),
@@ -375,6 +418,7 @@ function editor(b) {
       typeBtn('Text', () => setType(b, 'p'), b.type === 'p', 'P'),
       typeBtn('List item', () => setType(b, 'li'), b.type === 'li', 'L'),
       typeBtn('Hide', () => setType(b, 'artifact'), false, 'H')));
+    ed.append(h('button', { type: 'button', class: 'tbtn', onclick: () => makeTable(b) }, 'Make a table around this text'));
   }
   const i = S.blocks.indexOf(b);
   const next = S.blocks[i + 1];
@@ -393,6 +437,7 @@ function mutate(fn, keepSel) {
   S.history.push({ blocks: cloneBlocks(S.blocks), sel: S.sel, source: S.source });
   if (S.history.length > 100) S.history.shift();
   fn();
+  markEdited();
   if (!keepSel && S.sel != null && !S.blocks.some(b => b.id === S.sel)) S.sel = null;
   renderAll();
   focusSel();
@@ -403,8 +448,22 @@ function undo() {
   S.blocks = last.blocks;
   S.sel = last.sel;
   S.source = last.source;
+  markEdited();
   renderAll();
   focusSel();
+}
+function markEdited() {
+  S.revision++;
+  $('#editStatus').textContent = 'Unsaved edits · save a session to resume later';
+}
+function makeTable(b) {
+  if (S.mode !== 'after') setMode('after');
+  stopSpeaking();
+  editTable({ state: S, h, onApply: table => {
+    const result = replaceWithTable(S.blocks, table);
+    mutate(() => { S.blocks = result.blocks; S.sel = result.id; }, true);
+    showTab('order');
+  }, onError: e => showError(`Earshot couldn’t open the table editor: ${e.message}`) }, b);
 }
 function setType(b, type, level) {
   mutate(() => {
@@ -498,11 +557,11 @@ function renderChecks() {
   $('#checkCount').textContent = todo ? String(todo) : '✓';
   $('#mCheckCount').textContent = todo ? String(todo) : '✓';
   const titleIn = h('input', { type: 'text', id: 'docTitle', value: S.title, placeholder: 'e.g. Summer Recreation Programs 2027' });
-  titleIn.addEventListener('input', () => { S.title = titleIn.value; });
+  titleIn.addEventListener('input', () => { S.title = titleIn.value; markEdited(); });
   titleIn.addEventListener('change', () => renderAll());
   const langSel = h('select', { id: 'docLang' }, LANGS.map(([v, l]) => h('option', { value: v, selected: v === S.lang }, l)));
   if (!LANGS.some(l => l[0] === S.lang)) langSel.prepend(h('option', { value: S.lang, selected: true }, S.lang));
-  langSel.addEventListener('change', () => { S.lang = langSel.value; renderAll(); });
+  langSel.addEventListener('change', () => { S.lang = langSel.value; markEdited(); renderAll(); });
   panel.append(
     h('div', { class: 'field' }, h('label', { for: 'docTitle' }, 'Document title'), titleIn,
       h('p', { class: 'hint' }, S.titleFromFile && S.titleFromFile !== S.title ? `The file’s own title is “${S.titleFromFile}”. Screen readers announce the title first, so make it say what the document is.` : 'Screen readers announce this first, and it shows in the window title.')),
@@ -746,6 +805,17 @@ document.querySelectorAll('.side-tabs [data-tab]').forEach(b => b.addEventListen
 document.querySelectorAll('.mtabs [data-panel]').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
 $('#listen').addEventListener('click', speak);
 $('#undo').addEventListener('click', undo);
+$('#makeTable').addEventListener('click', () => makeTable(S.blocks.find(b => b.id === S.sel)));
+$('#saveSession').addEventListener('click', () => {
+  download(new TextEncoder().encode(encodeSession(S)), `${baseName()}.earshot`, 'application/json');
+  S.savedRevision = S.revision;
+  $('#editStatus').textContent = 'Session downloaded · open the .earshot file here to resume';
+});
+$('#restoreSession').addEventListener('click', () => $('#sessionFile').click());
+$('#sessionFile').addEventListener('change', e => openFile(e.target.files[0]));
+window.addEventListener('beforeunload', e => {
+  if (S.revision !== S.savedRevision) { e.preventDefault(); e.returnValue = ''; }
+});
 $('#exportPdf').addEventListener('click', exportPdf);
 $('#exportHtml').addEventListener('click', exportHtml);
 let resizeT;
