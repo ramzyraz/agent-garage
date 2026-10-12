@@ -41,7 +41,7 @@ async function download(re) {
     await p.click('.seg [data-mode="after"]');
     assert.equal(await p.evaluate(() => window.Earshot.blocks.filter(b => b.type === 'table').length), 0, 'reproduces a missed small table');
     await p.click('#makeTable'); await p.waitForSelector('.table-stage');
-    await p.waitForFunction(() => document.querySelector('.table-stage').width > 100);
+    await p.waitForFunction(() => document.querySelector('.region-choices input')); // rendered (a blank canvas is already 300px wide)
     const region = await p.evaluate(() => {
       const page = window.Earshot.ex.pages[0], c = document.querySelector('.table-stage'), rect = c.getBoundingClientRect();
       const texts = ['Department', 'Request', 'Decision', 'Library', '$8,000', 'Pending', 'Sports', '$12,000', 'Approved'];
@@ -120,10 +120,12 @@ async function download(re) {
     assert.equal(await m.evaluate(() => document.documentElement.scrollWidth - innerWidth), 0);
     await m.screenshot({ path: path.join(out, 'phone-picture.png') });
     await m.type('.item.sel textarea', 'Two canoes on the water');
+    await m.evaluate(() => { if (innerWidth < 900 && !document.querySelector('#app').classList.contains('tools-open')) document.querySelector('#moreTools').click(); }); // phone: secondary tools sit behind More
     await m.click('#saveSession');
     const sampleDraft = await download(/^Millbrook.*\.earshot$/);
     await m.reload(); await (await m.$('#sessionFile')).uploadFile(sampleDraft);
     await m.waitForFunction(() => !document.querySelector('#app').hidden && window.Earshot.mode === 'after' && window.Earshot.pageEls[0]?.drawn && window.Earshot.blocks.some(b => b.alt === 'Two canoes on the water'));
+    await m.click('#moreTools');
     await m.click('#makeTable'); await m.waitForFunction(() => document.querySelector('.region-choices input'));
     assert.equal(await m.evaluate(() => document.querySelector('.table-dialog').scrollWidth > document.querySelector('.table-dialog').clientWidth), false);
     await m.screenshot({ path: path.join(out, 'phone-table-tool.png') });

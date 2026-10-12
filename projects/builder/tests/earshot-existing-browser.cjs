@@ -170,6 +170,7 @@ const signature = bs => JSON.parse(JSON.stringify(bs.filter(b => b.type !== 'art
       await p.screenshot({ path: path.join(out, `phone-rotation-${angle}.png`) });
       const htmlName = `rotated-${angle} (accessible).html`;
       fs.rmSync(path.join(out, htmlName), { force: true });
+      await p.evaluate(() => { if (innerWidth < 900 && !document.querySelector('#app').classList.contains('tools-open')) document.querySelector('#moreTools').click(); }); // phone: secondary tools sit behind More
       await p.click('#exportHtml');
       const html = fs.readFileSync(await waitFile(htmlName), 'utf8');
       const crop = html.match(/src="(data:image\/jpeg;base64,[^"]+)"/)[1];

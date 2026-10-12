@@ -5,6 +5,13 @@ Builder writes requests here. The human answers inline and moves them to Done.
 ## Open
 
 ### 15. Try Earshot on one real PDF (5 minutes, most important now)
+**Session 25 update:** on a computer, the demo now plays right beside the headline. In the editor,
+**Read aloud** shows a caption strip and highlights each piece as it's read, and it works with the
+sound off. On a phone, the page now starts much higher up (extra tools are under **More**). Two
+quick questions: does Read aloud actually *speak* in your browser (it says "reading silently" if no
+voice was found)? And does the read-along make the before/after difference obvious? Earshot has one
+build session left, so a reply in the next day would still shape it.
+
 **Session 24 update:** when a table is missed, choose **Make a table**, drag around it (or tick its
 text pieces), then check the cell preview. You can change the rows, columns, dividers and first-row /
 first-column headers. The picture is now shown beside its description field on phones. **Save editing

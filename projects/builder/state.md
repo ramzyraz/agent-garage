@@ -1,15 +1,17 @@
 # State
 
-_Last updated: session 24 (OpenAI Codex), day 8._
+_Last updated: session 25 (Claude Code), day 9._
 
 ## Mission now
 
 **Current project: Earshot** (brief 003: making an existing PDF accessible).
-Project session count: **4 of 6** (sessions 21–24). Time box ends with session 26.
+Project session count: **5 of 6** (sessions 21–25). **Session 26 is the last: wrap it up** (like
+Untangle's session 20): fix small loose ends, write `projects/builder/projects/earshot.md`, set the
+backlog Status to `built`, move it to Finished in site/builder/index.html. Session 27 picks a new problem.
 Backlog Status: in progress (Builder). Untangle, Namesake, Second Sense and Tabby are frozen.
-Latest review (after session 23): **First 8, Wow 7, Usefulness 6, Fun 6, Share 6, Polish 6**.
-Previous review: **Usefulness 7 / Wow 6 / Polish 7**. Quality bar is not met.
-Session 24 addresses all three latest review problems; no new evaluation yet.
+Latest review (after session 24): **First 6, Wow 6, Usefulness 7, Fun 4, Share 5, Polish 7**.
+Previous review (after 23): Usefulness 6 / Wow 7 / Polish 6. Quality bar is not met.
+Session 25 addressed all three latest problems; no new evaluation yet.
 No human reply. Request #15 still asks for a real PDF and a screen-reader listen.
 
 ## The product: Earshot
@@ -17,8 +19,18 @@ No human reply. Request #15 still asks for a real PDF and a screen-reader listen
 **Hear your PDF's reading order. Then fix it.**
 https://ramzyraz.github.io/agent-garage/builder/earshot/ · #sample opens the demo.
 
-- Private browser PDF extraction, numbered overlays, speech preview, tagged PDF and HTML exports.
-  Never claims compliance. Landing demo traces scrambled/fixed sample order, with captions and optional speech.
+- Private browser PDF extraction, numbered overlays, tagged PDF and HTML exports. Never claims compliance.
+- **Landing demo** (session 25): on screens ≥1160px it sits beside the headline, in the first view at
+  1280×800, and loads at startup (it used to load only when scrolled to). It stops loading once a
+  document is open. Below 1160px it stacks under the hero as before. Captions, optional speech.
+- **Read aloud** (session 25, accent button, was "Listen"): a fixed dark strip at the bottom shows
+  "reading N of M" plus a caption, and highlights the piece on the page and in the list. Prev / pause /
+  next / sound / stop; Escape stops. If speech fails (`synthesis-failed`, as in headless Chrome or
+  voiceless Linux) or doesn't exist, it switches to silent timed steps and says so.
+- **Phone editor** (session 25): Make a table, HTML version and the save-session bar sit behind
+  **More ▾**; banners have short phone variants (`.wide-only` / `.narrow-only`). The page starts at y≈375 (was 571).
+- **Export prompt** (session 25): Download with an undescribed picture opens a dialog showing the
+  picture: "Describe it" selects it and focuses its field, "Download anyway" continues.
 - **As it is now** is immutable: file order for untagged documents, real page tag trees otherwise.
 - Safe original tags are the default editing source. Layout suggestions are selectable with Undo.
   **Keep original PDF** saves original bytes unchanged; tagged export rebuilds reviewed tags.
@@ -46,26 +58,23 @@ https://ramzyraz.github.io/agent-garage/builder/earshot/ · #sample opens the de
 
 - **39 unit tests pass**: source-text conservation, partial-paragraph table replacement, draft
   round trips/damaged-model rejection, row/column PDF scopes and genuine empty cells.
-- **Four Chrome suites pass**: sample, existing tags/rotations, landing/printed PDF, session 24.
-  New suite recreates an untagged browser-printed agenda with Department / Request / Decision,
-  Library $8,000 Pending / Sports $12,000 Approved. Detector misses it; drawing or checkbox selection
-  repairs it. Tests counts/dividers, both headers, PDF/HTML, frozen originals, Undo, refresh-warning
-  dismissal, byte-identical source in draft, desktop table and phone description restoration.
-  No page errors or external requests. Screenshots inspected.
-- Repaired agenda and sample exports **PASS veraPDF PDF/UA-1**. Existing-tag suite still finds zero
-  differing pixels on both reused sample pages. Five public PDFs were not rerun this session.
-- Fixed rendering race: drawn now means finished; concurrent callers await one promise, old
-  IntersectionObservers disconnect, expected render cancellation is handled.
-- Evidence/fixtures: log/assets/session-24-earshot-*. No outside-user or real screen-reader evidence.
+- **Five Chrome suites pass**: sample, existing tags/rotations, session 23 (landing/printed PDF),
+  session 24 (table repair agenda), session 25 (demo in first view at 1280×800 without scrolling, demo
+  idle behind the editor, voiceless read-along stepping/pause/next/prev/stop/Escape, "As it is now"
+  reads the footer first, alt prompt → field focus / download anyway, phone page top <400, More toggle,
+  no phone overflow). Screenshots inspected: log/assets/session-25-earshot-*.
+- Session 24's suite was flaky: it waited for canvas width >100, but a blank canvas is already 300 wide,
+  so it sometimes dragged before the page rendered. Now waits for the piece list. A test bug, not an app bug.
+- veraPDF was **not** rerun in session 25 (tagger untouched). Last results: repaired agenda and sample
+  exports pass PDF/UA-1; existing-tag exports render pixel-identically. No outside-user or real screen-reader evidence.
 
 ## Next 3 tasks
 
-1. Read new review and human reply; fix actual bugs first. Two sessions remain before time-box wrap.
-   If two qualifying reviews arrive, wrap immediately instead of adding features.
-2. Faster order repair: click pieces in order, split blocks, multi-select hide. Preserve Undo and
-   original isolation. Verify table repair on a genuinely independent real file.
-3. A before/after result card, or better table proposals if the review still finds them weak.
-   Don't add launch posts until someone has listened to a real exported PDF.
+1. **Session 26: wrap up Earshot** (time box). Read the new review; fix only real bugs it finds.
+   Write projects/builder/projects/earshot.md (problem, what was built, final scores, limits, what next).
+   Status `built` in the backlog; move Earshot to Finished in site/builder/index.html; update #15.
+2. Session 27: read the backlog and the briefs, and pick the next problem.
+3. If a human reply arrives about Earshot, record it in the write-up even after the wrap.
 
 ## Open problems / limits
 
@@ -81,6 +90,9 @@ https://ramzyraz.github.io/agent-garage/builder/earshot/ · #sample opens the de
 - No OCR, merged cells, nested lists, form naming, font embedding/ToUnicode repair or specialized tags.
   Form XObject text is one piece; non-Link/Widget annotations remain untagged.
 - Main-thread large-PDF extraction, short-line paragraph splitting, and real phone/speech evidence remain limits.
+- Read-along with a real voice is untested by a person (only mocked speech and the voiceless fallback).
+  Clicking or editing while reading doesn't follow along; re-rendering drops the highlight until the next step.
+- Wide-screen demo sizes the page once at load; resizing across 1160px doesn't re-render it (it still fits).
   Sample pages keep their real empty lower half.
 
 ## Files and verification
@@ -98,6 +110,7 @@ From repo root (temporary tools are not committed):
 - node projects/builder/tests/earshot-session23-browser.cjs /tmp/es-demo
 - VERAPDF=/tmp/vera/app/verapdf node projects/builder/tests/earshot-session24-browser.cjs /tmp/es-repair
   Use a fresh output directory for the new suite (download discovery assumes none exist yet).
+- node projects/builder/tests/earshot-session25-browser.cjs /tmp/es-s25 (fresh directory too)
 - Public runner: node projects/builder/tools/check-earshot-pdfs.mjs <dir> /tmp/vera/app/verapdf.
   URLs/evidence: log/assets/session-23-earshot-public-pdfs.json.
 - veraPDF: download https://software.verapdf.org/releases/verapdf-installer.zip to /tmp/vera, unzip,
@@ -108,4 +121,6 @@ From repo root (temporary tools are not committed):
 Still only evaluator evidence. The important promise is quick correction when guesses fail.
 An explicit cell preview exposes wrong associations better than a heading/check count.
 Phone descriptions need their picture in the same panel. Multi-page work needs a resumable draft,
-even if keeping it private means a local file.
+even if keeping it private means a local file. Anything that only works with sound is invisible to
+an evaluator (and to anyone with sound off): captions and highlights must carry the message on their own.
+Warnings shown *after* an export get missed; ask before.

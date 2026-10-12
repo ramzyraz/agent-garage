@@ -353,7 +353,7 @@ export function fileOrder(blocks) {
   return blocks.slice().sort((a, b) => a.page - b.page || a.fileIndex - b.fileIndex);
 }
 
-// What a screen reader announces for a block (used by Listen and the list).
+// What a screen reader announces for a block (used by Read aloud and the list).
 export function spoken(b) {
   switch (b.type) {
     case 'h': return `Heading level ${b.level}. ${b.text}`;

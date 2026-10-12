@@ -20,10 +20,15 @@ export function initDemo({ pdfjs, opts, onOpen }) {
   const D = { tok: 0, phases: null, phase: 0, step: -1, timer: null, playing: false, sound: false, visible: false, ready: false, viewport: null };
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // Once a document is open the landing page is hidden; stop competing with it.
+  const gone = () => !!root.closest('[hidden]');
   async function load() {
     const res = await fetch('sample.pdf');
+    if (gone()) return;
     const pdf = await pdfjs.getDocument({ ...opts, data: new Uint8Array(await res.arrayBuffer()) }).promise;
+    if (gone()) { pdf.destroy(); return; }
     const ex = await extractDocument(pdfjs, pdf);
+    if (gone()) { pdf.destroy(); return; }
     const { blocks } = analyze(ex.pages);
     const p = ex.pages[0];
     const page = await pdf.getPage(1);
@@ -35,6 +40,7 @@ export function initDemo({ pdfjs, opts, onOpen }) {
     els.canvas.width = Math.round(rvp.width); els.canvas.height = Math.round(rvp.height);
     els.stage.style.height = `${Math.round(vp.height)}px`;
     els.svg.setAttribute('viewBox', `0 0 ${vp.width} ${vp.height}`);
+    if (gone()) { pdf.destroy(); return; }
     await page.render({ canvasContext: els.canvas.getContext('2d'), viewport: rvp }).promise;
     const box = b => {
       const v = vp.convertToViewportRectangle([b[0] + p.ox, b[1] + p.oy, b[2] + p.ox, b[3] + p.oy]);
@@ -142,10 +148,12 @@ export function initDemo({ pdfjs, opts, onOpen }) {
     const vis = es.some(e => e.isIntersecting);
     if (vis === D.visible) return;
     D.visible = vis;
-    if (vis && !D.phases) load().catch(e => { console.error(e); root.hidden = true; });
-    else if (vis && D.playing) tick();
+    if (vis && D.playing) tick();
     else if (!vis) { clearTimeout(D.timer); try { if (D.sound) speechSynthesis.cancel(); } catch { /* none */ } }
   }, { threshold: 0.15 }).observe(root);
+  // Load straight away rather than on scroll: on wide screens the demo is
+  // in the first view, and elsewhere it should be ready when it's reached.
+  setTimeout(() => { if (!gone()) load().catch(e => { console.error(e); root.hidden = true; }); }, 0);
   D.stop = () => setPlaying(false);
   return D;
 }

@@ -231,6 +231,11 @@ kbd { font: 600 11px ui-monospace, Menlo, Consolas, monospace; background: #f1f0
 .demo-grid { display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); gap: 28px; align-items: start; }
 .demo-page { position: relative; background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 8px 26px rgba(24, 34, 48, .12); min-height: 200px; overflow: hidden; }
 .demo-page canvas { width: 100%; height: 100%; display: block; }
+.demo:not(.ready) .demo-page { aspect-ratio: 612 / 792; background: linear-gradient(100deg, #fff 30%, #f1efe9 50%, #fff 70%) 0 0 / 300% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -150% 0; } }
+.live-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: 2px; box-shadow: 0 0 0 0 rgba(216, 87, 42, .5); animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(216, 87, 42, 0); } 100% { box-shadow: 0 0 0 0 rgba(216, 87, 42, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot, .demo:not(.ready) .demo-page { animation: none; } }
 .demo-path, .demo-boxes { position: absolute; inset: 0; width: 100%; height: 100%; }
 .demo-path polyline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; opacity: .75; }
 .demo[data-phase="after"] .demo-path polyline { stroke: var(--ok); }
@@ -270,6 +275,28 @@ kbd { font: 600 11px ui-monospace, Menlo, Consolas, monospace; background: #f1f0
   .demo-open { flex: 1 1 100%; }
 }
 .demo-open { white-space: normal; }
+/* Wide screens: the demo plays beside the headline, in the first view. */
+@media (min-width: 1160px) {
+  .landing { max-width: 1240px; padding-top: 30px; }
+  .hero-wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 40px; align-items: start; }
+  .hero { text-align: left; margin: 0; padding-top: 18px; }
+  .hero h1 { font-size: clamp(36px, 3.7vw, 50px); }
+  .lede { font-size: 17.5px; margin-left: 0; }
+  .sample-line { display: flex; align-items: center; gap: 16px; text-align: left; }
+  .sample-btn { flex: none; }
+  .sample-line p { margin: 0; font-size: 14px; }
+  .load-error { margin-left: 0; }
+  .demo { margin: 0; padding: 18px 20px 20px; }
+  .demo-title { font-size: 16px; margin-bottom: 12px; color: var(--ink2); }
+  .demo-grid { grid-template-columns: min(330px, calc((100vh - 190px) * .773)) minmax(0, 1fr); gap: 20px; }
+  .demo-phase { font-size: 21px; margin-top: 0; }
+  .demo-sub { font-size: 13.5px; margin-bottom: 12px; }
+  .demo-reader { min-height: 150px; padding: 12px 14px 14px; }
+  .demo-said { font-size: 16px; }
+  .demo-verdict { font-size: 14px; }
+  .demo-controls .demo-open { flex: 1 1 100%; }
+  .features { margin-top: 44px; }
+}
 .session-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; font-size: 12px; color: var(--ink2); }
 .session-bar .hint { margin: 0; }
 .figure-preview { display: block; max-width: 100%; max-height: 240px; width: auto; height: auto; margin: 0 auto 12px; border: 1px solid var(--line); border-radius: 6px; }
@@ -295,3 +322,41 @@ kbd { font: 600 11px ui-monospace, Menlo, Consolas, monospace; background: #f1f0
   .table-dialog { padding: 16px; }
   .table-layout { grid-template-columns: minmax(0, 1fr); }
 }
+/* ---------- read-along ---------- */
+.listen { background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: 7px 14px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.listen:hover { background: #bf4719; }
+.listen[aria-pressed="true"] { background: #fff; color: var(--accent); }
+.reader { position: fixed; z-index: 30; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(820px, calc(100% - 24px)); display: flex; align-items: center; gap: 14px; background: #182230; color: #fff; border-radius: 16px; padding: 12px 14px 12px 18px; box-shadow: 0 12px 40px rgba(24, 34, 48, .35); }
+.reader-main { flex: 1; min-width: 0; }
+.reader-count { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: #9fb0c4; }
+.reader-said { margin: 3px 0 0; font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.reader-note { margin: 6px 0 0; font-size: 12.5px; color: #f8cdb8; }
+.reader-ctl { display: flex; gap: 6px; flex: none; }
+.reader-ctl button { background: #2a3646; color: #fff; border: 1px solid #3b4a5e; border-radius: 8px; min-width: 38px; height: 38px; padding: 0 10px; font-size: 14px; }
+.reader-ctl button:hover:not(:disabled) { background: #364459; }
+.reader-ctl button:disabled { opacity: .4; cursor: default; }
+.reader-ctl .reader-sound[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+@media (max-width: 899px) {
+  .reader { flex-direction: column; align-items: stretch; gap: 8px; bottom: 8px; padding: 10px 12px; }
+  .reader-said { font-size: 14.5px; -webkit-line-clamp: 2; }
+  .reader-ctl button { flex: 1; height: 34px; }
+  .reader-ctl .reader-sound { flex: 2; white-space: nowrap; }
+  .reader-note { margin-top: 3px; font-size: 12px; }
+}
+/* ---------- phone editor: fewer controls above the page ---------- */
+@media (min-width: 900px) { .narrow-only { display: none !important; } }
+@media (max-width: 899px) {
+  .wide-only { display: none; }
+  .toolbar { gap: 8px; }
+  .toolbar > .listen { flex: 1 1 auto; order: 1; }
+  .toolbar > #undo { order: 2; }
+  .toolbar > #moreTools { order: 3; }
+  .toolbar > #exportPdf { order: 4; }
+  .toolbar > #makeTable, .toolbar > #exportHtml { order: 5; }
+  .app:not(.tools-open) #makeTable, .app:not(.tools-open) #exportHtml, .app:not(.tools-open) .session-bar { display: none; }
+  .session-bar .hint { display: none; }
+  .banner { padding: 9px 12px; font-size: 14px; margin-top: 10px; }
+  .mtabs button { padding: 6px 4px; }
+}
+.alt-ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+#altAsk h2 { margin: 0 0 8px; }

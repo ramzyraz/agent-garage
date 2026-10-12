@@ -27,6 +27,7 @@
 
   <main id="main">
     <section id="landing" class="landing">
+      <div class="hero-wrap">
       <div class="hero">
         <h1>Hear your PDF the way a screen reader does. <em>Then fix it.</em></h1>
         <p class="lede">PDFs without useful tags can give blind readers scrambled text and pictures with no description. Drop one here. Earshot shows existing tags or proposes headings, lists, tables and a reading order. You check and fix them in a few clicks, then download a tagged PDF.</p>
@@ -49,7 +50,7 @@
       </div>
 
       <section id="demo" class="demo" aria-labelledby="demoTitle">
-        <h2 id="demoTitle" class="demo-title">Watch a screen reader read the same page twice</h2>
+        <h2 id="demoTitle" class="demo-title"><span class="live-dot" aria-hidden="true"></span> Live: a screen reader reads the same page twice</h2>
         <div class="demo-grid">
           <div class="demo-page" role="img" aria-label="Page 1 of the sample town notice. A numbered line traces the reading order: first scrambled, then top to bottom after Earshot's fixes.">
             <canvas aria-hidden="true"></canvas>
@@ -72,12 +73,13 @@
           </div>
         </div>
       </section>
+      </div>
 
       <section class="features" aria-label="What Earshot does">
         <div class="feat">
           <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="8" y="6" width="104" height="10" rx="2" class="f-h"/><rect x="8" y="22" width="48" height="36" rx="2" class="f-p"/><rect x="64" y="22" width="48" height="36" rx="2" class="f-p"/><circle cx="8" cy="6" r="6" class="f-badge"/><text x="8" y="9" class="f-num">1</text><circle cx="8" cy="22" r="6" class="f-badge"/><text x="8" y="25" class="f-num">2</text><circle cx="64" cy="22" r="6" class="f-badge"/><text x="64" y="25" class="f-num">3</text></svg>
           <h3>See and hear the reading order</h3>
-          <p>See the original tag order if your PDF has tags, or file order if it doesn't. Headings, lists, tables and pictures are numbered on the page. Press Listen to hear the reading preview, before and after the fix.</p>
+          <p>See the original tag order if your PDF has tags, or file order if it doesn't. Headings, lists, tables and pictures are numbered on the page. Press Read aloud to hear it, or follow the captions with the sound off, before and after the fix.</p>
         </div>
         <div class="feat">
           <svg viewBox="0 0 120 64" aria-hidden="true"><rect x="6" y="10" width="30" height="16" rx="8" class="f-chip on"/><text x="21" y="21" class="f-chip-t">H2</text><rect x="42" y="10" width="34" height="16" rx="8" class="f-chip"/><text x="59" y="21" class="f-chip-t2">Text</text><rect x="82" y="10" width="32" height="16" rx="8" class="f-chip"/><text x="98" y="21" class="f-chip-t2">Hide</text><rect x="6" y="36" width="108" height="20" rx="4" class="f-alt"/><text x="12" y="50" class="f-alt-t">Two canoes on a pond…</text></svg>
@@ -99,12 +101,13 @@
           <button type="button" role="radio" data-mode="before" aria-checked="false">As it is now</button>
           <button type="button" role="radio" data-mode="after" aria-checked="true">With Earshot's fixes</button>
         </div>
-        <button id="listen" class="ghost listen" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> Listen</button>
+        <button id="listen" class="listen" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> Read aloud</button>
         <span class="tb-gap"></span>
         <button id="undo" class="ghost" type="button" disabled title="Undo (Ctrl+Z)">Undo</button>
         <button id="makeTable" class="ghost" type="button">Make a table</button>
         <button id="exportHtml" class="ghost" type="button">HTML version</button>
-        <button id="exportPdf" class="primary" type="button">Download tagged PDF</button>
+        <button id="moreTools" class="ghost narrow-only" type="button" aria-expanded="false">More ▾</button>
+        <button id="exportPdf" class="primary" type="button">Download <span class="wide-only">tagged </span>PDF</button>
       </div>
       <div class="session-bar"><span id="editStatus">Save a session to keep this PDF and your edits</span><button id="saveSession" class="linkish" type="button">Save editing session</button><span class="hint">A private .earshot file on your device. Open it here to resume.</span></div>
       <div id="banner" class="banner" aria-live="polite"></div>
@@ -127,12 +130,36 @@
           <div id="checksPanel" role="tabpanel" aria-labelledby="tabChecks" class="panel" hidden></div>
         </aside>
       </div>
+      <div id="reader" class="reader" role="region" aria-label="Read-along" hidden>
+        <div class="reader-main">
+          <span id="readerCount" class="reader-count"></span>
+          <p id="readerSaid" class="reader-said"></p>
+          <p id="readerNote" class="reader-note" hidden></p>
+        </div>
+        <div class="reader-ctl">
+          <button id="readerPrev" type="button" aria-label="Previous piece">⏮</button>
+          <button id="readerPause" type="button" aria-label="Pause">❚❚</button>
+          <button id="readerNext" type="button" aria-label="Next piece">⏭</button>
+          <button id="readerSound" type="button" class="reader-sound" aria-pressed="true">🔊 Sound on</button>
+          <button id="readerStop" type="button" aria-label="Stop reading">✕</button>
+        </div>
+      </div>
     </section>
   </main>
 
   <dialog id="result" class="result" aria-labelledby="resultTitle">
     <div id="resultBody"></div>
     <form method="dialog"><button class="ghost" value="close">Close</button></form>
+  </dialog>
+
+  <dialog id="altAsk" class="result" aria-labelledby="altAskTitle">
+    <h2 id="altAskTitle"></h2>
+    <p>A screen reader will just say “unlabeled graphic”, and validators will flag it. One sentence about what a sighted reader gets from it is enough. If it adds nothing, mark it decorative.</p>
+    <img id="altAskImg" class="figure-preview" alt="" hidden>
+    <form method="dialog" class="alt-ask-actions">
+      <button class="ghost" value="anyway">Download anyway</button>
+      <button class="primary" value="describe" autofocus>Describe it</button>
+    </form>
   </dialog>
 
   <footer class="foot">

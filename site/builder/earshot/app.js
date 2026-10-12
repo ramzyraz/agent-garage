@@ -246,7 +246,8 @@ function banner() {
         ? S.existing?.hasTree
           ? `Numbers show the order its tags give a screen reader, with their headings, lists, tables and picture descriptions.${S.existing.unlinkedChars ? ' Text outside the tags is flagged.' : ''}`
           : 'The file claims to be tagged, but no readable tag tree was found. Showing file order as a fallback.'
-        : `A screen reader has to guess what is a heading, list or table, and many read text in the order it is stored in the file. Here that order ${moved ? `jumps around the page ${moved} times` : 'follows the page'}, includes ${c.artifacts} pieces of repeated page furniture and skips ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}. Nothing is marked as a heading.`,
+        : h('span', {}, h('span', { class: 'wide-only' }, `A screen reader has to guess what is a heading, list or table, and many read text in the order it is stored in the file. Here that order ${moved ? `jumps around the page ${moved} times` : 'follows the page'}, includes ${c.artifacts} pieces of repeated page furniture and skips ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}. Nothing is marked as a heading.`),
+          h('span', { class: 'narrow-only' }, `Read in file order: ${moved ? `it jumps around ${moved} times` : 'no jumps'}, ${c.artifacts} pieces of page furniture, no headings.`)),
       ' ', h('button', { class: 'linkish', type: 'button', onclick: () => setMode('after') }, 'Review fixes →'),
     );
   } else {
@@ -255,7 +256,7 @@ function banner() {
     const todo = chk.filter(x => x.status === 'todo').length;
     el.append(
       h('strong', {}, `${S.source === 'existing' ? 'Starting from this PDF’s own tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
-      ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}${c.artifacts ? `, with ${c.artifacts} pieces of page furniture hidden` : ''}. `,
+      h('span', { class: 'wide-only' }, ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}${c.artifacts ? `, with ${c.artifacts} pieces of page furniture hidden` : ''}`), '. ',
       todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'No missing fields found. Review the order, headings and tables before export.',
     );
   }
@@ -614,46 +615,98 @@ function countRun(b) {
   while (i < S.blocks.length && (S.blocks[i].type === 'li' || S.blocks[i].type === 'artifact')) { if (S.blocks[i].type === 'li') n++; i++; }
   return n;
 }
+// Read-along: every piece is highlighted on the page and shown as a caption,
+// spoken aloud when the browser has a voice and stepped through silently
+// otherwise, so the order is visible with the sound off.
+const R = { queue: [], k: 0, playing: false, sound: true, tok: 0, timer: null };
+const readTime = t => Math.min(7000, 900 + t.length * 38);
 function speak() {
   if (S.speaking) { stopSpeaking(); return; }
-  if (!('speechSynthesis' in window)) {
-    $('#banner').textContent = 'This browser can’t read aloud. The reading-order list shows exactly what would be read.';
-    return;
-  }
-  const queue = speechList();
+  R.queue = speechList();
+  if (!R.queue.length) return;
   S.speaking = true;
+  R.k = 0;
+  R.playing = true;
+  if (!('speechSynthesis' in window)) { R.sound = false; readerNote('This browser can’t speak: reading silently, with captions.'); } else readerNote('');
+  $('#reader').hidden = false;
   $('#listen').setAttribute('aria-pressed', 'true');
-  $('#listen').innerHTML = '<span aria-hidden="true">■</span> Stop';
+  $('#listen').innerHTML = '<span aria-hidden="true">■</span> Stop reading';
   track('listened');
-  let k = 0;
-  const next = () => {
-    if (!S.speaking || k >= queue.length) { stopSpeaking(); return; }
-    const q = queue[k++];
-    document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking'));
-    if (q.key) {
-      const sel = S.mode === 'before' ? `[data-key="${q.key}"]` : `[data-id="${q.id}"]`;
-      document.querySelectorAll(`.ov${sel}, #order .item${sel}`).forEach(e => e.classList.add('speaking'));
-      const ov = document.querySelector(`.ov${sel}`);
-      if (ov) ov.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-    const u = new SpeechSynthesisUtterance(q.text);
-    u.lang = S.lang;
-    u.rate = 1.05;
-    u.onend = next;
-    u.onerror = next;
-    speechSynthesis.speak(u);
+  readerButtons();
+  readStep();
+}
+function readerNote(t) { $('#readerNote').textContent = t; $('#readerNote').hidden = !t; }
+function readerButtons() {
+  $('#readerPause').textContent = R.playing ? '❚❚' : '▶';
+  $('#readerPause').setAttribute('aria-label', R.playing ? 'Pause' : 'Play');
+  $('#readerSound').innerHTML = R.sound ? '<span aria-hidden="true">🔊</span> Sound<span class="wide-only"> on</span>' : '<span aria-hidden="true">🔈</span> <s>Sound</s><span class="wide-only"> off</span>';
+  $('#readerSound').setAttribute('aria-pressed', String(R.sound));
+  $('#readerPrev').disabled = R.k <= 0;
+  $('#readerNext').disabled = R.k >= R.queue.length - 1;
+}
+function readStep() {
+  clearTimeout(R.timer);
+  R.tok++;
+  try { speechSynthesis.cancel(); } catch { /* none */ }
+  if (!S.speaking) return;
+  if (R.k >= R.queue.length) { stopSpeaking(); return; }
+  const q = R.queue[R.k];
+  document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking'));
+  if (q.key) {
+    const sel = S.mode === 'before' ? `[data-key="${q.key}"]` : `[data-id="${q.id}"]`;
+    document.querySelectorAll(`.ov${sel}, #order .item${sel}`).forEach(e => e.classList.add('speaking'));
+    const el = document.querySelector(S.panel === 'order' && innerWidth < 900 ? `#order .item${sel}` : `.ov${sel}`);
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  $('#readerCount').textContent = `${S.mode === 'before' ? 'As it is now' : 'With fixes'} · reading ${R.k + 1} of ${R.queue.length}`;
+  $('#readerSaid').textContent = q.text;
+  readerButtons();
+  if (!R.playing) return;
+  const next = () => { R.k++; readStep(); };
+  if (R.sound) say(q.text, next);
+  else R.timer = setTimeout(next, readTime(q.text));
+}
+function say(text, done) {
+  const tok = ++R.tok;
+  const once = () => { if (tok === R.tok) { R.tok++; done(); } };
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = S.lang;
+  u.rate = 1.05;
+  u.onend = once;
+  u.onerror = e => {
+    if (tok !== R.tok || e.error === 'interrupted' || e.error === 'canceled') return;
+    // No usable voice (common on Linux and in headless browsers): keep going silently.
+    R.tok++;
+    R.sound = false;
+    readerNote('No voice available in this browser: reading silently, with captions.');
+    readerButtons();
+    R.timer = setTimeout(done, readTime(text));
   };
-  speechSynthesis.cancel();
-  next();
+  // Some voices never fire onend; don't let reading stall.
+  R.timer = setTimeout(once, 2500 + text.length * 90);
+  speechSynthesis.speak(u);
 }
 function stopSpeaking() {
   if (!S.speaking) return;
   S.speaking = false;
+  clearTimeout(R.timer);
+  R.tok++;
   try { speechSynthesis.cancel(); } catch { /* none */ }
   document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking'));
+  $('#reader').hidden = true;
   $('#listen').setAttribute('aria-pressed', 'false');
-  $('#listen').innerHTML = '<span aria-hidden="true">▶</span> Listen';
+  $('#listen').innerHTML = '<span aria-hidden="true">▶</span> Read aloud';
 }
+$('#readerPause').addEventListener('click', () => { R.playing = !R.playing; readStep(); });
+$('#readerPrev').addEventListener('click', () => { R.k = Math.max(0, R.k - 1); readStep(); });
+$('#readerNext').addEventListener('click', () => { R.k = Math.min(R.queue.length - 1, R.k + 1); readStep(); });
+$('#readerStop').addEventListener('click', stopSpeaking);
+$('#readerSound').addEventListener('click', () => {
+  if (!('speechSynthesis' in window)) return;
+  R.sound = !R.sound;
+  if (R.sound) readerNote('');
+  readStep();
+});
 
 // ---------- export ----------
 function baseName() {
@@ -667,7 +720,29 @@ function download(bytes, name, type) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
+// Ask once before writing a file with undescribed pictures: the result
+// dialog's warning comes too late to be noticed.
+function askAboutPictures() {
+  const missing = S.blocks.filter(b => b.type === 'figure' && !(b.alt || '').trim());
+  if (!missing.length) return Promise.resolve(true);
+  const d = $('#altAsk');
+  $('#altAskTitle').textContent = `${missing.length} ${missing.length === 1 ? 'picture has' : 'pictures have'} no description yet`;
+  const img = $('#altAskImg'), b = missing[0], pdf = S.pdf;
+  img.hidden = true;
+  const key = `${b.page}:${b.image?.i}:${b.bbox.join(',')}`;
+  if (!S.crops.has(key)) S.crops.set(key, cropFigure(b));
+  S.crops.get(key).then(src => { if (pdf === S.pdf) { img.src = src; img.hidden = false; } }).catch(() => {});
+  d.returnValue = '';
+  d.showModal();
+  return new Promise(resolve => d.addEventListener('close', () => {
+    if (d.returnValue === 'anyway') return resolve(true);
+    select(b.id, true);
+    document.querySelector('#order .item.sel textarea')?.focus({ preventScroll: true });
+    resolve(false);
+  }, { once: true }));
+}
 async function exportPdf() {
+  if (!await askAboutPictures()) return;
   const btn = $('#exportPdf');
   btn.disabled = true;
   btn.textContent = 'Writing tags…';
@@ -686,7 +761,7 @@ async function exportPdf() {
     showError(/encrypt/i.test(String(e && e.message)) ? 'This PDF is encrypted, so Earshot can’t rewrite it. Save an unencrypted copy and try again.' : `Earshot couldn’t write the tagged PDF: ${e && e.message}`);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Download tagged PDF';
+    btn.innerHTML = 'Download <span class="wide-only">tagged </span>PDF';
   }
 }
 // Re-open the written file with pdf.js and count what a reader will find.
@@ -805,6 +880,11 @@ document.querySelectorAll('.side-tabs [data-tab]').forEach(b => b.addEventListen
 document.querySelectorAll('.mtabs [data-panel]').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
 $('#listen').addEventListener('click', speak);
 $('#undo').addEventListener('click', undo);
+$('#moreTools').addEventListener('click', () => {
+  const open = $('#app').classList.toggle('tools-open');
+  $('#moreTools').setAttribute('aria-expanded', String(open));
+  $('#moreTools').textContent = open ? 'Less ▴' : 'More ▾';
+});
 $('#makeTable').addEventListener('click', () => makeTable(S.blocks.find(b => b.id === S.sel)));
 $('#saveSession').addEventListener('click', () => {
   download(new TextEncoder().encode(encodeSession(S)), `${baseName()}.earshot`, 'application/json');

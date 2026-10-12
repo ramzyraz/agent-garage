@@ -48,7 +48,7 @@ export function buildChecks(S) {
     if (b.fileIndex < prevIdx) jumps++;
     prevIdx = Math.max(prevIdx, b.fileIndex);
   }
-  if (jumps) out.push({ status: 'info', title: 'Reading order follows the layout, not the file', detail: `The file stores its text in a different order; Earshot’s order differs from it in ${jumps} ${jumps === 1 ? 'place' : 'places'}. Press Listen to check it sounds right.` });
+  if (jumps) out.push({ status: 'info', title: 'Reading order follows the layout, not the file', detail: `The file stores its text in a different order; Earshot’s order differs from it in ${jumps} ${jumps === 1 ? 'place' : 'places'}. Press Read aloud to check it sounds right.` });
 
   const scanned = (S.ex ? S.ex.pages : []).filter(p => !p.items.some(it => it.s.trim()) && p.images.length);
   if (scanned.length) out.push({ status: 'todo', title: `${scanned.length === 1 ? 'Page' : 'Pages'} ${scanned.map(p => p.n + 1).join(', ')} look${scanned.length === 1 ? 's' : ''} scanned`, detail: 'There is no real text to tag. These pages need text recognition (OCR) first, which Earshot doesn’t do yet.' });
