@@ -1,4 +1,58 @@
 // What still needs a person before export. Pure: reads Earshot's state.
+import { buildLines, union } from './analyze.js';
+
+// A review hint, never an automatic table. Dense cells and wrapped lines can
+// defeat findTables; repeated alignments should not silently pass as prose.
+function possibleTables(S) {
+  const out = [];
+  for (const page of S.ex?.pages || []) {
+    const covered = new Set(S.blocks.filter(b => b.page === page.n && (b.type === 'table' || b.type === 'artifact'))
+      .flatMap(b => b.items.map(it => it.i)));
+    const lines = buildLines(page.items.filter(it => !covered.has(it.i) && !it.rot));
+    const size = S.bodySize || 12;
+    const rows = [];
+    for (const l of lines.sort((a, b) => b.y - a.y)) {
+      const last = rows.at(-1);
+      if (last && Math.abs(last.y - l.y) < .35 * l.size) last.cells.push(l);
+      else rows.push({ y: l.y, cells: [l] });
+    }
+    rows.forEach(r => r.cells.sort((a, b) => a.x0 - b.x0));
+    let run = [], between = [];
+    const flush = () => {
+      // Repeated full-width prose in two columns is not a useful table hint.
+      // Require three rows with substantial space between their cell text.
+      const spaced = run.filter(r => r.cells.reduce((n, c) => n + c.bbox[2] - c.bbox[0], 0) /
+        (r.cells.at(-1).bbox[2] - r.cells[0].x0) < .8);
+      if (spaced.length >= 3) {
+        const cells = [...run.flatMap(r => r.cells), ...between];
+        const box = union(cells.map(c => c.bbox));
+        out.push({ status: 'todo', title: `Aligned text on page ${page.n + 1} needs review`,
+          detail: 'These aligned lines may be a missed table. Values may be read with the wrong headings. Open the cell preview, check the region and adjust rows or dividers before using it.',
+          tableRegion: { page: page.n, box: [box[0] - 2, box[1] - 2, box[2] + 2, box[3] + 2] } });
+      }
+      run = []; between = [];
+    };
+    for (const r of rows) {
+      const first = run[0], prev = run.at(-1);
+      const separated = r.cells.length >= 2 && r.cells.every((c, k) => c.text.length < 120 &&
+        (!k || c.x0 - r.cells[k - 1].bbox[2] >= .8 * size));
+      // Narrow gaps may also merge two cells into one line; a subset of the
+      // same column starts is enough to request review, never to assign cells.
+      const matches = first && r.cells.length <= first.cells.length && r.cells.every(c => first.cells.some(a =>
+        Math.abs(c.x0 - a.x0) < .8 * size || Math.abs(c.bbox[2] - a.bbox[2]) < .8 * size));
+      // Keep a wrapped continuation between full rows, but never infer its cell.
+      const lastY = Math.min(between.at(-1)?.y ?? Infinity, prev?.y ?? Infinity);
+      const continuation = first && r.cells.length < first.cells.length && lastY - r.y < 1.8 * size &&
+        r.cells.every(c => first.cells.some((a, k) => Math.abs(c.x0 - a.x0) < .8 * size &&
+          (k === first.cells.length - 1 || c.bbox[2] < first.cells[k + 1].x0)));
+      if (separated && matches && prev.y - r.y < 6 * size) run.push(r);
+      else if (continuation) between.push(...r.cells);
+      else { flush(); if (separated) run.push(r); }
+    }
+    flush();
+  }
+  return out;
+}
 
 const JUNK_TITLE = /^(untitled.*|document\d*|doc\d*|microsoft (word|powerpoint|excel) - .*|.*\.(docx?|pptx?|xlsx?|pdf|indd|qxd|rtf|odt|html?|txt|md|csv|pages)|(https?|file):\/\/.*|title|new document|\s*)$/i;
 
@@ -10,7 +64,8 @@ export function suggestTitle(fileTitle, blocks) {
 }
 
 export function buildChecks(S) {
-  const out = [];
+  const out = [{ status: 'info', title: 'Structure still needs your review',
+    detail: 'The checks below find missing fields and level gaps. They cannot confirm that headings, reading order or table associations are correct. Read through every page before export.' }, ...possibleTables(S)];
   const bs = S.blocks;
   const real = bs.filter(b => b.type !== 'artifact');
   out.push(S.title && S.title.trim()

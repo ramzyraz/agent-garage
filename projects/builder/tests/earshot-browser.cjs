@@ -75,7 +75,7 @@ const waitFile = async (re, ms = 15000) => {
     await p.type('.item.sel textarea', 'Two canoes on a pond below green hills on a sunny day');
     await p.$eval('.item.sel textarea', el => el.dispatchEvent(new Event('change')));
     await wait(100);
-    assert.equal(await p.$eval('#checkCount', e => e.textContent), '✓');
+    assert.equal(await p.$eval('#checkCount', e => e.textContent), 'Review');
 
     // Keyboard edits: select the intro paragraph, make it H2, undo; move; hide.
     const introId = await p.evaluate(() => window.Earshot.blocks.find(b => b.type === 'p').id);

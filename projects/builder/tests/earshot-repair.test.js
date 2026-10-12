@@ -7,6 +7,7 @@ import { sessionModel, restoreModel, encodeSession, decodeSession } from '../../
 import { toHtml } from '../../../site/builder/earshot/html.js';
 import { extractDocument } from '../../../site/builder/earshot/extract.js';
 import { tagPdf } from '../../../site/builder/earshot/tagger.js';
+import { buildChecks } from '../../../site/builder/earshot/checks.js';
 import * as L from '../../../site/builder/earshot/vendor/pdf-lib.esm.min.js';
 
 const makePage = () => {
@@ -16,6 +17,36 @@ const makePage = () => {
   items.push({ s: 'Outside table', x: 40, y: 680, w: 90, size: 12, font: 'Body', i: i++ });
   return { n: 0, w: 600, h: 800, ox: 0, oy: 0, items, images: [] };
 };
+
+test('missed wrapped cells prompt review without changing tags; repaired tables clear the warning', () => {
+  let i = 0;
+  const p = { n: 0, w: 600, h: 800, images: [], items: [] };
+  const row = (texts, y, bold = false) => texts.forEach((s, col) => p.items.push({
+    s, x: [40, 215, 340][col], y, w: s.length * 6, size: 12, font: 'Body', bold, i: i++ }));
+  row(['Workshop', 'When', 'Cost'], 600, true);
+  row(['Digital confidence', 'Monday', '$10'], 558);
+  row(['skills for older adults'], 544);
+  row(['Cooking affordable', 'Tuesday', 'Free'], 512);
+  row(['meals for a family'], 498);
+  row(['Bike repairs', 'Friday', '$5'], 466);
+  row(['Next meeting is in June.'], 428);
+  const blocks = analyze([p]).blocks, unchanged = JSON.stringify(blocks);
+  assert.equal(blocks.filter(b => b.type === 'table').length, 0, 'the automatic suggestion still misses wrapped rows');
+  const S = { blocks, title: 'Workshops', bodySize: 12, ex: { pages: [p] } };
+  const check = buildChecks(S).find(c => c.tableRegion);
+  assert.equal(check.status, 'todo');
+  assert.equal(check.tableRegion.page, 0);
+  assert.ok(check.tableRegion.box[1] > 428, 'region excludes following prose');
+  assert.equal(JSON.stringify(blocks), unchanged, 'review check never retags content');
+  const table = regionTable(p, check.tableRegion.box, [200, 325], [580, 530, 482]);
+  assert.deepEqual(table.rows.map(r => r.map(c => c.text)), [
+    ['Workshop', 'When', 'Cost'], ['Digital confidence skills for older adults', 'Monday', '$10'],
+    ['Cooking affordable meals for a family', 'Tuesday', 'Free'], ['Bike repairs', 'Friday', '$5']]);
+  S.blocks = replaceWithTable(blocks, table).blocks;
+  assert.equal(buildChecks(S).some(c => c.tableRegion), false);
+  assert.ok(buildChecks(S).some(c => /Structure still needs your review/.test(c.title)));
+  assert.deepEqual(S.blocks.flatMap(b => b.items.map(it => it.i)).sort((a, b) => a - b), p.items.map(it => it.i));
+});
 test('manual table repair preserves every source run and residual prose, and can be restored', () => {
   const p = makePage();
   const before = analyze([p]).blocks;

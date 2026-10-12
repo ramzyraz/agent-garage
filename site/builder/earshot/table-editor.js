@@ -61,8 +61,8 @@ export async function editTable({ state: S, h, onApply, onError }, block) {
       list.append(h('label', { class: 'check' }, cb, b.text.slice(0, 100)));
     }
     list.append(pick); choices.append(list);
-    if (block?.type === 'table' && block.page === page.n) {
-      choose(block.tableGrid?.box || block.bbox, block.tableGrid);
+    if ((block?.type === 'table' || block?.reviewRegion) && block.page === page.n) {
+      choose(block.reviewRegion || block.tableGrid?.box || block.bbox, block.tableGrid);
       block = null;
     }
   }

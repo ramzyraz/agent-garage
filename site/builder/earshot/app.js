@@ -251,13 +251,13 @@ function banner() {
       ' ', h('button', { class: 'linkish', type: 'button', onclick: () => setMode('after') }, 'Review fixes →'),
     );
   } else {
-    el.className = 'banner ok';
+    el.className = 'banner warn';
     const chk = buildChecks(S);
     const todo = chk.filter(x => x.status === 'todo').length;
     el.append(
       h('strong', {}, `${S.source === 'existing' ? 'Starting from this PDF’s own tags:' : 'Earshot found'} ${c.headings} headings, ${c.paragraphs} paragraphs${c.lists ? `, ${c.lists} list items` : ''}${c.tables ? `, ${c.tables} ${c.tables === 1 ? 'table' : 'tables'}` : ''}${c.figures ? ` and ${c.figures} ${c.figures === 1 ? 'picture' : 'pictures'}` : ''}`),
       h('span', { class: 'wide-only' }, ` across ${S.ex.pages.length} ${S.ex.pages.length === 1 ? 'page' : 'pages'}${c.artifacts ? `, with ${c.artifacts} pieces of page furniture hidden` : ''}`), '. ',
-      todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'No missing fields found. Review the order, headings and tables before export.',
+      todo ? h('button', { class: 'linkish', type: 'button', onclick: () => showTab('checks') }, `${todo} ${todo === 1 ? 'thing needs' : 'things need'} you before export →`) : 'Fields are present; structure still needs your review before export.',
     );
   }
   if (S.ex.tagged) {
@@ -555,8 +555,8 @@ function renderChecks() {
   panel.textContent = '';
   const checks = buildChecks(S);
   const todo = checks.filter(c => c.status === 'todo').length;
-  $('#checkCount').textContent = todo ? String(todo) : '✓';
-  $('#mCheckCount').textContent = todo ? String(todo) : '✓';
+  $('#checkCount').textContent = todo ? String(todo) : 'Review';
+  $('#mCheckCount').textContent = todo ? String(todo) : 'Review';
   const titleIn = h('input', { type: 'text', id: 'docTitle', value: S.title, placeholder: 'e.g. Summer Recreation Programs 2027' });
   titleIn.addEventListener('input', () => { S.title = titleIn.value; markEdited(); });
   titleIn.addEventListener('change', () => renderAll());
@@ -570,6 +570,7 @@ function renderChecks() {
     h('ul', { class: 'checks' }, checks.map(c => h('li', { class: `chk s-${c.status}` },
       h('span', { class: 'ico', 'aria-hidden': 'true' }, c.status === 'ok' ? '✓' : c.status === 'todo' ? '!' : 'i'),
       h('div', {}, h('strong', {}, c.title), h('p', {}, c.detail),
+        c.tableRegion ? h('button', { type: 'button', class: 'linkish', onclick: () => makeTable({ page: c.tableRegion.page, reviewRegion: c.tableRegion.box }) }, 'Review possible table') : null,
         c.goto != null ? h('button', { type: 'button', class: 'linkish', onclick: () => { select(c.goto, true); } }, c.gotoLabel || 'Show me') : null)))),
     h('p', { class: 'honest' }, 'Automated checks can’t tell whether a description is accurate or the order makes sense to a person. That judgement is the part you’re doing here, and it is why Earshot never calls a file “compliant”.'),
   );

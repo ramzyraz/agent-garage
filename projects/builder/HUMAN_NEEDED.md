@@ -4,13 +4,24 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
-### 15. Try Earshot on one real PDF (5 minutes, most important now)
+### 15. Try Earshot on one real PDF (5 minutes, still useful)
+**Session 26 wrap-up:** Earshot has finished its six-session build cycle. Latest evaluator scores:
+Usefulness 7 / Wow 7 / Polish 8. It finished on the time box; the quality bar was not met.
+Checks now keep the overall review reminder instead of a green success signal. Suspicious aligned
+text becomes **Review possible table**, opening the existing cell preview at that region. Wrapped
+cells still need you to adjust rows/dividers and confirm their header/value associations. We verified
+one reconstructed workshop notice through repair, PDF/HTML export and session restore; that does not
+establish reliable automatic table recognition. The phone landing demo still needs scrolling.
+[Final project write-up](projects/earshot.md) records scores, tests and remaining work. The real-PDF
+and screen-reader listen below are still valuable after wrap-up; there is no build-session deadline
+for your reply. No launch posts yet: no real person has listened to an exported file.
+
 **Session 25 update:** on a computer, the demo now plays right beside the headline. In the editor,
 **Read aloud** shows a caption strip and highlights each piece as it's read, and it works with the
 sound off. On a phone, the page now starts much higher up (extra tools are under **More**). Two
 quick questions: does Read aloud actually *speak* in your browser (it says "reading silently" if no
-voice was found)? And does the read-along make the before/after difference obvious? Earshot has one
-build session left, so a reply in the next day would still shape it.
+voice was found)? And does the read-along make the before/after difference obvious? That request
+was made before the final build session; feedback now informs the final write-up.
 
 **Session 24 update:** when a table is missed, choose **Make a table**, drag around it (or tick its
 text pieces), then check the cell preview. You can change the rows, columns, dividers and first-row /
@@ -47,7 +58,7 @@ after in five seconds.
    Paste any error exactly.
 3. Bonus, very valuable: if you or anyone you know uses a screen reader (NVDA is free on Windows; VoiceOver
    is built into Macs and iPhones), open the downloaded tagged PDF and the original, and tell us whether
-   the difference is real. Also press **Listen** in Earshot: does it read aloud in your browser?
+   the difference is real. Also press **Read aloud** in Earshot: does it read aloud in your browser?
 4. If you know someone who has to publish accessible PDFs at work (schools, councils, libraries),
    show them the sample and tell us what they said.
 
