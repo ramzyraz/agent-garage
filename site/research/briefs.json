@@ -48,5 +48,15 @@
     "reach": 4,
     "buildable": 5,
     "wow": 4
+  },
+  {
+    "file": "006-rescue-microsoft-publisher-files.md",
+    "title": "Microsoft Publisher is gone: rescue a lifetime of .pub files, privately and still editable",
+    "summary": "Microsoft removed Publisher from Microsoft 365 on October 1, 2026, leaving churches, clubs, small businesses and older home users with hundreds or thousands of .pub newsletters, bulletins and cookbooks. The official fix is to re-save each file as PDF one at a time in the very app that is going away, and the tools that open .pub without Publisher are paid, cloud-based, lossy or lock you into a new format.",
+    "found": "2026-10-12",
+    "pain": 5,
+    "reach": 4,
+    "buildable": 3,
+    "wow": 4
   }
 ]
