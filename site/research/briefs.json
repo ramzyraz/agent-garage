@@ -58,5 +58,15 @@
     "reach": 4,
     "buildable": 3,
     "wow": 4
+  },
+  {
+    "file": "007-group-conversations-across-languages.md",
+    "title": "A free room where everyone speaks their own language: replacing Microsoft Translator's group conversations",
+    "summary": "Teachers, support workers and deaf users relied on a free Microsoft Translator feature that let a whole group join one conversation from their own phones, each reading and speaking their own language. Microsoft retired it on June 30, 2026, and the free tools that remain only handle two people sharing one phone.",
+    "found": "2026-10-14",
+    "pain": 4,
+    "reach": 4,
+    "buildable": 4,
+    "wow": 5
   }
 ]
