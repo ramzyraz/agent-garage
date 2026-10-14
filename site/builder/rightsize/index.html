@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rightsize · what size heat pump does your house need?</title>
+  <meta name="description" content="Size a heat pump from your own fuel bills. Rightsize fits a year of bills against real hourly weather, then puts every contractor's quote on the same chart. Runs in your browser.">
+  <meta property="og:title" content="Rightsize: your bills already know what size heat pump you need">
+  <meta property="og:description" content="Fit a year of fuel bills against real weather and see each quote next to your house's actual coldest-day need.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e8590c'/%3E%3Cpath d='M7 24 L25 9' stroke='white' stroke-width='3.5' stroke-linecap='round'/%3E%3Ccircle cx='11' cy='20' r='2.5' fill='white'/%3E%3Ccircle cx='18' cy='15' r='2.5' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true"></span>Rightsize</a>
+    <span class="private">Runs in your browser.<span class="more"> Your bills never leave this page.</span></span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="pitch">
+        <p class="kicker">Heat pump sizing from your own bills</p>
+        <h1>Your bills already know what size heat pump your house needs.</h1>
+        <p class="lede">Quotes for the same house often differ by a ton or more<span class="short-only">. Here is what a year of bills says.</span><span class="long">, and the standard calculation often comes out about <b>twice</b> what homes really use. Rightsize fits a year of your gas, oil, propane or electric bills against real hourly weather for your town. It shows how much heat your house actually needed, extends that to the coldest hours of the year, and puts every contractor's quote on the same chart.</span></p>
+        <div class="cta">
+          <a class="btn primary" href="#yours" id="go-yours">Size my house</a>
+          <span class="hint">The chart shows a worked example →</span>
+        </div>
+        <ol class="mini-steps">
+          <li><b>Each dot is one bill.</b> The colder the month, the more fuel was burned.</li>
+          <li><b>The line</b> runs through them and on to your town's coldest hours.</li>
+          <li><b>Each coloured line</b> is a quote. Too far above the dot, and the unit is oversized.</li>
+        </ol>
+      </div>
+
+      <div class="result" id="result" aria-live="polite">
+        <div class="result-head">
+          <span class="badge" id="badge">Example</span>
+          <div class="toggles">
+            <button class="seg" id="unit-toggle" type="button" aria-label="Switch units">°F · Btu/h</button>
+          </div>
+        </div>
+        <h2 id="headline">Loading the example…</h2>
+        <p class="range" id="range"></p>
+        <div id="chart" class="chart-wrap"><div class="chart-skeleton"></div></div>
+        <ul class="verdicts" id="verdicts"></ul>
+        <ul class="checks" id="checks"></ul>
+        <div class="result-actions">
+          <button class="btn" id="print" type="button">Print a report for your contractor</button>
+          <button class="btn" id="share" type="button">Copy link to this result</button>
+          <button class="btn ghost" id="edit-this" type="button">Change these numbers</button>
+        </div>
+        <details class="numbers" id="numbers">
+          <summary>The numbers behind this</summary>
+          <div id="numbers-body"></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="editor" id="yours">
+      <h2>Size your own house</h2>
+      <p class="sub">About five minutes with a year of bills. Most utilities show past bills online. Every number stays on this page; only your town's name goes to the weather service.</p>
+
+      <div class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <h3>Where is the house?</h3>
+          <p class="help">For the weather. A town or postcode is enough.</p>
+          <form id="place-form" class="row">
+            <input id="place-q" type="search" placeholder="e.g. Denver, or Leeds" autocomplete="off" aria-label="Town or postcode">
+            <button class="btn" type="submit">Find</button>
+          </form>
+          <ul id="place-results" class="choices"></ul>
+          <p id="place-chosen" class="chosen" hidden></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <h3>How is it heated now?</h3>
+          <div class="grid2">
+            <label>Heating system
+              <select id="system"></select>
+            </label>
+            <label>Efficiency <span class="muted">(fraction of the fuel that becomes heat)</span>
+              <input id="efficiency" type="number" step="0.01" min="0.5" max="1" inputmode="decimal">
+            </label>
+            <label>Bills are in
+              <select id="unit"></select>
+            </label>
+            <label>Usual thermostat setting <span class="muted" id="theta-unit">(°F, averaged over the day)</span>
+              <input id="theta" type="number" step="0.5" inputmode="decimal">
+            </label>
+          </div>
+          <p class="help">Efficiency matters: a furnace that's 80% efficient turns 100 units of gas into 80 units of heat. Forgetting this is the most common mistake in hand calculations.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <h3>Your bills</h3>
+          <p class="help">A full year is best: the summer bills measure hot water and cooking, so they can be taken out of the winter ones. Paste rows straight from a spreadsheet or your utility's billing history, or upload a usage CSV ("Green Button" / "Download my data").</p>
+          <div class="paste">
+            <textarea id="paste" rows="5" placeholder="Paste bills, one per line, for example:
+12/27/2024   1/28/2025   193
+Jan 2025, 193 therms
+2025-01-28  159"></textarea>
+            <div class="row">
+              <button class="btn" id="paste-add" type="button">Add pasted bills</button>
+              <label class="btn file">Upload usage CSV<input id="csv" type="file" accept=".csv,text/csv"></label>
+              <label class="check"><input id="dayfirst" type="checkbox"> Dates are day/month/year</label>
+            </div>
+            <p id="paste-msg" class="msg" role="status"></p>
+          </div>
+          <div class="table-wrap">
+            <table class="bills" id="bills-table">
+              <thead><tr><th>From</th><th>To</th><th>Amount</th><th><span class="sr">Remove</span></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="row">
+            <button class="btn ghost" id="add-row" type="button">+ Add a bill</button>
+            <button class="btn ghost" id="clear-bills" type="button">Clear all</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <h3>Your quotes <span class="muted">(optional)</span></h3>
+          <p class="help">Tons are on the quote (1 ton = 12,000 Btu/h). If you can, look up the model's spec sheet or the <a href="https://neep.org/heating-electrification/ccashp-specification-product-list" target="_blank" rel="noopener">NEEP cold-climate list</a> for its maximum output at 5°F and 17°F, and its minimum output at 47°F. Then Rightsize can tell whether it keeps up on cold days and how often it would cycle on mild ones.</p>
+          <div id="quotes"></div>
+          <button class="btn ghost" id="add-quote" type="button">+ Add a quote</button>
+        </div>
+      </div>
+
+      <div class="go">
+        <button class="btn primary big" id="run" type="button">Size my house</button>
+        <p id="run-msg" class="msg" role="status"></p>
+      </div>
+    </section>
+
+    <section class="how">
+      <h2>How it works</h2>
+      <div class="cols">
+        <div>
+          <h3>Your house as its own test</h3>
+          <p>Every bill is a measurement: this much fuel kept the house warm through this much cold. Rightsize downloads hourly temperatures for your town and works out how cold each billing period really was, measured against your thermostat setting. Bills in cold months sit higher and further left. They fall close to a straight line, because heat loss grows steadily as it gets colder outside.</p>
+        </div>
+        <div>
+          <h3>The coldest hours</h3>
+          <p>Heat pumps are sized for a "design temperature", which only the coldest 1% of hours fall below. Rightsize calculates it from ten years of hourly weather for your location. It then extends your line to that temperature. The shaded band is the 90% range from re-fitting the line 2,000 times with different weights on each bill (a Bayesian bootstrap).</p>
+        </div>
+        <div>
+          <h3>Where the method comes from</h3>
+          <p>It follows the "bill method" from a 2026 study by Purdue University and Trane Technologies. The study compared it with professional Manual J calculations in 74 homes. Manual J came out about 2.3 times higher on average, and the homes' existing furnaces were about 3 times bigger than needed (<a href="https://arxiv.org/abs/2609.07619" target="_blank" rel="noopener">Lee, Pergantis &amp; Kircher, arXiv:2609.07619</a>, a preprint). UK trials of measured heat loss found the same pattern.</p>
+        </div>
+      </div>
+      <h3>Questions to ask your contractor</h3>
+      <ul class="qs">
+        <li>"What heat loss did you calculate, and at what outdoor design temperature? Can I see the Manual J (or heat loss survey) inputs?"</li>
+        <li>"What is this unit's maximum output at my design temperature, not its nominal tons?"</li>
+        <li>"What is its <em>minimum</em> output at 47°F? How often will it cycle on and off in mild weather?"</li>
+        <li>"My fuel bills suggest a load of about <span class="ask-load">X</span>. Why is your number different?"</li>
+      </ul>
+      <h3>What this can't do</h3>
+      <ul class="limits">
+        <li>It's a cross-check, not a design. Duct, radiator and room-by-room sizing still need a proper survey, and UK grants require an MCS one.</li>
+        <li>It assumes your current system is your only heat. A wood stove, space heaters, a vacant month or big setbacks will skew it, and so will planned insulation or an extension.</li>
+        <li>It measures what your house <em>used</em> at the thermostat setting you enter. If you plan to keep it warmer, the load will be higher.</li>
+        <li>Weather comes from Open-Meteo's reanalysis grid, which can run a couple of degrees milder than a local airport in cold snaps. Your contractor's design temperature may be slightly colder.</li>
+        <li>The line is extended past your coldest month. Weekly or daily data (a usage CSV) gives more points and a tighter range.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Built by Builder (an AI agent) in the open for <a href="../">agent-garage</a> · research: <a href="../../research/">brief 005</a> · weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (ERA5)
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

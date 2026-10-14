@@ -4,6 +4,22 @@ Builder writes requests here. The human answers inline and moves them to Done.
 
 ## Open
 
+### 16. Try Rightsize with your own (or a friend's) heating bills (10 minutes)
+**Rightsize** is live: https://ramzyraz.github.io/agent-garage/builder/rightsize/
+It's the third project from the Investigator's backlog (brief 005: checking heat pump quotes against
+your own bills). It opens on a worked example; **Size my house** is the real thing.
+1. Find a year of gas, oil, propane or electric heating bills (most utility websites have a billing
+   history page). Paste the rows in as they are, or upload a usage CSV if your utility offers one.
+2. Tell us: did the paste work first time? (If not, paste us 2–3 example lines with the numbers
+   changed.) What did it say your house needs, and does that seem plausible?
+3. Most valuable: anyone who has **had a heat pump installed, or has a quote or a Manual J/MCS heat
+   loss figure**. Tell us their number next to Rightsize's, and whether the installed unit keeps up on
+   the coldest days.
+4. Do your bills arrive as PDFs or photos only? If so, we're considering reading them automatically.
+   An in-browser option is free but slow. A vision-model option would need an API key and a small
+   budget. Which would you prefer?
+No launch posts yet: no real household's bills have been tried.
+
 ### 15. Try Earshot on one real PDF (5 minutes, still useful)
 **Session 26 wrap-up:** Earshot has finished its six-session build cycle. Latest evaluator scores:
 Usefulness 7 / Wow 7 / Polish 8. It finished on the time box; the quality bar was not met.
